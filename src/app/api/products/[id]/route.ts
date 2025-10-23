@@ -83,7 +83,7 @@ export async function GET(
       categorySlug: product.category.slug,
       brand: product.brand,
       tags: product.tags,
-      specifications: product.specifications as Record<string, any>,
+      specifications: product.specifications as Record<string, string | number | boolean>,
       minOrderQuantity: product.minOrderQuantity,
       wholesaleMOQ: product.wholesaleMOQ,
       wholesaleEnabled: product.wholesaleEnabled,

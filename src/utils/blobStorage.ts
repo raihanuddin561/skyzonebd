@@ -98,7 +98,6 @@ export function getOptimizedImageUrl(
   } = {}
 ): string {
   const { width, height, quality = 80, format } = options;
-  const urlObj = new URL(url);
   const params = new URLSearchParams();
 
   if (width) params.set('w', width.toString());

@@ -146,11 +146,11 @@ export const dataService = {
       );
     },
 
-    getByCategory: async (category: string, queryParams?: any) => {
+    getByCategory: async (category: string, queryParams?: Record<string, string | number>) => {
       return withFallback(
         async () => {
           const response = await productService.getProductsByCategory(category, queryParams);
-          return (response.data as any)?.products || response.data || [];
+          return (response.data as { products?: unknown[] })?.products || response.data || [];
         },
         [],
         () => getProductsByCategory(category)
@@ -162,7 +162,7 @@ export const dataService = {
         async () => {
           const response = await productService.getFeaturedProducts();
           // API returns { success, data: { products: [...] } }
-          return (response.data as any)?.products || response.data || [];
+          return (response.data as { products?: unknown[] })?.products || response.data || [];
         },
         [],
         () => getFeaturedProducts()
@@ -180,7 +180,7 @@ export const dataService = {
       );
     },
 
-    search: async (query: string, filters?: any) => {
+    search: async (query: string, filters?: Record<string, string | number | boolean>) => {
       return withFallback(
         async () => {
           const response = await searchService.searchProducts(query, filters);
@@ -224,7 +224,7 @@ export const dataService = {
       );
     },
 
-    addReview: async (productId: number, review: any) => {
+    addReview: async (productId: number, review: { rating: number; comment: string; userName?: string }) => {
       return withFallback(
         async () => {
           const response = await productService.addProductReview(productId, review);
@@ -246,7 +246,7 @@ export const dataService = {
         async () => {
           const response = await categoryService.getAllCategories();
           // API returns array directly or in data field
-          return Array.isArray(response.data) ? response.data : ((response.data as any)?.categories || response.data || []);
+          return Array.isArray(response.data) ? response.data : ((response.data as { categories?: unknown[] })?.categories || response.data || []);
         },
         categories,
         () => categories
@@ -264,7 +264,7 @@ export const dataService = {
       );
     },
 
-    getProducts: async (id: number, queryParams?: any) => {
+    getProducts: async (id: number, queryParams?: Record<string, string | number>) => {
       return withFallback(
         async () => {
           const response = await categoryService.getCategoryProducts(id, queryParams);
@@ -296,7 +296,7 @@ export const dataService = {
 
   // Search
   search: {
-    products: async (query: string, filters?: any) => {
+    products: async (query: string, filters?: Record<string, string | number | boolean>) => {
       return withFallback(
         async () => {
           const response = await searchService.searchProducts(query, filters);
@@ -360,7 +360,7 @@ export const dataService = {
 
   // Companies
   companies: {
-    getAll: async (queryParams?: any) => {
+    getAll: async (queryParams?: Record<string, string | number>) => {
       return withFallback(
         async () => {
           const response = await companyService.getAllCompanies(queryParams);
@@ -399,7 +399,7 @@ export const dataService = {
       );
     },
 
-    getProducts: async (id: number, queryParams?: any) => {
+    getProducts: async (id: number, queryParams?: Record<string, string | number>) => {
       return withFallback(
         async () => {
           const response = await companyService.getCompanyProducts(id, queryParams);

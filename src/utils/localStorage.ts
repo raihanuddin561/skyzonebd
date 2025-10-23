@@ -86,7 +86,7 @@ export const safeLocalStorage = {
     }
   },
 
-  setJSON: (key: string, value: any): void => {
+  setJSON: <T>(key: string, value: T): void => {
     try {
       const jsonString = JSON.stringify(value);
       safeLocalStorage.setItem(key, jsonString);

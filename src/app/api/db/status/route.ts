@@ -38,14 +38,14 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString()
     })
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Database status check failed:', error)
     
     return NextResponse.json(
       { 
         success: false, 
         message: 'Database status check failed',
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         database: 'sagor_db',
         status: 'error'
       },
