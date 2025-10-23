@@ -28,6 +28,7 @@ export async function POST(request: Request) {
         // Delete existing data
         await prisma.product.deleteMany();
         await prisma.category.deleteMany();
+        await prisma.user.deleteMany();
       } else {
         return NextResponse.json({
           message: 'Database already seeded',
@@ -36,6 +37,21 @@ export async function POST(request: Request) {
         });
       }
     }
+
+    // Create admin user
+    console.log('👤 Creating admin user...');
+    const bcrypt = await import('bcryptjs');
+    const hashedPassword = await bcrypt.hash('11admin22', 10);
+    
+    await prisma.user.create({
+      data: {
+        email: 'admin@skyzonebd.com',
+        name: 'Admin User',
+        password: hashedPassword,
+        role: 'ADMIN',
+        isVerified: true,
+      },
+    });
 
     // Create categories
     console.log('📁 Creating categories...');
@@ -197,15 +213,23 @@ export async function POST(request: Request) {
     // Get counts
     const categoryCount = await prisma.category.count();
     const productCount = await prisma.product.count();
+    const userCount = await prisma.user.count();
 
     console.log('✅ Database seeded successfully!');
+    console.log(`👤 Users: ${userCount}`);
     console.log(`📁 Categories: ${categoryCount}`);
     console.log(`📦 Products: ${productCount}`);
 
     return NextResponse.json({
       success: true,
       message: 'Database seeded successfully',
+      credentials: {
+        email: 'admin@skyzonebd.com',
+        password: '11admin22',
+        note: 'Change password after first login'
+      },
       data: {
+        users: userCount,
         categories: categoryCount,
         products: productCount,
       },
@@ -230,10 +254,12 @@ export async function GET() {
   try {
     const productCount = await prisma.product.count();
     const categoryCount = await prisma.category.count();
+    const userCount = await prisma.user.count();
 
     return NextResponse.json({
       seeded: productCount > 0,
       data: {
+        users: userCount,
         products: productCount,
         categories: categoryCount,
       },
