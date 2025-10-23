@@ -5,53 +5,33 @@ const prisma = new PrismaClient();
 
 export async function POST(request: Request) {
   try {
+    // ALWAYS require authentication for seeding
+    const authHeader = request.headers.get('authorization');
+    const seedSecret = process.env.SEED_SECRET;
+    
+    if (!seedSecret) {
+      return NextResponse.json({
+        error: 'Seeding disabled: SEED_SECRET not configured in environment variables'
+      }, { status: 503 });
+    }
+    
+    if (authHeader !== `Bearer ${seedSecret}`) {
+      return NextResponse.json({
+        error: 'Unauthorized: Invalid or missing SEED_SECRET'
+      }, { status: 401 });
+    }
+
     console.log('🌱 Starting database seed...');
 
     // Check if data already exists
     const existingProducts = await prisma.product.count();
     if (existingProducts > 0) {
-      // If database is already seeded, require authentication for re-seeding
-      const authHeader = request.headers.get('authorization');
-      const seedSecret = process.env.SEED_SECRET;
-      
-      if (seedSecret && authHeader !== `Bearer ${seedSecret}`) {
-        return NextResponse.json({
-          message: 'Database already seeded. Provide SEED_SECRET to re-seed.',
-          productsCount: existingProducts,
-          skipped: true
-        }, { status: 403 });
-      }
-      
-      // If authenticated or no SEED_SECRET set, allow re-seeding
-      if (!seedSecret || authHeader === `Bearer ${seedSecret}`) {
-        console.log('🔄 Re-seeding database (authenticated)...');
-        // Delete existing data
-        await prisma.product.deleteMany();
-        await prisma.category.deleteMany();
-        await prisma.user.deleteMany();
-      } else {
-        return NextResponse.json({
-          message: 'Database already seeded',
-          productsCount: existingProducts,
-          skipped: true
-        });
-      }
+      console.log('🔄 Re-seeding database (deleting existing data)...');
+      // Delete existing data
+      await prisma.product.deleteMany();
+      await prisma.category.deleteMany();
+      // Note: Not deleting users to preserve existing accounts
     }
-
-    // Create admin user
-    console.log('👤 Creating admin user...');
-    const bcrypt = await import('bcryptjs');
-    const hashedPassword = await bcrypt.hash('11admin22', 10);
-    
-    await prisma.user.create({
-      data: {
-        email: 'admin@skyzonebd.com',
-        name: 'Admin User',
-        password: hashedPassword,
-        role: 'ADMIN',
-        isVerified: true,
-      },
-    });
 
     // Create categories
     console.log('📁 Creating categories...');
@@ -213,23 +193,15 @@ export async function POST(request: Request) {
     // Get counts
     const categoryCount = await prisma.category.count();
     const productCount = await prisma.product.count();
-    const userCount = await prisma.user.count();
 
     console.log('✅ Database seeded successfully!');
-    console.log(`👤 Users: ${userCount}`);
     console.log(`📁 Categories: ${categoryCount}`);
     console.log(`📦 Products: ${productCount}`);
 
     return NextResponse.json({
       success: true,
       message: 'Database seeded successfully',
-      credentials: {
-        email: 'admin@skyzonebd.com',
-        password: '11admin22',
-        note: 'Change password after first login'
-      },
       data: {
-        users: userCount,
         categories: categoryCount,
         products: productCount,
       },
@@ -249,17 +221,25 @@ export async function POST(request: Request) {
   }
 }
 
-// GET method to check seed status
-export async function GET() {
+// GET method to check seed status (also requires auth)
+export async function GET(request: Request) {
   try {
+    // Require authentication for status check too
+    const authHeader = request.headers.get('authorization');
+    const seedSecret = process.env.SEED_SECRET;
+    
+    if (!seedSecret || authHeader !== `Bearer ${seedSecret}`) {
+      return NextResponse.json({
+        error: 'Unauthorized: This endpoint requires SEED_SECRET'
+      }, { status: 401 });
+    }
+
     const productCount = await prisma.product.count();
     const categoryCount = await prisma.category.count();
-    const userCount = await prisma.user.count();
 
     return NextResponse.json({
       seeded: productCount > 0,
       data: {
-        users: userCount,
         products: productCount,
         categories: categoryCount,
       },

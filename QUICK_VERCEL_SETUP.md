@@ -20,9 +20,9 @@ NEXTAUTH_SECRET=<generate-another-strong-random-string>
 BLOB_READ_WRITE_TOKEN=<your-vercel-blob-token>
 ```
 
-**Optional but recommended:**
+**Required for seeding:**
 ```bash
-SEED_SECRET=<random-string-for-seed-api-protection>
+SEED_SECRET=<generate-strong-random-32-char-string>
 ```
 
 ### Step 2: Trigger Redeploy (Creates Tables)
@@ -35,22 +35,16 @@ After adding environment variables:
 
 ### Step 3: Seed the Database
 
-#### Option A: Using the Seed API (Easiest)
+#### Option A: Using the Seed API (Requires SEED_SECRET)
 
-Once deployment is complete, call the seed endpoint:
+Once deployment is complete, call the seed endpoint with authentication:
 
-**If you set SEED_SECRET:**
 ```bash
 curl -X POST https://your-app.vercel.app/api/seed \
   -H "Authorization: Bearer YOUR_SEED_SECRET"
 ```
 
-**If you didn't set SEED_SECRET (dev mode):**
-```bash
-curl -X POST https://your-app.vercel.app/api/seed
-```
-
-Or visit in browser: `https://your-app.vercel.app/api/seed`
+**Note:** You MUST set `SEED_SECRET` in Vercel environment variables first. The endpoint is protected and won't work without it.
 
 #### Option B: Using Vercel CLI (Alternative)
 
@@ -77,7 +71,12 @@ Check these URLs:
 - ✅ Database status: `https://your-app.vercel.app/api/db/status`
 - ✅ Products API: `https://your-app.vercel.app/api/products`
 - ✅ Categories API: `https://your-app.vercel.app/api/categories`
-- ✅ Seed status: `https://your-app.vercel.app/api/seed` (GET request)
+
+To check seed status (requires SEED_SECRET):
+```bash
+curl https://your-app.vercel.app/api/seed \
+  -H "Authorization: Bearer YOUR_SEED_SECRET"
+```
 
 ---
 
@@ -87,8 +86,9 @@ Check these URLs:
 - [ ] Add `JWT_SECRET` to Vercel environment variables
 - [ ] Add `NEXTAUTH_SECRET` to Vercel environment variables
 - [ ] Add `BLOB_READ_WRITE_TOKEN` to Vercel environment variables
+- [ ] Add `SEED_SECRET` to Vercel environment variables (required for seeding)
 - [ ] Redeploy to run migrations (creates tables)
-- [ ] Call `/api/seed` endpoint to populate data
+- [ ] Call `/api/seed` endpoint with SEED_SECRET to populate data
 - [ ] Verify products appear on the website
 
 ---
@@ -125,7 +125,14 @@ All products use Unsplash images (free CDN).
 **Solution:** This is good! Your database is already populated.
 
 ### Error: Unauthorized when calling /api/seed
-**Solution:** Set `SEED_SECRET` in Vercel env vars and use it in the Authorization header.
+**Solution:** You MUST set `SEED_SECRET` in Vercel environment variables and include it in the Authorization header:
+```bash
+curl -X POST https://your-app.vercel.app/api/seed \
+  -H "Authorization: Bearer your-seed-secret-here"
+```
+
+### Error: Seeding disabled
+**Solution:** The `SEED_SECRET` environment variable is not set in Vercel. Add it first.
 
 ### Products API returns empty array
 **Solution:** The tables exist but aren't seeded. Call `/api/seed` endpoint.
