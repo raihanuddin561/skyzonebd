@@ -5,27 +5,36 @@ const prisma = new PrismaClient();
 
 export async function POST(request: Request) {
   try {
-    // Security: Only allow in development or with secret
-    const authHeader = request.headers.get('authorization');
-    const seedSecret = process.env.SEED_SECRET || 'default-dev-secret';
-    
-    if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${seedSecret}`) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Set SEED_SECRET in environment variables.' },
-        { status: 401 }
-      );
-    }
-
     console.log('🌱 Starting database seed...');
 
     // Check if data already exists
     const existingProducts = await prisma.product.count();
     if (existingProducts > 0) {
-      return NextResponse.json({
-        message: 'Database already seeded',
-        productsCount: existingProducts,
-        skipped: true
-      });
+      // If database is already seeded, require authentication for re-seeding
+      const authHeader = request.headers.get('authorization');
+      const seedSecret = process.env.SEED_SECRET;
+      
+      if (seedSecret && authHeader !== `Bearer ${seedSecret}`) {
+        return NextResponse.json({
+          message: 'Database already seeded. Provide SEED_SECRET to re-seed.',
+          productsCount: existingProducts,
+          skipped: true
+        }, { status: 403 });
+      }
+      
+      // If authenticated or no SEED_SECRET set, allow re-seeding
+      if (!seedSecret || authHeader === `Bearer ${seedSecret}`) {
+        console.log('🔄 Re-seeding database (authenticated)...');
+        // Delete existing data
+        await prisma.product.deleteMany();
+        await prisma.category.deleteMany();
+      } else {
+        return NextResponse.json({
+          message: 'Database already seeded',
+          productsCount: existingProducts,
+          skipped: true
+        });
+      }
     }
 
     // Create categories
