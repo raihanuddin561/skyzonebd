@@ -1,0 +1,346 @@
+// B2B Ecommerce Database Schema
+// Database: sagor_db (PostgreSQL)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  phone        String?
+  companyName  String?
+  password     String
+  role         UserRole @default(BUYER)
+  userType     UserType @default(RETAIL)  // B2C or B2B customer type
+  isActive     Boolean  @default(true)
+  isVerified   Boolean  @default(false)   // For B2B verification
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // B2B Specific Fields
+  businessInfo BusinessInfo?
+  
+  // Relations
+  orders       Order[]
+  addresses    Address[]
+  rfqs         RFQ[]
+  
+  @@map("users")
+}
+
+// Business Information for B2B Users
+model BusinessInfo {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  companyType           String?  // Retailer, Distributor, Manufacturer
+  registrationNumber    String?
+  taxId                 String?
+  website               String?
+  employeeCount         String?
+  annualPurchaseVolume  String?
+  tradeLicenseUrl       String?
+  taxCertificateUrl     String?
+  verificationStatus    VerificationStatus @default(PENDING)
+  verifiedAt            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // Relations
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("business_info")
+}
+
+model Address {
+  id           String      @id @default(cuid())
+  userId       String
+  type         AddressType @default(SHIPPING)
+  street       String
+  city         String
+  state        String?
+  postalCode   String?
+  country      String      @default("Bangladesh")
+  isDefault    Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  
+  // Relations
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("addresses")
+}
+
+// Product Management
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  products    Product[]
+  
+  @@map("categories")
+}
+
+model Product {
+  id               String        @id @default(cuid())
+  name             String
+  slug             String        @unique
+  description      String?
+  
+  // Images (Vercel Blob URLs)
+  imageUrl         String        // Primary product image
+  imageUrls        String[]      @default([]) // Additional images (gallery)
+  thumbnailUrl     String?       // Optimized thumbnail
+  
+  // Product Details
+  brand            String?
+  tags             String[]      @default([])
+  specifications   Json?         // Flexible specifications as JSON
+  
+  // B2C Pricing
+  retailPrice      Float         // Standard retail price for individual customers
+  salePrice        Float?        // Promotional/sale price for retail
+  retailMOQ        Int           @default(1) // Minimum order for retail (usually 1)
+  comparePrice     Float?        // Original price for showing discounts
+  
+  // B2B Pricing
+  wholesaleEnabled Boolean       @default(false) // Is wholesale available?
+  wholesaleMOQ     Int           @default(5) // Minimum order quantity for wholesale
+  baseWholesalePrice Float?      // Base wholesale price
+  
+  // Legacy fields for backward compatibility
+  price            Float         // Maps to retailPrice
+  wholesalePrice   Float?        // Deprecated, use wholesaleTiers
+  minOrderQuantity Int           @default(1)
+  
+  // Inventory
+  stockQuantity    Int           @default(0)
+  availability     String        @default("in_stock") // in_stock, limited, out_of_stock
+  sku              String?       @unique
+  
+  // Metadata
+  categoryId       String
+  isActive         Boolean       @default(true)
+  isFeatured       Boolean       @default(false)
+  rating           Float?
+  reviewCount      Int           @default(0)
+  
+  // SEO
+  metaTitle        String?
+  metaDescription  String?
+  
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  
+  // Relations
+  category         Category      @relation(fields: [categoryId], references: [id])
+  orderItems       OrderItem[]
+  wholesaleTiers   WholesaleTier[]
+  rfqItems         RFQItem[]
+  
+  @@map("products")
+}
+
+// Wholesale Pricing Tiers for B2B
+model WholesaleTier {
+  id          String   @id @default(cuid())
+  productId   String
+  minQuantity Int
+  maxQuantity Int?     // null means unlimited
+  price       Float
+  discount    Float    // Percentage discount from retail
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@unique([productId, minQuantity])
+  @@map("wholesale_tiers")
+}
+
+// Order Management
+model Order {
+  id              String        @id @default(cuid())
+  orderNumber     String        @unique
+  userId          String?       // Nullable for guest orders
+  guestEmail      String?
+  guestName       String?
+  guestPhone      String?
+  guestCompany    String?
+  
+  // Order Details
+  subtotal        Float
+  tax             Float         @default(0)
+  shipping        Float         @default(0)
+  total           Float
+  
+  // Status
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentMethod   String
+  
+  // Addresses
+  shippingAddress String
+  billingAddress  String
+  
+  // Notes
+  notes           String?
+  
+  // Timestamps
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  user            User?         @relation(fields: [userId], references: [id])
+  orderItems      OrderItem[]
+  payments        Payment[]
+  
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float    // Price at time of order
+  total     Float    // quantity * price
+  createdAt DateTime @default(now())
+  
+  // Relations
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+  
+  @@map("order_items")
+}
+
+// Payment Management
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String
+  amount        Float
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  transactionId String?
+  gateway       String?       // bKash, Nagad, etc.
+  gatewayRef    String?       // Gateway transaction reference
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Relations
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  @@map("payments")
+}
+
+// Request for Quote (B2B Feature)
+model RFQ {
+  id              String      @id @default(cuid())
+  rfqNumber       String      @unique
+  userId          String
+  subject         String
+  message         String?
+  targetPrice     Float?
+  status          RFQStatus   @default(PENDING)
+  expiresAt       DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  user            User        @relation(fields: [userId], references: [id])
+  items           RFQItem[]
+  
+  @@map("rfqs")
+}
+
+model RFQItem {
+  id          String   @id @default(cuid())
+  rfqId       String
+  productId   String
+  quantity    Int
+  notes       String?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  rfq         RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+  
+  @@map("rfq_items")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  SELLER
+  BUYER
+}
+
+enum UserType {
+  RETAIL      // B2C - Individual/retail customers
+  WHOLESALE   // B2B - Business/wholesale customers
+  GUEST       // Not logged in
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RESUBMIT
+}
+
+enum RFQStatus {
+  PENDING
+  QUOTED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum AddressType {
+  SHIPPING
+  BILLING
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH_ON_DELIVERY
+  BKASH
+  NAGAD
+  ROCKET
+  CREDIT_CARD
+  INVOICE_NET30  // B2B payment terms
+  INVOICE_NET60
+}
