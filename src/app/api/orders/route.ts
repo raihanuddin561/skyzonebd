@@ -400,9 +400,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Build update data
-    const updateData: { status?: string; paymentStatus?: string } = {};
-    if (status) updateData.status = status.toUpperCase();
-    if (paymentStatus) updateData.paymentStatus = paymentStatus.toUpperCase();
+    const updateData: {
+      status?: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+      paymentStatus?: 'PENDING' | 'PAID' | 'FAILED';
+    } = {};
+    if (status) updateData.status = status.toUpperCase() as 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+    if (paymentStatus) updateData.paymentStatus = paymentStatus.toUpperCase() as 'PENDING' | 'PAID' | 'FAILED';
 
     // Update order
     const updatedOrder = await prisma.order.update({

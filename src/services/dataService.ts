@@ -79,7 +79,7 @@ export const dataService = {
         async () => {
           const response = await productService.getAllProducts(queryParams);
           // API returns { success, data: { products: [...], pagination: {...} } }
-          return (response.data as any)?.products || response.data || [];
+          return (response.data as { products?: unknown[] })?.products || response.data || [];
         },
         allProducts,
         () => {
@@ -108,8 +108,9 @@ export const dataService = {
           // Apply sorting
           if (queryParams?.sortBy) {
             filteredProducts.sort((a, b) => {
-              const aValue = (a as any)[queryParams.sortBy!];
-              const bValue = (b as any)[queryParams.sortBy!];
+              const sortBy = queryParams.sortBy as keyof typeof a;
+              const aValue = a[sortBy] ?? 0;
+              const bValue = b[sortBy] ?? 0;
               
               if (queryParams.sortOrder === 'desc') {
                 return bValue > aValue ? 1 : -1;
@@ -157,14 +158,14 @@ export const dataService = {
       );
     },
 
-    getFeatured: async () => {
+    getFeatured: async (): Promise<Product[]> => {
       return withFallback(
         async () => {
           const response = await productService.getFeaturedProducts();
           // API returns { success, data: { products: [...] } }
-          return (response.data as { products?: unknown[] })?.products || response.data || [];
+          return (response.data as { products?: Product[] })?.products || (response.data as Product[]) || [];
         },
-        [],
+        [] as Product[],
         () => getFeaturedProducts()
       );
     },

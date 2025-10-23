@@ -80,12 +80,15 @@ export default function CheckoutPage() {
 
       console.log('🛒 Cart items:', items.map(item => ({ id: item.product.id, name: item.product.name })));
       console.log('📦 Order payload:', orderPayload);
-      console.log('🆔 Product IDs type check:', orderPayload.items.map(item => ({ 
-        id: item.productId, 
-        type: typeof item.productId,
-        isString: typeof item.productId === 'string',
-        isCuid: typeof item.productId === 'string' && item.productId.startsWith('cm')
-      })));
+      console.log('🆔 Product IDs type check:', orderPayload.items.map(item => {
+        const prodId = String(item.productId);
+        return { 
+          id: prodId, 
+          type: typeof item.productId,
+          isString: typeof item.productId === 'string',
+          isCuid: prodId.startsWith('cm')
+        };
+      }));
 
       // Call the actual API to create the order
       const token = localStorage.getItem('token');

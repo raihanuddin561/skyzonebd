@@ -60,7 +60,7 @@ class ApiService {
   }
 
   // GET request
-  async get<T>(endpoint: string, params?: Record<string, string | number>, queryParams?: Record<string, any>): Promise<ApiResponse<T>> {
+  async get<T>(endpoint: string, params?: Record<string, string | number>, queryParams?: Record<string, string | number | boolean>): Promise<ApiResponse<T>> {
     let url = endpoint;
     if (queryParams) {
       const queryString = buildQueryString(queryParams);
@@ -70,7 +70,7 @@ class ApiService {
   }
 
   // POST request
-  async post<T>(endpoint: string, data?: any, params?: Record<string, string | number>): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, data?: Record<string, unknown> | unknown[], params?: Record<string, string | number>): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -78,7 +78,7 @@ class ApiService {
   }
 
   // PUT request
-  async put<T>(endpoint: string, data?: any, params?: Record<string, string | number>): Promise<ApiResponse<T>> {
+  async put<T>(endpoint: string, data?: Record<string, unknown> | unknown[], params?: Record<string, string | number>): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -91,7 +91,7 @@ class ApiService {
   }
 
   // File upload
-  async uploadFile<T>(endpoint: string, file: File, additionalData?: Record<string, any>): Promise<ApiResponse<T>> {
+  async uploadFile<T>(endpoint: string, file: File, additionalData?: Record<string, string | number | boolean>): Promise<ApiResponse<T>> {
     const formData = new FormData();
     formData.append('file', file);
     
@@ -143,7 +143,7 @@ export const authService = {
     return apiService.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
   },
 
-  register: async (userData: any) => {
+  register: async (userData: { name: string; email: string; password: string; role?: string }) => {
     return apiService.post(API_ENDPOINTS.AUTH.REGISTER, userData);
   },
 
@@ -169,7 +169,7 @@ export const authService = {
 };
 
 export const productService = {
-  getAllProducts: async (queryParams?: Record<string, any>) => {
+  getAllProducts: async (queryParams?: Record<string, string | number | boolean>) => {
     return apiService.get(API_ENDPOINTS.PRODUCTS.GET_ALL, undefined, queryParams);
   },
 
@@ -177,11 +177,11 @@ export const productService = {
     return apiService.get(API_ENDPOINTS.PRODUCTS.GET_BY_ID, { id });
   },
 
-  searchProducts: async (query: string, filters?: Record<string, any>) => {
+  searchProducts: async (query: string, filters?: Record<string, string | number | boolean>) => {
     return apiService.get(API_ENDPOINTS.PRODUCTS.SEARCH, undefined, { q: query, ...filters });
   },
 
-  getProductsByCategory: async (category: string, queryParams?: Record<string, any>) => {
+  getProductsByCategory: async (category: string, queryParams?: Record<string, string | number | boolean>) => {
     return apiService.get(API_ENDPOINTS.PRODUCTS.GET_BY_CATEGORY, { category }, queryParams);
   },
 
@@ -201,7 +201,7 @@ export const productService = {
     return apiService.get(API_ENDPOINTS.PRODUCTS.GET_REVIEWS, { id });
   },
 
-  addProductReview: async (id: number, review: any) => {
+  addProductReview: async (id: number, review: { rating: number; comment: string; userName?: string }) => {
     return apiService.post(API_ENDPOINTS.PRODUCTS.ADD_REVIEW, review, { id });
   },
 };
@@ -259,11 +259,11 @@ export const wishlistService = {
 };
 
 export const orderService = {
-  createOrder: async (orderData: any) => {
+  createOrder: async (orderData: Record<string, unknown>) => {
     return apiService.post(API_ENDPOINTS.ORDERS.CREATE_ORDER, orderData);
   },
 
-  getOrders: async (queryParams?: Record<string, any>) => {
+  getOrders: async (queryParams?: Record<string, string | number | boolean>) => {
     return apiService.get(API_ENDPOINTS.ORDERS.GET_ORDERS, undefined, queryParams);
   },
 
@@ -289,7 +289,7 @@ export const userService = {
     return apiService.get(API_ENDPOINTS.USER.GET_PROFILE);
   },
 
-  updateProfile: async (profileData: any) => {
+  updateProfile: async (profileData: Record<string, unknown>) => {
     return apiService.put(API_ENDPOINTS.USER.UPDATE_PROFILE, profileData);
   },
 
@@ -301,7 +301,7 @@ export const userService = {
     return apiService.uploadFile(API_ENDPOINTS.USER.UPLOAD_AVATAR, file);
   },
 
-  getUserOrders: async (queryParams?: Record<string, any>) => {
+  getUserOrders: async (queryParams?: Record<string, string | number | boolean>) => {
     return apiService.get(API_ENDPOINTS.USER.GET_ORDERS, undefined, queryParams);
   },
 
@@ -311,7 +311,7 @@ export const userService = {
 };
 
 export const searchService = {
-  searchProducts: async (query: string, filters?: Record<string, any>) => {
+  searchProducts: async (query: string, filters?: Record<string, string | number | boolean>) => {
     return apiService.get(API_ENDPOINTS.SEARCH.PRODUCTS, undefined, { q: query, ...filters });
   },
 
@@ -337,7 +337,7 @@ export const categoryService = {
     return apiService.get(API_ENDPOINTS.CATEGORIES.GET_BY_ID, { id });
   },
 
-  getCategoryProducts: async (id: number, queryParams?: Record<string, any>) => {
+  getCategoryProducts: async (id: number, queryParams?: Record<string, string | number | boolean>) => {
     return apiService.get(API_ENDPOINTS.CATEGORIES.GET_PRODUCTS, { id }, queryParams);
   },
 
@@ -347,7 +347,7 @@ export const categoryService = {
 };
 
 export const companyService = {
-  getAllCompanies: async (queryParams?: Record<string, any>) => {
+  getAllCompanies: async (queryParams?: Record<string, string | number | boolean>) => {
     return apiService.get(API_ENDPOINTS.COMPANIES.GET_ALL, undefined, queryParams);
   },
 
@@ -355,7 +355,7 @@ export const companyService = {
     return apiService.get(API_ENDPOINTS.COMPANIES.GET_BY_ID, { id });
   },
 
-  getCompanyProducts: async (id: number, queryParams?: Record<string, any>) => {
+  getCompanyProducts: async (id: number, queryParams?: Record<string, string | number | boolean>) => {
     return apiService.get(API_ENDPOINTS.COMPANIES.GET_PRODUCTS, { id }, queryParams);
   },
 
@@ -363,11 +363,11 @@ export const companyService = {
     return apiService.get(API_ENDPOINTS.COMPANIES.GET_PROFILE);
   },
 
-  updateCompanyProfile: async (profileData: any) => {
+  updateCompanyProfile: async (profileData: Record<string, unknown>) => {
     return apiService.put(API_ENDPOINTS.COMPANIES.UPDATE_PROFILE, profileData);
   },
 
-  verifyCompany: async (verificationData: any) => {
+  verifyCompany: async (verificationData: Record<string, unknown>) => {
     return apiService.post(API_ENDPOINTS.COMPANIES.VERIFY_COMPANY, verificationData);
   },
 };

@@ -10,8 +10,8 @@ async function main() {
   await prisma.orderItem.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.order.deleteMany();
-  await prisma.rfqItem.deleteMany();
-  await prisma.rfq.deleteMany();
+  await prisma.rFQItem.deleteMany();
+  await prisma.rFQ.deleteMany();
   await prisma.wholesaleTier.deleteMany();
   await prisma.product.deleteMany();
   await prisma.category.deleteMany();

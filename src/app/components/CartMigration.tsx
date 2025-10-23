@@ -14,7 +14,8 @@ export function CartMigration() {
     // Check if any cart items have numeric IDs (old format)
     const hasOldFormat = items.some(item => {
       const id = item.product.id;
-      return typeof id === 'number' || (typeof id === 'string' && !id.startsWith('cm'));
+      const idStr = String(id);
+      return typeof id === 'number' || (typeof id === 'string' && !idStr.startsWith('cm'));
     });
 
     if (hasOldFormat && items.length > 0) {
