@@ -38,7 +38,7 @@ export async function uploadToBlob(
       url: blob.url,
       pathname: blob.pathname,
       contentType: blob.contentType || file.type,
-      size: blob.size,
+      size: file.size,
     };
   } catch (error) {
     console.error('Upload to Blob failed:', error);
