@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verify } from 'jsonwebtoken';
+import { verify, JwtPayload } from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
+
+interface DecodedToken extends JwtPayload {
+  userId: string;
+  role: string;
+}
+
+interface OrderItem {
+  productId: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,9 +54,9 @@ export async function POST(request: NextRequest) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
         const token = authHeader.substring(7);
-        const decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
+        const decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
         userId = decoded.userId;
-      } catch (error) {
+      } catch {
         // Token invalid, treat as guest order
       }
     }
@@ -66,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate order totals
-    const subtotal = items.reduce((sum: number, item: any) => 
+    const subtotal = items.reduce((sum: number, item: OrderItem) => 
       sum + (item.price * item.quantity), 0);
     
     const shipping = 50; // Fixed shipping cost
@@ -78,7 +90,7 @@ export async function POST(request: NextRequest) {
     
     // Log items and their productIds for debugging
     console.log('🔍 Processing order items:');
-    items.forEach((item: any, index: number) => {
+    items.forEach((item: OrderItem, index: number) => {
       console.log(`  Item ${index + 1}:`, {
         productId: item.productId,
         type: typeof item.productId,
@@ -130,7 +142,7 @@ export async function POST(request: NextRequest) {
         billingAddress,
         notes: notes || undefined,
         orderItems: {
-          create: items.map((item: any) => ({
+          create: items.map((item: OrderItem) => ({
             productId: item.productId.toString(),
             quantity: item.quantity,
             price: item.price,
@@ -215,11 +227,10 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    let decoded: any;
+    let decoded: DecodedToken;
     try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
-    } catch (err) {
-      console.error('❌ Token verification failed:', err);
+      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+    } catch {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },
         { status: 401 }
@@ -342,10 +353,10 @@ export async function PATCH(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    let decoded: any;
+    let decoded: DecodedToken;
     try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
-    } catch (err) {
+      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+    } catch {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },
         { status: 401 }
@@ -389,7 +400,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Build update data
-    const updateData: any = {};
+    const updateData: { status?: string; paymentStatus?: string } = {};
     if (status) updateData.status = status.toUpperCase();
     if (paymentStatus) updateData.paymentStatus = paymentStatus.toUpperCase();
 
@@ -454,7 +465,7 @@ export async function PATCH(request: NextRequest) {
 
   } catch (error) {
     console.error('Update Order API Error:', error);
-    if ((error as any).code === 'P2025') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
       return NextResponse.json(
         { success: false, error: 'Order not found' },
         { status: 404 }
