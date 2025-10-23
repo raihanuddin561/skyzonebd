@@ -1,7 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient, Prisma } from '@prisma/client';
+import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
+
+// Helper to verify JWT and check admin role
+function verifyAdmin(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return { authorized: false, error: 'No authorization token' };
+    }
+
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string; role: string };
+
+    if (decoded.role !== 'ADMIN') {
+      return { authorized: false, error: 'Admin access required' };
+    }
+
+    return { authorized: true, userId: decoded.userId };
+  } catch {
+    return { authorized: false, error: 'Invalid token' };
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -168,6 +190,139 @@ export async function GET(request: NextRequest) {
     console.error('Products API Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch products', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+// POST - Create new product (Admin only)
+export async function POST(request: NextRequest) {
+  try {
+    // Verify admin access
+    const auth = verifyAdmin(request);
+    if (!auth.authorized) {
+      return NextResponse.json({ error: auth.error }, { status: 401 });
+    }
+
+    const body = await request.json();
+    
+    // Validate required fields
+    const requiredFields = ['name', 'slug', 'categoryId', 'imageUrl', 'price', 'retailPrice'];
+    for (const field of requiredFields) {
+      if (!body[field]) {
+        return NextResponse.json(
+          { error: `Missing required field: ${field}` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Check if slug already exists
+    const existing = await prisma.product.findUnique({
+      where: { slug: body.slug }
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Product with this slug already exists' },
+        { status: 409 }
+      );
+    }
+
+    // Create product
+    const product = await prisma.product.create({
+      data: {
+        name: body.name,
+        slug: body.slug,
+        description: body.description,
+        imageUrl: body.imageUrl,
+        imageUrls: body.imageUrls || [body.imageUrl],
+        thumbnailUrl: body.thumbnailUrl,
+        brand: body.brand,
+        tags: body.tags || [],
+        specifications: body.specifications || {},
+        retailPrice: body.retailPrice,
+        salePrice: body.salePrice,
+        retailMOQ: body.retailMOQ || 1,
+        comparePrice: body.comparePrice,
+        wholesaleEnabled: body.wholesaleEnabled || false,
+        wholesaleMOQ: body.wholesaleMOQ || 5,
+        baseWholesalePrice: body.baseWholesalePrice,
+        price: body.price,
+        wholesalePrice: body.wholesalePrice,
+        minOrderQuantity: body.minOrderQuantity || 1,
+        stockQuantity: body.stockQuantity || 0,
+        availability: body.availability || 'in_stock',
+        sku: body.sku,
+        categoryId: body.categoryId,
+        isActive: body.isActive !== undefined ? body.isActive : true,
+        isFeatured: body.isFeatured || false,
+        rating: body.rating,
+        reviewCount: body.reviewCount || 0,
+        metaTitle: body.metaTitle,
+        metaDescription: body.metaDescription,
+      },
+      include: {
+        category: true,
+        wholesaleTiers: true,
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: product,
+      message: 'Product created successfully'
+    }, { status: 201 });
+
+  } catch (error) {
+    console.error('Create Product Error:', error);
+    return NextResponse.json(
+      { error: 'Failed to create product', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+// DELETE - Delete multiple products (Admin only)
+export async function DELETE(request: NextRequest) {
+  try {
+    // Verify admin access
+    const auth = verifyAdmin(request);
+    if (!auth.authorized) {
+      return NextResponse.json({ error: auth.error }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const ids = searchParams.get('ids')?.split(',') || [];
+
+    if (ids.length === 0) {
+      return NextResponse.json(
+        { error: 'No product IDs provided' },
+        { status: 400 }
+      );
+    }
+
+    // Delete products
+    const result = await prisma.product.deleteMany({
+      where: {
+        id: { in: ids }
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Deleted ${result.count} product(s)`,
+      count: result.count
+    });
+
+  } catch (error) {
+    console.error('Delete Products Error:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete products', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   } finally {

@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Only admin can upload images
-    if (decoded.role !== 'admin') {
+    if (decoded.role !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
