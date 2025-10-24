@@ -19,40 +19,58 @@ interface Product {
 
 export default function ProductsManagement() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    setProducts([
-      {
-        id: '1',
-        name: 'JR-OH1 Bluetooth Headphone',
-        sku: 'ELEC-001',
-        category: 'Electronics',
-        price: 2500,
-        stock: 500,
-        availability: 'in_stock',
-        image: '/images/products/electronics/headphones/JR-OH1-Bluetooth-Headphone.webp',
-        featured: true,
-        createdAt: '2024-01-15'
-      },
-      {
-        id: '2',
-        name: 'Baby Frock - Cotton Dress',
-        sku: 'BABY-001',
-        category: 'Baby Items',
-        price: 390,
-        stock: 15,
-        availability: 'limited',
-        image: '/images/products/baby-items/dress/baby-frock-1.jpg',
-        featured: false,
-        createdAt: '2024-02-10'
-      },
-    ]);
+    fetchProducts();
   }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        console.error('No token found');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch('/api/products', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        const transformedProducts = result.data.products.map((product: any) => ({
+          id: product.id.toString(),
+          name: product.name,
+          sku: product.sku || 'N/A',
+          category: product.category?.name || 'Uncategorized',
+          price: product.retailPrice || product.price || 0,
+          stock: product.stockQuantity || 0,
+          availability: product.stockQuantity > 20 ? 'in_stock' : product.stockQuantity > 0 ? 'limited' : 'out_of_stock',
+          image: product.imageUrl || '/images/placeholder.jpg',
+          featured: product.isFeatured || false,
+          createdAt: product.createdAt || new Date().toISOString(),
+        }));
+        
+        setProducts(transformedProducts);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getAvailabilityBadge = (availability: string) => {
     const badges: { [key: string]: { class: string; text: string } } = {
@@ -79,10 +97,63 @@ export default function ProductsManagement() {
     }
   };
 
-  const handleBulkDelete = () => {
-    if (confirm(`Delete ${selectedProducts.length} products?`)) {
-      // Implement bulk delete
-      console.log('Deleting:', selectedProducts);
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selectedProducts.length} products? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const idsParam = selectedProducts.join(',');
+      
+      const response = await fetch(`/api/products?ids=${idsParam}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`Successfully deleted ${result.data.deletedCount} products`);
+        setSelectedProducts([]);
+        fetchProducts(); // Refresh the list
+      } else {
+        alert('Failed to delete products: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error deleting products:', error);
+      alert('Failed to delete products');
+    }
+  };
+
+  const handleDelete = async (productId: string) => {
+    if (!confirm('Delete this product? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert('Product deleted successfully');
+        fetchProducts(); // Refresh the list
+      } else {
+        alert('Failed to delete product: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      alert('Failed to delete product');
     }
   };
 
@@ -169,6 +240,24 @@ export default function ProductsManagement() {
 
       {/* Products Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="text-gray-300 text-6xl mb-4">📦</div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No products found</h3>
+            <p className="text-gray-600 mb-4">Start by adding your first product to the catalog.</p>
+            <Link
+              href="/admin/products/new"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <span>+</span>
+              <span>Add Product</span>
+            </Link>
+          </div>
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -239,7 +328,10 @@ export default function ProductsManagement() {
                       >
                         Edit
                       </Link>
-                      <button className="text-red-600 hover:text-red-700 text-sm font-medium">
+                      <button 
+                        onClick={() => handleDelete(product.id)}
+                        className="text-red-600 hover:text-red-700 text-sm font-medium"
+                      >
                         Delete
                       </button>
                     </div>
@@ -249,8 +341,10 @@ export default function ProductsManagement() {
             </tbody>
           </table>
         </div>
+        )}
 
         {/* Pagination */}
+        {!loading && products.length > 0 && (
         <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
           <div className="text-sm text-gray-600">
             Showing 1 to {products.length} of {products.length} products
@@ -266,6 +360,7 @@ export default function ProductsManagement() {
             </button>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
