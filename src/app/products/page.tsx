@@ -8,6 +8,7 @@ import ProductCard from '../components/ProductCard';
 import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { Product } from '@/types/cart';
+import { getCategoryIcon } from '@/utils/categoryIcons';
 
 export default function ProductsPage() {
   const { products: allProducts, loading: productsLoading } = useProducts();
@@ -171,7 +172,7 @@ export default function ProductsPage() {
                             className="mr-3 w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2 cursor-pointer"
                             suppressHydrationWarning
                           />
-                          <span className="text-2xl mr-3">{category.icon}</span>
+                          <span className="text-2xl mr-3">{category.icon || getCategoryIcon(category.name)}</span>
                           <span className="text-base font-medium text-gray-700 flex-1">{category.name}</span>
                           <span className="bg-gray-100 text-gray-600 text-sm font-medium px-2 py-1 rounded-full">
                             {count}

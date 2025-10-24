@@ -32,6 +32,10 @@ export async function GET(
   try {
     const { id: productId } = await params;
     
+    // Check if request is from admin (for edit pages)
+    const authHeader = request.headers.get('authorization');
+    const isAuthenticated = authHeader?.startsWith('Bearer ');
+    
     // Find product by ID or slug
     const product = await prisma.product.findFirst({
       where: {
@@ -41,7 +45,8 @@ export async function GET(
           // Try parsing as integer for legacy support
           ...(isNaN(parseInt(productId)) ? [] : [{ id: productId }])
         ],
-        isActive: true
+        // Only filter by isActive for public access (non-authenticated)
+        ...(isAuthenticated ? {} : { isActive: true })
       },
       include: {
         category: {
@@ -102,6 +107,7 @@ export async function GET(
       thumbnailUrl: product.thumbnailUrl,
       description: product.description,
       category: product.category.name,
+      categoryId: product.categoryId, // Include categoryId for edit pages
       categorySlug: product.category.slug,
       brand: product.brand,
       tags: product.tags,
@@ -109,6 +115,7 @@ export async function GET(
       minOrderQuantity: product.minOrderQuantity,
       wholesaleMOQ: product.wholesaleMOQ,
       wholesaleEnabled: product.wholesaleEnabled,
+      baseWholesalePrice: product.baseWholesalePrice, // Include for edit pages
       wholesaleTiers: product.wholesaleTiers.map(tier => ({
         minQuantity: tier.minQuantity,
         maxQuantity: tier.maxQuantity,
@@ -123,6 +130,7 @@ export async function GET(
       reviewCount: product.reviewCount,
       reviews: product.reviewCount,
       isFeatured: product.isFeatured,
+      isActive: product.isActive, // Include for edit pages
       metaTitle: product.metaTitle,
       metaDescription: product.metaDescription,
       createdAt: product.createdAt.toISOString(),

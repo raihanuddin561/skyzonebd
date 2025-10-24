@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import Header from "../../components/Header";
+import { getCategoryIcon } from "@/utils/categoryIcons";
 
 interface Category {
   id: number;
@@ -197,7 +198,7 @@ function CategoriesManagement() {
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="text-4xl">{category.icon}</div>
+                      <div className="text-4xl">{category.icon || getCategoryIcon(category.name)}</div>
                       <div>
                         <h3 className="font-bold text-gray-900">{category.name}</h3>
                         <p className="text-sm text-gray-500">/{category.slug}</p>

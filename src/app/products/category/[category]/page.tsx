@@ -8,6 +8,7 @@ import ProductCard from '../../../components/ProductCard';
 import { useProductsByCategory } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { Product } from '@/types/cart';
+import { getCategoryIcon } from '@/utils/categoryIcons';
 
 export default function CategoryPage() {
   const params = useParams();
@@ -100,7 +101,7 @@ export default function CategoryPage() {
       {/* Category Header */}
       <section className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <div className="text-6xl mb-4">{category.icon}</div>
+          <div className="text-6xl mb-4">{category.icon || getCategoryIcon(category.name)}</div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">{category.name}</h1>
           <p className="text-xl opacity-90">
             Explore {products.length} products in {category.name}

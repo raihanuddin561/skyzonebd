@@ -88,11 +88,19 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
 
   const fetchProduct = async () => {
     try {
-      const response = await fetch(`/api/products/${productId}`);
+      const token = localStorage.getItem('token');
+      console.log('Fetching product with ID:', productId);
+      const response = await fetch(`/api/products/${productId}`, {
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
       const result = await response.json();
+      console.log('Product fetch result:', result);
 
       if (result.success && result.data.product) {
         const product = result.data.product;
+        console.log('Product loaded successfully:', product.name);
         setFormData({
           name: product.name || '',
           slug: product.slug || '',
@@ -119,12 +127,13 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
         setImages(product.imageUrls || [product.imageUrl] || []);
         setPrimaryImage(product.imageUrl || '');
       } else {
+        console.error('Product not found in API response:', result);
         toast.error('Product not found');
         router.push('/dashboard/products');
       }
     } catch (error) {
       console.error('Error fetching product:', error);
-      toast.error('Failed to load product');
+      toast.error('Failed to load product. Check console for details.');
     } finally {
       setLoading(false);
     }
