@@ -6,8 +6,8 @@ import ProtectedRoute from "../../components/ProtectedRoute";
 import Header from "../../components/Header";
 
 interface StockItem {
-  id: number;
-  productId: number;
+  id: string | number;
+  productId: string | number;
   productName: string;
   sku: string;
   categoryName: string;

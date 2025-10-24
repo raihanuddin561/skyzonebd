@@ -12,21 +12,21 @@ interface ChargeSettings {
   
   // Item-wise VAT
   itemWiseVAT: {
-    productId: number;
+    productId: string | number;
     productName: string;
     vatPercentage: number;
   }[];
   
   // Item-wise Delivery
   itemWiseDelivery: {
-    productId: number;
+    productId: string | number;
     productName: string;
     deliveryCharge: number;
   }[];
   
   // Category-wise Delivery
   categoryWiseDelivery: {
-    categoryId: number;
+    categoryId: string | number;
     categoryName: string;
     deliveryCharge: number;
   }[];

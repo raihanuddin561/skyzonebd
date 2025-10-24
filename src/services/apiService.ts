@@ -173,7 +173,7 @@ export const productService = {
     return apiService.get(API_ENDPOINTS.PRODUCTS.GET_ALL, undefined, queryParams);
   },
 
-  getProductById: async (id: number) => {
+  getProductById: async (id: string | number) => {
     return apiService.get(API_ENDPOINTS.PRODUCTS.GET_BY_ID, { id });
   },
 
@@ -189,7 +189,7 @@ export const productService = {
     return apiService.get(API_ENDPOINTS.PRODUCTS.GET_FEATURED);
   },
 
-  getRelatedProducts: async (id: number) => {
+  getRelatedProducts: async (id: string | number) => {
     return apiService.get(API_ENDPOINTS.PRODUCTS.GET_RELATED, { id });
   },
 
@@ -197,11 +197,11 @@ export const productService = {
     return apiService.get(API_ENDPOINTS.PRODUCTS.GET_CATEGORIES);
   },
 
-  getProductReviews: async (id: number) => {
+  getProductReviews: async (id: string | number) => {
     return apiService.get(API_ENDPOINTS.PRODUCTS.GET_REVIEWS, { id });
   },
 
-  addProductReview: async (id: number, review: { rating: number; comment: string; userName?: string }) => {
+  addProductReview: async (id: string | number, review: { rating: number; comment: string; userName?: string }) => {
     return apiService.post(API_ENDPOINTS.PRODUCTS.ADD_REVIEW, review, { id });
   },
 };
@@ -211,15 +211,15 @@ export const cartService = {
     return apiService.get(API_ENDPOINTS.CART.GET_CART);
   },
 
-  addItem: async (productId: number, quantity: number) => {
+  addItem: async (productId: string | number, quantity: number) => {
     return apiService.post(API_ENDPOINTS.CART.ADD_ITEM, { productId, quantity });
   },
 
-  updateItem: async (productId: number, quantity: number) => {
+  updateItem: async (productId: string | number, quantity: number) => {
     return apiService.put(API_ENDPOINTS.CART.UPDATE_ITEM, { productId, quantity });
   },
 
-  removeItem: async (productId: number) => {
+  removeItem: async (productId: string | number) => {
     return apiService.delete(API_ENDPOINTS.CART.REMOVE_ITEM, { productId });
   },
 
@@ -241,11 +241,11 @@ export const wishlistService = {
     return apiService.get(API_ENDPOINTS.WISHLIST.GET_WISHLIST);
   },
 
-  addItem: async (productId: number) => {
+  addItem: async (productId: string | number) => {
     return apiService.post(API_ENDPOINTS.WISHLIST.ADD_ITEM, { productId });
   },
 
-  removeItem: async (productId: number) => {
+  removeItem: async (productId: string | number) => {
     return apiService.delete(API_ENDPOINTS.WISHLIST.REMOVE_ITEM, { productId });
   },
 
@@ -267,19 +267,19 @@ export const orderService = {
     return apiService.get(API_ENDPOINTS.ORDERS.GET_ORDERS, undefined, queryParams);
   },
 
-  getOrderById: async (id: number) => {
+  getOrderById: async (id: string | number) => {
     return apiService.get(API_ENDPOINTS.ORDERS.GET_ORDER_BY_ID, { id });
   },
 
-  updateOrderStatus: async (id: number, status: string) => {
+  updateOrderStatus: async (id: string | number, status: string) => {
     return apiService.put(API_ENDPOINTS.ORDERS.UPDATE_ORDER_STATUS, { status }, { id });
   },
 
-  cancelOrder: async (id: number) => {
+  cancelOrder: async (id: string | number) => {
     return apiService.put(API_ENDPOINTS.ORDERS.CANCEL_ORDER, {}, { id });
   },
 
-  trackOrder: async (id: number) => {
+  trackOrder: async (id: string | number) => {
     return apiService.get(API_ENDPOINTS.ORDERS.TRACK_ORDER, { id });
   },
 };
@@ -333,15 +333,15 @@ export const categoryService = {
     return apiService.get(API_ENDPOINTS.CATEGORIES.GET_ALL);
   },
 
-  getCategoryById: async (id: number) => {
+  getCategoryById: async (id: string | number) => {
     return apiService.get(API_ENDPOINTS.CATEGORIES.GET_BY_ID, { id });
   },
 
-  getCategoryProducts: async (id: number, queryParams?: Record<string, string | number | boolean>) => {
+  getCategoryProducts: async (id: string | number, queryParams?: Record<string, string | number | boolean>) => {
     return apiService.get(API_ENDPOINTS.CATEGORIES.GET_PRODUCTS, { id }, queryParams);
   },
 
-  getSubcategories: async (id: number) => {
+  getSubcategories: async (id: string | number) => {
     return apiService.get(API_ENDPOINTS.CATEGORIES.GET_SUBCATEGORIES, { id });
   },
 };
@@ -351,11 +351,11 @@ export const companyService = {
     return apiService.get(API_ENDPOINTS.COMPANIES.GET_ALL, undefined, queryParams);
   },
 
-  getCompanyById: async (id: number) => {
+  getCompanyById: async (id: string | number) => {
     return apiService.get(API_ENDPOINTS.COMPANIES.GET_BY_ID, { id });
   },
 
-  getCompanyProducts: async (id: number, queryParams?: Record<string, string | number | boolean>) => {
+  getCompanyProducts: async (id: string | number, queryParams?: Record<string, string | number | boolean>) => {
     return apiService.get(API_ENDPOINTS.COMPANIES.GET_PRODUCTS, { id }, queryParams);
   },
 

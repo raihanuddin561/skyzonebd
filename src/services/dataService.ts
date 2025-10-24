@@ -225,7 +225,7 @@ export const dataService = {
       );
     },
 
-    addReview: async (productId: number, review: { rating: number; comment: string; userName?: string }) => {
+    addReview: async (productId: string | number, review: { rating: number; comment: string; userName?: string }) => {
       return withFallback(
         async () => {
           const response = await productService.addProductReview(productId, review);
@@ -254,7 +254,7 @@ export const dataService = {
       );
     },
 
-    getById: async (id: number) => {
+    getById: async (id: string | number) => {
       return withFallback(
         async () => {
           const response = await categoryService.getCategoryById(id);
@@ -265,7 +265,7 @@ export const dataService = {
       );
     },
 
-    getProducts: async (id: number, queryParams?: Record<string, string | number>) => {
+    getProducts: async (id: string | number, queryParams?: Record<string, string | number>) => {
       return withFallback(
         async () => {
           const response = await categoryService.getCategoryProducts(id, queryParams);

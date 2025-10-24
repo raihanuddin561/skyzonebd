@@ -41,9 +41,7 @@ export async function GET(
       where: {
         OR: [
           { id: productId },
-          { slug: productId },
-          // Try parsing as integer for legacy support
-          ...(isNaN(parseInt(productId)) ? [] : [{ id: productId }])
+          { slug: productId }
         ],
         // Only filter by isActive for public access (non-authenticated)
         ...(isAuthenticated ? {} : { isActive: true })
@@ -95,7 +93,7 @@ export async function GET(
 
     // Transform product to match frontend interface
     const transformedProduct = {
-      id: parseInt(product.id) || 0,
+      id: product.id, // Keep as string (cuid)
       name: product.name,
       slug: product.slug,
       price: product.retailPrice,
@@ -138,7 +136,7 @@ export async function GET(
     };
 
     const transformedRelated = relatedProducts.map(p => ({
-      id: parseInt(p.id) || 0,
+      id: p.id, // Keep as string (cuid)
       name: p.name,
       slug: p.slug,
       price: p.retailPrice,

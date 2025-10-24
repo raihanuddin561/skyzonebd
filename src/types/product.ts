@@ -1,7 +1,7 @@
 // types/product.ts
 
 export interface Product {
-  id: number;
+  id: string | number; // Support both string (cuid) and number for compatibility
   name: string;
   description: string;
   
@@ -73,7 +73,7 @@ export interface ShippingInfo {
 }
 
 export interface Category {
-  id: number;
+  id: string | number; // Support both string (cuid) and number for compatibility
   name: string;
   description: string;
   image: string;
@@ -105,8 +105,8 @@ export interface ProductResponse {
 }
 
 export interface Review {
-  id: number;
-  userId: number;
+  id: string | number;
+  userId: string | number;
   userName: string;
   rating: number;
   comment: string;
@@ -115,7 +115,7 @@ export interface Review {
 }
 
 export interface Company {
-  id: number;
+  id: string | number;
   name: string;
   type: string;
   verified: boolean;

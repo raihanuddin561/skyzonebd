@@ -11,8 +11,8 @@ interface WishlistState {
 interface WishlistContextType {
   items: Product[];
   addToWishlist: (product: Product) => void;
-  removeFromWishlist: (productId: number) => void;
-  isInWishlist: (productId: number) => boolean;
+  removeFromWishlist: (productId: string | number) => void;
+  isInWishlist: (productId: string | number) => boolean;
   clearWishlist: () => void;
   getTotalItems: () => number;
 }
@@ -21,7 +21,7 @@ const WishlistContext = createContext<WishlistContextType | undefined>(undefined
 
 type WishlistAction = 
   | { type: 'ADD_TO_WISHLIST'; payload: Product }
-  | { type: 'REMOVE_FROM_WISHLIST'; payload: number }
+  | { type: 'REMOVE_FROM_WISHLIST'; payload: string | number }
   | { type: 'CLEAR_WISHLIST' };
 
 function wishlistReducer(state: WishlistState, action: WishlistAction): WishlistState {
@@ -61,11 +61,11 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'ADD_TO_WISHLIST', payload: product });
   };
 
-  const removeFromWishlist = (productId: number) => {
+  const removeFromWishlist = (productId: string | number) => {
     dispatch({ type: 'REMOVE_FROM_WISHLIST', payload: productId });
   };
 
-  const isInWishlist = (productId: number) => {
+  const isInWishlist = (productId: string | number) => {
     return state.items.some(item => item.id === productId);
   };
 
