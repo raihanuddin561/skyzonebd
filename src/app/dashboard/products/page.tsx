@@ -5,9 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import Header from "../../components/Header";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface Product {
-  id: number;
+  id: string | number;
   name: string;
   price: number;
   stock: number;
@@ -24,33 +26,46 @@ function ProductsManagement() {
   const [filterCategory, setFilterCategory] = useState("all");
 
   useEffect(() => {
-    // TODO: Fetch from API
-    // For now, using mock data
-    const mockProducts: Product[] = [
-      {
-        id: 1,
-        name: "Wireless Bluetooth Headphones",
-        price: 2499,
-        stock: 150,
-        category: "Electronics",
-        imageUrl: "/images/products/electronics/headphones/headphones-1.jpg",
-        availability: "in_stock",
-        minOrderQuantity: 5
-      },
-      {
-        id: 2,
-        name: "Baby Cotton Dress",
-        price: 450,
-        stock: 200,
-        category: "Baby Items",
-        imageUrl: "/images/products/baby-items/dress/baby-dress-1.jpg",
-        availability: "in_stock",
-        minOrderQuantity: 10
-      },
-    ];
-    setProducts(mockProducts);
-    setLoading(false);
+    fetchProducts();
   }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch('/api/products', {
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        const transformedProducts = result.data.products.map((product: any) => ({
+          id: product.id,
+          name: product.name,
+          price: product.retailPrice || product.price || 0,
+          stock: product.stockQuantity || 0,
+          category: product.category?.name || 'Uncategorized',
+          imageUrl: product.imageUrl || '/images/placeholder.jpg',
+          availability: product.stockQuantity > 20 ? 'in_stock' : product.stockQuantity > 0 ? 'limited' : 'out_of_stock',
+          minOrderQuantity: product.minOrderQuantity || 1
+        }));
+        
+        setProducts(transformedProducts);
+      } else {
+        toast.error('Failed to load products');
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -58,15 +73,38 @@ function ProductsManagement() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleDelete = (id: number) => {
-    if (confirm("Are you sure you want to delete this product?")) {
-      setProducts(products.filter(p => p.id !== id));
+  const handleDelete = async (id: string | number) => {
+    if (!confirm("Are you sure you want to delete this product?")) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/products/${id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        }
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success('Product deleted successfully');
+        fetchProducts(); // Refresh the list
+      } else {
+        toast.error(result.error || 'Failed to delete product');
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast.error('Failed to delete product');
     }
   };
 
   return (
     <>
       <Header />
+      <ToastContainer />
       <div className="min-h-screen bg-gray-50 p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}

@@ -16,15 +16,14 @@ import {
 import { Product } from '@/types/cart';
 
 // Configuration to switch between static data and API
-const USE_API = process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_USE_API === 'true';
+// Always use API - static data only as emergency fallback
+const USE_API = true;
 
 // Debug logging
 if (typeof window !== 'undefined') {
   console.log('🔧 DataService Configuration:', {
-    NODE_ENV: process.env.NODE_ENV,
-    NEXT_PUBLIC_USE_API: process.env.NEXT_PUBLIC_USE_API,
-    USE_API,
-    willUseAPI: USE_API ? 'YES - Using API' : 'NO - Using Static Data'
+    USE_API: true,
+    message: 'Always using API endpoints'
   });
 }
 

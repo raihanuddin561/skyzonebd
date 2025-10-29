@@ -1,27 +1,55 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import Header from '../components/Header';
-import { getProductById } from '@/data/products';
+import { dataService } from '@/services/dataService';
 import { Product } from '@/types/cart';
 
 export default function ComparePage() {
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
   const [productId, setProductId] = useState<string>('');
+  const [popularProducts, setPopularProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleAddProduct = () => {
+  useEffect(() => {
+    // Load popular products
+    const fetchPopularProducts = async () => {
+      try {
+        const data = await dataService.products.getFeatured();
+        setPopularProducts((data as Product[]).slice(0, 8));
+      } catch (error) {
+        console.error('Error loading popular products:', error);
+      }
+    };
+    fetchPopularProducts();
+  }, []);
+
+  const handleAddProduct = async () => {
     if (productId && selectedProducts.length < 3) {
-      const product = getProductById(parseInt(productId));
-      if (product && !selectedProducts.find(p => p.id === product.id)) {
-        setSelectedProducts([...selectedProducts, product]);
-        setProductId('');
+      try {
+        setLoading(true);
+        const product = await dataService.products.getById(parseInt(productId));
+        if (product && !selectedProducts.find(p => p.id === (product as Product).id)) {
+          setSelectedProducts([...selectedProducts, product as Product]);
+          setProductId('');
+          alert('Product added to comparison');
+        } else if (!product) {
+          alert('Product not found');
+        } else {
+          alert('Product already added');
+        }
+      } catch (error) {
+        console.error('Error adding product:', error);
+        alert('Failed to add product');
+      } finally {
+        setLoading(false);
       }
     }
   };
 
-  const handleRemoveProduct = (id: number) => {
+  const handleRemoveProduct = (id: string | number) => {
     setSelectedProducts(selectedProducts.filter(p => p.id !== id));
   };
 
@@ -135,46 +163,49 @@ export default function ComparePage() {
         {/* Quick Add Popular Products */}
         <div className="mt-8 bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">Popular Products</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map(id => {
-              const product = getProductById(id);
-              if (!product) return null;
-              
-              const isSelected = selectedProducts.find(p => p.id === id);
-              const canAdd = selectedProducts.length < 3 && !isSelected;
-              
-              return (
-                <div key={id} className="border rounded-lg p-3">
-                  <Image
-                    src={product.imageUrl}
-                    alt={product.name}
-                    width={80}
-                    height={80}
-                    className="w-16 h-16 object-cover rounded mx-auto mb-2"
-                  />
-                  <h4 className="font-medium text-sm text-center mb-1">{product.name}</h4>
-                  <p className="text-xs text-gray-500 text-center mb-2">ID: {id}</p>
-                  <button
-                    onClick={() => {
-                      if (canAdd) {
-                        setSelectedProducts([...selectedProducts, product]);
-                      }
-                    }}
-                    disabled={!canAdd}
-                    className={`w-full py-1 px-2 rounded text-xs ${
-                      isSelected
-                        ? 'bg-green-100 text-green-800 cursor-not-allowed'
-                        : canAdd
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    {isSelected ? 'Added' : 'Add to Compare'}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+          {loading && popularProducts.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {popularProducts.map(product => {
+                const isSelected = selectedProducts.find(p => p.id === product.id);
+                const canAdd = selectedProducts.length < 3 && !isSelected;
+                
+                return (
+                  <div key={product.id} className="border rounded-lg p-3">
+                    <Image
+                      src={product.imageUrl}
+                      alt={product.name}
+                      width={80}
+                      height={80}
+                      className="w-16 h-16 object-cover rounded mx-auto mb-2"
+                    />
+                    <h4 className="font-medium text-sm text-center mb-1">{product.name}</h4>
+                    <p className="text-xs text-gray-500 text-center mb-2">ID: {product.id}</p>
+                    <button
+                      onClick={() => {
+                        if (canAdd) {
+                          setSelectedProducts([...selectedProducts, product]);
+                        }
+                      }}
+                      disabled={!canAdd}
+                      className={`w-full py-1 px-2 rounded text-xs ${
+                        isSelected
+                          ? 'bg-green-100 text-green-800 cursor-not-allowed'
+                          : canAdd
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      {isSelected ? 'Added' : 'Add to Compare'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </main>

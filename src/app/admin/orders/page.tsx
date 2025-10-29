@@ -139,9 +139,40 @@ export default function OrdersManagement() {
     }
   };
 
-  const handleStatusChange = (orderId: string, newStatus: string) => {
-    console.log(`Changing order ${orderId} to ${newStatus}`);
-    // TODO: Implement status change API call
+  const handleStatusChange = async (orderId: string, newStatus: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please login to update order status');
+        return;
+      }
+
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update local state
+        setOrders(orders.map(order => 
+          order.id === orderId 
+            ? { ...order, status: newStatus.toLowerCase() as any }
+            : order
+        ));
+        alert(`Order status updated to ${newStatus}`);
+      } else {
+        alert(result.error || 'Failed to update order status');
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      alert('Failed to update order status');
+    }
   };
 
   const handleRefresh = () => {

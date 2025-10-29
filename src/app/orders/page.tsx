@@ -24,54 +24,53 @@ export default function OrdersPage() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed' | 'shipped' | 'delivered'>('all');
 
   useEffect(() => {
-    // Simulate fetching orders from API
-    // In a real app, you'd make an API call here
-    const mockOrders: Order[] = [
-      {
-        id: 1,
-        orderId: 'ORD-1704123456',
-        items: [
-          { name: 'Wireless Bluetooth Headphones', quantity: 2, price: 2500 },
-          { name: 'USB-C Cable Set', quantity: 1, price: 800 }
-        ],
-        total: 5800,
-        status: 'delivered',
-        createdAt: '2024-01-15T10:30:00Z',
-        shippingAddress: 'House 123, Road 5, Dhanmondi, Dhaka-1205',
-        paymentMethod: 'bank_transfer'
-      },
-      {
-        id: 2,
-        orderId: 'ORD-1704234567',
-        items: [
-          { name: 'Smart Phone Stand', quantity: 3, price: 350 },
-          { name: 'Laptop Cooling Pad', quantity: 1, price: 1200 }
-        ],
-        total: 2250,
-        status: 'shipped',
-        createdAt: '2024-01-20T14:45:00Z',
-        shippingAddress: 'Flat 4B, Building 7, Gulshan-2, Dhaka-1212',
-        paymentMethod: 'cash_on_delivery'
-      },
-      {
-        id: 3,
-        orderId: 'ORD-1704345678',
-        items: [
-          { name: 'Portable Power Bank', quantity: 1, price: 1500 }
-        ],
-        total: 1500,
-        status: 'confirmed',
-        createdAt: '2024-01-25T09:15:00Z',
-        shippingAddress: 'House 456, Uttara Sector-7, Dhaka-1230',
-        paymentMethod: 'bank_transfer'
-      }
-    ];
-
-    setTimeout(() => {
-      setOrders(mockOrders);
-      setLoading(false);
-    }, 1000);
+    fetchOrders();
   }, []);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        console.log('No token found - user not authenticated');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch('/api/orders', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch orders');
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        const transformedOrders = result.data.map((order: any) => ({
+          id: order.id,
+          orderId: order.orderId,
+          items: order.items,
+          total: order.total,
+          status: order.status,
+          createdAt: order.createdAt,
+          shippingAddress: order.shippingAddress || 'Not provided',
+          paymentMethod: order.paymentMethod
+        }));
+        
+        setOrders(transformedOrders);
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -220,9 +219,12 @@ export default function OrdersPage() {
                   {/* Order Actions */}
                   <div className="border-t border-gray-100 pt-4 mt-4">
                     <div className="flex flex-wrap gap-2">
-                      <button className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
+                      <Link
+                        href={`/orders/${order.id}`}
+                        className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer"
+                      >
                         View Details
-                      </button>
+                      </Link>
                       {order.status === 'delivered' && (
                         <button className="px-4 py-2 text-sm text-gray-600 hover:text-gray-700 font-medium cursor-pointer">
                           Reorder

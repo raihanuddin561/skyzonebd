@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       console.log(`  ✅ Product found:`, productExists);
     }
     
-    // Create order in database
+    // Create order in database and deduct stock
     const order = await prisma.order.create({
       data: {
         orderNumber,
@@ -158,6 +158,24 @@ export async function POST(request: NextRequest) {
         }
       }
     });
+
+    // Deduct stock for each ordered item
+    console.log('📦 Deducting stock for order items...');
+    for (const item of items) {
+      const product = await prisma.product.findUnique({
+        where: { id: item.productId.toString() },
+        select: { id: true, name: true, stockQuantity: true }
+      });
+
+      if (product) {
+        const newStock = Math.max(0, product.stockQuantity - item.quantity);
+        await prisma.product.update({
+          where: { id: product.id },
+          data: { stockQuantity: newStock }
+        });
+        console.log(`  ✅ Stock updated for ${product.name}: ${product.stockQuantity} → ${newStock}`);
+      }
+    }
     
     console.log('✅ Order created successfully in database:', {
       orderId: order.id,

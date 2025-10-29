@@ -1,17 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import MultiImageUpload from '@/app/components/MultiImageUpload';
 import Header from '@/app/components/Header';
 import ProtectedRoute from '@/app/components/ProtectedRoute';
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export default function AddProductPage() {
+  const [categories, setCategories] = useState<Category[]>([]);
   const [productData, setProductData] = useState({
     name: '',
     description: '',
-    category: '',
+    categoryId: '',
     brand: '',
     retailPrice: '',
     baseWholesalePrice: '',
@@ -20,6 +27,23 @@ export default function AddProductPage() {
     tags: '',
   });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories');
+      const result = await response.json();
+      if (result.success) {
+        setCategories(result.data);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      toast.error('Failed to load categories');
+    }
+  };
 
   const handleImageUpload = (urls: string[]) => {
     setProductData({ ...productData, imageUrls: urls });
@@ -37,10 +61,19 @@ export default function AddProductPage() {
       }
 
       // Validate required fields
-      if (!productData.name || !productData.retailPrice || productData.imageUrls.length === 0) {
+      if (!productData.name || !productData.retailPrice || !productData.categoryId || productData.imageUrls.length === 0) {
         toast.error('Please fill in all required fields and upload at least one image');
         return;
       }
+
+      // Auto-generate slug from product name
+      const slug = productData.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+
+      // Get the first image as primary imageUrl
+      const imageUrl = productData.imageUrls[0];
 
       const response = await fetch('/api/products', {
         method: 'POST',
@@ -50,15 +83,19 @@ export default function AddProductPage() {
         },
         body: JSON.stringify({
           name: productData.name,
+          slug: slug,
           description: productData.description,
-          category: productData.category,
+          categoryId: productData.categoryId,
           brand: productData.brand,
           retailPrice: parseFloat(productData.retailPrice),
-          baseWholesalePrice: parseFloat(productData.baseWholesalePrice),
+          price: parseFloat(productData.retailPrice), // Required field
+          imageUrl: imageUrl, // Required field
+          baseWholesalePrice: parseFloat(productData.baseWholesalePrice) || null,
           imageUrls: productData.imageUrls,
-          stock: parseInt(productData.stock) || 0,
+          stockQuantity: parseInt(productData.stock) || 0,
           tags: productData.tags.split(',').map((t) => t.trim()).filter(Boolean),
-          featured: false,
+          isFeatured: false,
+          isActive: true,
         }),
       });
 
@@ -74,7 +111,7 @@ export default function AddProductPage() {
         setProductData({
           name: '',
           description: '',
-          category: '',
+          categoryId: '',
           brand: '',
           retailPrice: '',
           baseWholesalePrice: '',
@@ -148,14 +185,21 @@ export default function AddProductPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category
+                    Category *
                   </label>
-                  <input
-                    type="text"
-                    value={productData.category}
-                    onChange={(e) => setProductData({ ...productData, category: e.target.value })}
+                  <select
+                    value={productData.categoryId}
+                    onChange={(e) => setProductData({ ...productData, categoryId: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                    required
+                  >
+                    <option value="">Select a category</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

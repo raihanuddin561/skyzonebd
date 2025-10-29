@@ -5,9 +5,11 @@ import Link from "next/link";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import Header from "../../components/Header";
 import { getCategoryIcon } from "@/utils/categoryIcons";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface Category {
-  id: number;
+  id: string | number;
   name: string;
   slug: string;
   icon: string;
@@ -28,74 +30,101 @@ function CategoriesManagement() {
   });
 
   useEffect(() => {
-    // TODO: Fetch from API
-    const mockCategories: Category[] = [
-      {
-        id: 1,
-        name: "Electronics",
-        slug: "electronics",
-        icon: "📱",
-        productsCount: 25,
-        isActive: true,
-        createdAt: "2024-01-01T00:00:00"
-      },
-      {
-        id: 2,
-        name: "Baby Items",
-        slug: "baby-items",
-        icon: "👶",
-        productsCount: 18,
-        isActive: true,
-        createdAt: "2024-01-02T00:00:00"
-      },
-      {
-        id: 3,
-        name: "Fashion",
-        slug: "fashion",
-        icon: "👗",
-        productsCount: 32,
-        isActive: true,
-        createdAt: "2024-01-03T00:00:00"
-      },
-      {
-        id: 4,
-        name: "Home & Kitchen",
-        slug: "home-kitchen",
-        icon: "🏠",
-        productsCount: 15,
-        isActive: false,
-        createdAt: "2024-01-04T00:00:00"
-      }
-    ];
-    setCategories(mockCategories);
-    setLoading(false);
+    fetchCategories();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const fetchCategories = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch('/api/categories', {
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        const transformedCategories = result.data.map((category: any) => ({
+          id: category.id,
+          name: category.name,
+          slug: category.slug,
+          icon: category.icon || getCategoryIcon(category.name),
+          productsCount: category._count?.products || 0,
+          isActive: category.isActive,
+          createdAt: category.createdAt || new Date().toISOString()
+        }));
+        
+        setCategories(transformedCategories);
+      } else {
+        toast.error('Failed to load categories');
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      toast.error('Failed to load categories');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (editingCategory) {
-      // Update existing category
-      setCategories(categories.map(cat => 
-        cat.id === editingCategory.id 
-          ? { ...cat, ...formData }
-          : cat
-      ));
-      setEditingCategory(null);
-    } else {
-      // Add new category
-      const newCategory: Category = {
-        id: Math.max(...categories.map(c => c.id), 0) + 1,
-        ...formData,
-        productsCount: 0,
-        isActive: true,
-        createdAt: new Date().toISOString()
-      };
-      setCategories([...categories, newCategory]);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login to manage categories');
+        return;
+      }
+
+      if (editingCategory) {
+        // Update existing category via API
+        const response = await fetch(`/api/categories/${editingCategory.id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          toast.success('Category updated successfully');
+          fetchCategories();
+        } else {
+          toast.error(result.error || 'Failed to update category');
+        }
+        setEditingCategory(null);
+      } else {
+        // Add new category via API
+        const response = await fetch('/api/categories', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          toast.success('Category created successfully');
+          fetchCategories();
+        } else {
+          toast.error(result.error || 'Failed to create category');
+        }
+      }
+      
+      setShowAddModal(false);
+      setFormData({ name: "", slug: "", icon: "" });
+    } catch (error) {
+      console.error('Error saving category:', error);
+      toast.error('Failed to save category');
     }
-    
-    setShowAddModal(false);
-    setFormData({ name: "", slug: "", icon: "" });
   };
 
   const handleEdit = (category: Category) => {
@@ -108,22 +137,65 @@ function CategoriesManagement() {
     setShowAddModal(true);
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: string | number) => {
     const category = categories.find(c => c.id === id);
     if (category && category.productsCount > 0) {
-      alert(`Cannot delete category "${category.name}" because it has ${category.productsCount} products. Please reassign or remove products first.`);
+      toast.warning(`Cannot delete category "${category.name}" because it has ${category.productsCount} products. Please reassign or remove products first.`);
       return;
     }
     
-    if (confirm("Are you sure you want to delete this category?")) {
-      setCategories(categories.filter(c => c.id !== id));
+    if (!confirm("Are you sure you want to delete this category?")) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/categories/${id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        }
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success('Category deleted successfully');
+        fetchCategories();
+      } else {
+        toast.error(result.error || 'Failed to delete category');
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      toast.error('Failed to delete category');
     }
   };
 
-  const toggleActive = (id: number) => {
-    setCategories(categories.map(cat => 
-      cat.id === id ? { ...cat, isActive: !cat.isActive } : cat
-    ));
+  const toggleActive = async (id: string | number) => {
+    const category = categories.find(c => c.id === id);
+    if (!category) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/categories/${id}`, {
+        method: 'PUT',
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isActive: !category.isActive })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success(`Category ${category.isActive ? 'deactivated' : 'activated'} successfully`);
+        fetchCategories();
+      } else {
+        toast.error(result.error || 'Failed to update category');
+      }
+    } catch (error) {
+      console.error('Error toggling category:', error);
+      toast.error('Failed to update category');
+    }
   };
 
   const handleNameChange = (name: string) => {
@@ -137,6 +209,7 @@ function CategoriesManagement() {
   return (
     <>
       <Header />
+      <ToastContainer />
       <div className="min-h-screen bg-gray-50 p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}

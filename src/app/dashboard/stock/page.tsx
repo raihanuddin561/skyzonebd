@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import Header from "../../components/Header";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface StockItem {
   id: string | number;
@@ -77,98 +79,82 @@ function StockManagement() {
   });
 
   useEffect(() => {
-    // TODO: Fetch from API
-    const mockStockItems: StockItem[] = [
-      {
-        id: 1,
-        productId: 1,
-        productName: "Wireless Bluetooth Headphones",
-        sku: "WBH-001",
-        categoryName: "Electronics",
-        imageUrl: "/images/products/electronics/headphones/headphones-1.jpg",
-        totalStock: 500,
-        availableStock: 350,
-        reservedStock: 100,
-        inTransit: 50,
-        damaged: 0,
-        warehouseLocations: [
-          { warehouse: "Main Warehouse", quantity: 200, location: "A-12-5" },
-          { warehouse: "Secondary Warehouse", quantity: 150, location: "B-8-3" },
-        ],
-        reorderPoint: 100,
-        reorderQuantity: 200,
-        minStockLevel: 50,
-        maxStockLevel: 1000,
-        avgDailySales: 15,
-        daysOfStock: 23,
-        stockStatus: 'in_stock',
-        lastRestocked: "2025-10-15T10:30:00",
-        lastSold: "2025-10-22T08:45:00",
-      },
-      {
-        id: 2,
-        productId: 2,
-        productName: "Baby Cotton Dress",
-        sku: "BCD-002",
-        categoryName: "Baby Items",
-        imageUrl: "/images/products/baby-items/dress/baby-dress-1.jpg",
-        totalStock: 80,
-        availableStock: 45,
-        reservedStock: 30,
-        inTransit: 5,
-        damaged: 0,
-        warehouseLocations: [
-          { warehouse: "Main Warehouse", quantity: 45, location: "C-5-2" },
-        ],
-        reorderPoint: 50,
-        reorderQuantity: 100,
-        minStockLevel: 30,
-        maxStockLevel: 300,
-        avgDailySales: 8,
-        daysOfStock: 5,
-        stockStatus: 'low_stock',
-        lastRestocked: "2025-10-10T14:20:00",
-        lastSold: "2025-10-21T16:30:00",
-      },
-    ];
-
-    const mockTransactions: StockTransaction[] = [
-      {
-        id: 1,
-        productName: "Wireless Bluetooth Headphones",
-        type: 'in',
-        quantity: 200,
-        reason: "New stock arrival from supplier",
-        warehouse: "Main Warehouse",
-        performedBy: "Admin User",
-        timestamp: "2025-10-15T10:30:00",
-      },
-      {
-        id: 2,
-        productName: "Baby Cotton Dress",
-        type: 'out',
-        quantity: 15,
-        reason: "Order fulfillment",
-        warehouse: "Main Warehouse",
-        performedBy: "System",
-        timestamp: "2025-10-21T16:30:00",
-      },
-      {
-        id: 3,
-        productName: "Wireless Bluetooth Headphones",
-        type: 'damage',
-        quantity: 5,
-        reason: "Damaged during inspection",
-        warehouse: "Main Warehouse",
-        performedBy: "Warehouse Manager",
-        timestamp: "2025-10-20T11:15:00",
-      },
-    ];
-
-    setStockItems(mockStockItems);
-    setTransactions(mockTransactions);
-    setLoading(false);
+    fetchStockData();
   }, []);
+
+  const fetchStockData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      // Fetch products from API
+      const response = await fetch('/api/products', {
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        const transformedStockItems: StockItem[] = result.data.products.map((product: any) => {
+          const stock = product.stockQuantity || 0;
+          const moq = product.minOrderQuantity || 1;
+          const reorderPoint = Math.max(moq * 2, 10); // Reorder when stock reaches 2x MOQ or minimum 10
+          const avgDailySales = Math.floor(Math.random() * 10) + 5; // Simulated - would come from sales data
+          const daysOfStock = stock > 0 ? Math.floor(stock / avgDailySales) : 0;
+          
+          // Determine stock status
+          let stockStatus: 'in_stock' | 'low_stock' | 'out_of_stock' | 'overstock';
+          if (stock === 0) {
+            stockStatus = 'out_of_stock';
+          } else if (stock <= reorderPoint) {
+            stockStatus = 'low_stock';
+          } else if (stock > reorderPoint * 10) {
+            stockStatus = 'overstock';
+          } else {
+            stockStatus = 'in_stock';
+          }
+          
+          return {
+            id: product.id,
+            productId: product.id,
+            productName: product.name,
+            sku: product.sku || `SKU-${product.id.substring(0, 8).toUpperCase()}`,
+            categoryName: product.category?.name || 'Uncategorized',
+            imageUrl: product.imageUrl || '/images/placeholder.jpg',
+            totalStock: stock,
+            availableStock: stock,
+            reservedStock: 0, // Would come from order data
+            inTransit: 0, // Would come from purchase orders
+            damaged: 0,
+            warehouseLocations: [
+              { warehouse: "Main Warehouse", quantity: stock, location: "Default" }
+            ],
+            reorderPoint: reorderPoint,
+            reorderQuantity: moq * 5,
+            minStockLevel: moq,
+            maxStockLevel: reorderPoint * 20,
+            avgDailySales: avgDailySales,
+            daysOfStock: daysOfStock,
+            stockStatus: stockStatus,
+            lastRestocked: product.updatedAt || product.createdAt,
+            lastSold: product.updatedAt || product.createdAt,
+          };
+        });
+        
+        setStockItems(transformedStockItems);
+        
+        // Initialize empty transactions (would be fetched from separate endpoint)
+        setTransactions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching stock data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredStockItems = stockItems.filter(item => {
     const matchesSearch = 
@@ -188,43 +174,67 @@ function StockManagement() {
     item.availableStock === 0
   );
 
-  const handleStockAdjustment = (e: React.FormEvent) => {
+  const handleStockAdjustment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProduct) return;
 
-    // Create transaction
-    const newTransaction: StockTransaction = {
-      id: transactions.length + 1,
-      productName: selectedProduct.productName,
-      type: adjustmentData.type,
-      quantity: adjustmentData.quantity,
-      reason: adjustmentData.reason,
-      warehouse: adjustmentData.warehouse,
-      performedBy: "Admin User",
-      timestamp: new Date().toISOString(),
-    };
-
-    // Update stock
-    const updatedItems = stockItems.map(item => {
-      if (item.id === selectedProduct.id) {
-        const quantityChange = adjustmentData.type === 'in' 
-          ? adjustmentData.quantity 
-          : -adjustmentData.quantity;
-        
-        return {
-          ...item,
-          totalStock: item.totalStock + quantityChange,
-          availableStock: item.availableStock + quantityChange,
-        };
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login to adjust stock');
+        return;
       }
-      return item;
-    });
 
-    setStockItems(updatedItems);
-    setTransactions([newTransaction, ...transactions]);
-    setShowAdjustmentModal(false);
-    setAdjustmentData({ type: 'in', quantity: 0, warehouse: '', reason: '' });
-    setSelectedProduct(null);
+      // Calculate new stock quantity
+      const quantityChange = adjustmentData.type === 'in' 
+        ? adjustmentData.quantity 
+        : -adjustmentData.quantity;
+      
+      const newStockQuantity = Math.max(0, selectedProduct.totalStock + quantityChange);
+
+      // Update product stock via API
+      const response = await fetch(`/api/products/${selectedProduct.productId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          stockQuantity: newStockQuantity
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Create transaction record
+        const newTransaction: StockTransaction = {
+          id: transactions.length + 1,
+          productName: selectedProduct.productName,
+          type: adjustmentData.type,
+          quantity: adjustmentData.quantity,
+          reason: adjustmentData.reason,
+          warehouse: adjustmentData.warehouse,
+          performedBy: "Admin User",
+          timestamp: new Date().toISOString(),
+        };
+
+        setTransactions([newTransaction, ...transactions]);
+        
+        // Refresh stock data
+        await fetchStockData();
+        
+        toast.success(`Stock adjusted successfully! New stock: ${newStockQuantity}`);
+        setShowAdjustmentModal(false);
+        setAdjustmentData({ type: 'in', quantity: 0, warehouse: '', reason: '' });
+        setSelectedProduct(null);
+      } else {
+        toast.error(result.error || 'Failed to adjust stock');
+      }
+    } catch (error) {
+      console.error('Error adjusting stock:', error);
+      toast.error('Failed to adjust stock. Please try again.');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -251,6 +261,7 @@ function StockManagement() {
   return (
     <>
       <Header />
+      <ToastContainer />
       <div className="min-h-screen bg-gray-50 p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}

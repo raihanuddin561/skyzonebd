@@ -1,35 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sign } from 'jsonwebtoken';
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
-// Mock user database - In production, use a real database
-const users = [
-  {
-    id: '1',
-    email: 'demo@skyzonebd.com',
-    password: 'demo123', // In production, this should be hashed
-    name: 'Demo User',
-    companyName: 'Demo Company Ltd.',
-    phone: '+880-1711-123456',
-    role: 'buyer',
-    userType: 'retail',
-    isVerified: true,
-    isActive: true,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: '2',
-    email: 'admin@skyzonebd.com',
-    password: '11admin22',
-    name: 'Admin User',
-    companyName: 'SkyzoneBD Admin',
-    phone: '+880-1711-654321',
-    role: 'admin',
-    userType: 'retail',
-    isVerified: true,
-    isActive: true,
-    createdAt: new Date().toISOString()
-  }
-];
+const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,8 +16,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user
-    const user = users.find(u => u.email === email && u.password === password);
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        name: true,
+        companyName: true,
+        phone: true,
+        role: true,
+        userType: true,
+        isVerified: true,
+        isActive: true,
+        createdAt: true
+      }
+    });
     
     if (!user) {
       return NextResponse.json(
@@ -52,12 +41,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    if (!isPasswordValid) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid credentials' },
+        { status: 401 }
+      );
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return NextResponse.json(
+        { success: false, error: 'Account is inactive. Please contact support.' },
+        { status: 403 }
+      );
+    }
+
     // Generate JWT token
     const token = sign(
       { 
         userId: user.id, 
         email: user.email, 
-        role: user.role 
+        role: user.role.toLowerCase()
       },
       process.env.JWT_SECRET || 'fallback-secret',
       { expiresIn: '7d' }
@@ -68,7 +75,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      user: userWithoutPassword,
+      user: {
+        ...userWithoutPassword,
+        role: user.role.toLowerCase(),
+        userType: user.userType.toLowerCase()
+      },
       token
     });
 
@@ -78,5 +89,7 @@ export async function POST(request: NextRequest) {
       { success: false, error: 'Internal server error' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

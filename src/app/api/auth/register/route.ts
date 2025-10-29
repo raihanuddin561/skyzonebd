@@ -1,35 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sign } from 'jsonwebtoken';
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
-// Mock user database - In production, use a real database
-let users = [
-  {
-    id: '1',
-    email: 'demo@skyzonebd.com',
-    password: 'demo123',
-    name: 'Demo User',
-    companyName: 'Demo Company Ltd.',
-    phone: '+880-1711-123456',
-    role: 'buyer',
-    userType: 'retail',
-    isVerified: true,
-    isActive: true,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: '2',
-    email: 'admin@skyzonebd.com',
-    password: '11admin22',
-    name: 'Admin User',
-    companyName: 'SkyzoneBD Admin',
-    phone: '+880-1711-654321',
-    role: 'admin',
-    userType: 'retail',
-    isVerified: true,
-    isActive: true,
-    createdAt: new Date().toISOString()
-  }
-];
+const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,7 +17,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUser = users.find(u => u.email === email);
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
+    
     if (existingUser) {
       return NextResponse.json(
         { success: false, error: 'User with this email already exists' },
@@ -51,40 +28,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create new user
-    const newUser = {
-      id: (users.length + 1).toString(),
-      name,
-      email,
-      password, // In production, hash this password
-      companyName,
-      phone,
-      role: 'buyer' as const,
-      userType: 'retail' as const,
-      isVerified: false,
-      isActive: true,
-      createdAt: new Date().toISOString()
-    };
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    users.push(newUser);
+    // Create new user
+    const newUser = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        companyName,
+        phone,
+        role: 'BUYER',
+        userType: 'RETAIL',
+        isVerified: false,
+        isActive: true
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        companyName: true,
+        phone: true,
+        role: true,
+        userType: true,
+        isVerified: true,
+        isActive: true,
+        createdAt: true
+      }
+    });
 
     // Generate JWT token
     const token = sign(
       { 
         userId: newUser.id, 
         email: newUser.email, 
-        role: newUser.role 
+        role: newUser.role.toLowerCase()
       },
       process.env.JWT_SECRET || 'fallback-secret',
       { expiresIn: '7d' }
     );
 
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = newUser;
-
     return NextResponse.json({
       success: true,
-      user: userWithoutPassword,
+      user: {
+        ...newUser,
+        role: newUser.role.toLowerCase(),
+        userType: newUser.userType.toLowerCase()
+      },
       token
     }, { status: 201 });
 
@@ -94,5 +85,7 @@ export async function POST(request: NextRequest) {
       { success: false, error: 'Internal server error' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
