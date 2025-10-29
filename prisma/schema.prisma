@@ -32,6 +32,7 @@ model User {
   orders       Order[]
   addresses    Address[]
   rfqs         RFQ[]
+  products     Product[]  // Products created/managed by this user (seller)
   
   @@map("users")
 }
@@ -132,6 +133,9 @@ model Product {
   availability     String        @default("in_stock") // in_stock, limited, out_of_stock
   sku              String?       @unique
   
+  // Seller Information (Optional - for multi-vendor support)
+  sellerId         String?       // References User who added this product
+  
   // Metadata
   categoryId       String
   isActive         Boolean       @default(true)
@@ -148,6 +152,7 @@ model Product {
   
   // Relations
   category         Category      @relation(fields: [categoryId], references: [id])
+  seller           User?         @relation(fields: [sellerId], references: [id], onDelete: SetNull)
   orderItems       OrderItem[]
   wholesaleTiers   WholesaleTier[]
   rfqItems         RFQItem[]
