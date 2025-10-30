@@ -81,8 +81,12 @@ export async function POST(request: NextRequest) {
     const subtotal = items.reduce((sum: number, item: OrderItem) => 
       sum + (item.price * item.quantity), 0);
     
-    const shipping = 50; // Fixed shipping cost
-    const tax = subtotal * 0.05; // 5% tax
+    // Only add charges if configured by admin (via env vars)
+    const shippingCharge = process.env.SHIPPING_CHARGE ? parseFloat(process.env.SHIPPING_CHARGE) : 0;
+    const taxRate = process.env.TAX_RATE ? parseFloat(process.env.TAX_RATE) : 0;
+    
+    const shipping = shippingCharge;
+    const tax = subtotal * taxRate;
     const total = subtotal + shipping + tax;
     
     // Generate order number
