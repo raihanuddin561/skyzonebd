@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -11,7 +11,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { Product } from '@/types/cart';
 import { getCategoryIcon } from '@/utils/categoryIcons';
 
-export default function ProductsPage() {
+function ProductsContent() {
   const searchParams = useSearchParams();
   const { products: allProducts, loading: productsLoading } = useProducts();
   const { categories, loading: categoriesLoading } = useCategories();
@@ -389,5 +389,20 @@ export default function ProductsPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </main>
+    }>
+      <ProductsContent />
+    </Suspense>
   );
 }
