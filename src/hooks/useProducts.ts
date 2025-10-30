@@ -29,7 +29,7 @@ export const useProducts = (queryParams?: any) => {
   return { products, loading, error, refetch: () => setProducts(null) };
 };
 
-export const useProduct = (id: number) => {
+export const useProduct = (id: number | string) => {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +39,9 @@ export const useProduct = (id: number) => {
       try {
         setLoading(true);
         setError(null);
-        const data = await dataService.products.getById(id);
+        // Convert to number if it looks like a numeric ID, otherwise keep as string
+        const productId = typeof id === 'string' && !isNaN(Number(id)) ? Number(id) : id;
+        const data = await dataService.products.getById(productId as number);
         setProduct(data as Product | null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch product');
@@ -116,7 +118,7 @@ export const useFeaturedProducts = () => {
   return { products, loading, error };
 };
 
-export const useRelatedProducts = (id: number) => {
+export const useRelatedProducts = (id: number | string) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -126,7 +128,9 @@ export const useRelatedProducts = (id: number) => {
       try {
         setLoading(true);
         setError(null);
-        const data = await dataService.products.getRelated(id);
+        // Convert to number if it looks like a numeric ID, otherwise keep as string
+        const productId = typeof id === 'string' && !isNaN(Number(id)) ? Number(id) : id;
+        const data = await dataService.products.getRelated(productId as number);
         setProducts(data as Product[]);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch related products');

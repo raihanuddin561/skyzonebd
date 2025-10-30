@@ -135,14 +135,15 @@ export const dataService = {
       );
     },
 
-    getById: async (id: number) => {
+    getById: async (id: number | string) => {
       return withFallback(
         async () => {
           const response = await productService.getProductById(id);
-          return response.data;
+          // API returns { success, data: { product, relatedProducts } }
+          return (response.data as { product?: unknown })?.product || response.data;
         },
         null,
-        () => getProductById(id)
+        () => getProductById(typeof id === 'number' ? id : parseInt(id, 10))
       );
     },
 
@@ -169,14 +170,15 @@ export const dataService = {
       );
     },
 
-    getRelated: async (id: number) => {
+    getRelated: async (id: number | string) => {
       return withFallback(
         async () => {
           const response = await productService.getRelatedProducts(id);
-          return response.data;
+          // API returns { success, data: { product, relatedProducts } }
+          return (response.data as { relatedProducts?: unknown[] })?.relatedProducts || response.data || [];
         },
         [],
-        () => getRelatedProducts(id)
+        () => getRelatedProducts(typeof id === 'number' ? id : parseInt(id, 10))
       );
     },
 

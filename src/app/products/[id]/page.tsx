@@ -16,7 +16,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const { addToCart } = useCart();
   const { user } = useAuth();
-  const productId = parseInt(params.id as string);
+  const productId = params.id as string; // Keep as string (cuid)
   
   const { product, loading: productLoading } = useProduct(productId);
   const { products: relatedProducts, loading: relatedLoading } = useRelatedProducts(productId);
