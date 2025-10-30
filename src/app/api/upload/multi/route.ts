@@ -83,9 +83,16 @@ export async function POST(request: NextRequest) {
       try {
         // Upload to Vercel Blob
         const filename = `${folder}/${Date.now()}-${i}-${file.name}`;
+        const blobToken = process.env.BLOB_READ_WRITE_TOKEN || process.env.SKY_ZONE_BD_BLOB_READ_WRITE_TOKEN;
+        
+        if (!blobToken) {
+          throw new Error('No Blob token configured');
+        }
+
         const blob = await put(filename, file, {
           access: 'public',
           addRandomSuffix: true,
+          token: blobToken,
         });
 
         uploadResults.push({
@@ -165,9 +172,18 @@ export async function DELETE(request: NextRequest) {
     const deleteResults = [];
     const errors = [];
 
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN || process.env.SKY_ZONE_BD_BLOB_READ_WRITE_TOKEN;
+    
+    if (!blobToken) {
+      return NextResponse.json(
+        { success: false, error: 'Storage configuration error' },
+        { status: 500 }
+      );
+    }
+
     for (const url of urls) {
       try {
-        await del(url);
+        await del(url, { token: blobToken });
         deleteResults.push({ url, success: true });
       } catch (error) {
         errors.push({

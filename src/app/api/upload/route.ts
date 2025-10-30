@@ -69,9 +69,20 @@ export async function POST(request: NextRequest) {
 
     // Upload to Vercel Blob
     const filename = `${folder}/${Date.now()}-${file.name}`;
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN || process.env.SKY_ZONE_BD_BLOB_READ_WRITE_TOKEN;
+    
+    if (!blobToken) {
+      console.error('❌ No Blob token found in environment variables');
+      return NextResponse.json(
+        { success: false, error: 'Storage configuration error. Please contact administrator.' },
+        { status: 500 }
+      );
+    }
+
     const blob = await put(filename, file, {
       access: 'public',
       addRandomSuffix: true,
+      token: blobToken,
     });
 
     console.log('✅ Image uploaded successfully:', blob.url);
@@ -135,7 +146,17 @@ export async function DELETE(request: NextRequest) {
 
     // Delete from Vercel Blob
     const { del } = await import('@vercel/blob');
-    await del(url);
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN || process.env.SKY_ZONE_BD_BLOB_READ_WRITE_TOKEN;
+    
+    if (!blobToken) {
+      console.error('❌ No Blob token found in environment variables');
+      return NextResponse.json(
+        { success: false, error: 'Storage configuration error. Please contact administrator.' },
+        { status: 500 }
+      );
+    }
+
+    await del(url, { token: blobToken });
 
     console.log('✅ Image deleted successfully:', url);
 
