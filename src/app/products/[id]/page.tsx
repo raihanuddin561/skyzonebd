@@ -86,20 +86,24 @@ export default function ProductDetailPage() {
   };
 
   const nextImage = () => {
-    if (product && product.images) {
-      setModalImageIndex((prev) => (prev + 1) % product.images!.length);
+    const images = getProductImages();
+    if (images.length > 0) {
+      setModalImageIndex((prev) => (prev + 1) % images.length);
     }
   };
 
   const prevImage = () => {
-    if (product && product.images) {
-      setModalImageIndex((prev) => (prev - 1 + product.images!.length) % product.images!.length);
+    const images = getProductImages();
+    if (images.length > 0) {
+      setModalImageIndex((prev) => (prev - 1 + images.length) % images.length);
     }
   };
 
-  const getProductImages = () => {
+  const getProductImages = (): string[] => {
     if (!product) return [];
-    if (product.images && product.images.length > 0) return product.images;
+    // Check for imageUrls (from API) or images (legacy)
+    const images = (product as any).imageUrls || product.images;
+    if (images && Array.isArray(images) && images.length > 0) return images;
     return [product.imageUrl];
   };
 

@@ -12,6 +12,7 @@ export interface Product {
   category?: string;
   subcategory?: string;
   images?: string[];
+  imageUrls?: string[]; // API returns imageUrls
   specifications?: { [key: string]: string };
   stock?: number;
   availability?: 'in_stock' | 'out_of_stock' | 'limited';
