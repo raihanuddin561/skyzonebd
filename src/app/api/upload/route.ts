@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only admin can upload images
-    if (decoded.role !== 'ADMIN') {
+    // Only admin can upload images (check both ADMIN and admin for case-insensitivity)
+    if (decoded.role.toUpperCase() !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
@@ -116,8 +116,8 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Only admin can delete images
-    if (decoded.role !== 'admin') {
+    // Only admin can delete images (check both ADMIN and admin for case-insensitivity)
+    if (decoded.role.toUpperCase() !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }

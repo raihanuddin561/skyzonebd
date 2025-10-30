@@ -7,6 +7,11 @@ import { toast } from 'react-toastify';
 export default function NewProduct() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mainImageFile, setMainImageFile] = useState<File | null>(null);
+  const [additionalImageFiles, setAdditionalImageFiles] = useState<File[]>([]);
+  const [mainImagePreview, setMainImagePreview] = useState<string>('');
+  const [additionalImagePreviews, setAdditionalImagePreviews] = useState<string[]>([]);
+  
   const [formData, setFormData] = useState({
     // Basic Information
     name: '',
@@ -32,10 +37,6 @@ export default function NewProduct() {
     // Inventory
     stock: '',
     availability: 'in_stock',
-    
-    // Images
-    mainImage: '',
-    additionalImages: [''],
     
     // Specifications
     specifications: [{ key: '', value: '' }],
@@ -80,6 +81,62 @@ export default function NewProduct() {
     setFormData({ ...formData, specifications: newSpecs });
   };
 
+  const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setMainImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setMainImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAdditionalImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setAdditionalImageFiles(prev => [...prev, ...files]);
+      
+      // Create previews
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAdditionalImagePreviews(prev => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removeAdditionalImage = (index: number) => {
+    setAdditionalImageFiles(prev => prev.filter((_, i) => i !== index));
+    setAdditionalImagePreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadImage = async (file: File, folder: string = 'products'): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', folder);
+
+    const token = localStorage.getItem('token');
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to upload image');
+    }
+
+    const result = await response.json();
+    return result.data.url;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -92,16 +149,72 @@ export default function NewProduct() {
         return;
       }
 
-      // TODO: Submit to API
-      console.log('Submitting product:', formData);
+      if (!mainImageFile) {
+        toast.error('Please upload a main product image');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Upload images ONLY when submitting
+      toast.info('Uploading images...');
+      const mainImageUrl = await uploadImage(mainImageFile, 'products');
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      const additionalImageUrls: string[] = [];
+      for (const file of additionalImageFiles) {
+        const url = await uploadImage(file, 'products');
+        additionalImageUrls.push(url);
+      }
+
+      // Prepare product data
+      const productData = {
+        name: formData.name,
+        slug: formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        sku: formData.sku,
+        description: formData.description,
+        categoryId: formData.category,
+        brand: formData.brand,
+        retailPrice: parseFloat(formData.retailPrice),
+        salePrice: formData.salePrice ? parseFloat(formData.salePrice) : null,
+        retailMOQ: parseInt(formData.retailMOQ),
+        price: parseFloat(formData.retailPrice), // For backward compatibility
+        wholesaleEnabled: formData.wholesaleEnabled,
+        wholesaleMOQ: formData.wholesaleMOQ ? parseInt(formData.wholesaleMOQ) : 5,
+        stockQuantity: parseInt(formData.stock),
+        availability: formData.availability,
+        imageUrl: mainImageUrl,
+        imageUrls: [mainImageUrl, ...additionalImageUrls],
+        specifications: formData.specifications.reduce((acc, spec) => {
+          if (spec.key && spec.value) {
+            acc[spec.key] = spec.value;
+          }
+          return acc;
+        }, {} as Record<string, string>),
+        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
+        isFeatured: formData.featured,
+        minOrderQuantity: formData.wholesaleEnabled ? parseInt(formData.wholesaleMOQ || '5') : 1,
+      };
+
+      // Submit to API
+      toast.info('Creating product...');
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(productData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create product');
+      }
+
       toast.success('Product created successfully!');
       router.push('/admin/products');
     } catch (error) {
-      toast.error('Failed to create product');
+      toast.error(error instanceof Error ? error.message : 'Failed to create product');
       console.error(error);
     } finally {
       setIsSubmitting(false);
@@ -383,6 +496,102 @@ export default function NewProduct() {
                 <option value="out_of_stock">Out of Stock</option>
               </select>
             </div>
+          </div>
+        </div>
+
+        {/* Product Images */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Product Images</h2>
+          
+          {/* Main Image */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Main Image * <span className="text-gray-500 text-xs">(Will be uploaded when you submit)</span>
+            </label>
+            <div className="flex items-start gap-4">
+              {mainImagePreview ? (
+                <div className="relative">
+                  <img 
+                    src={mainImagePreview} 
+                    alt="Main preview" 
+                    className="w-32 h-32 object-cover rounded-lg border-2 border-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMainImageFile(null);
+                      setMainImagePreview('');
+                    }}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <label className="w-32 h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span className="text-xs text-gray-500 mt-1">Upload</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleMainImageChange}
+                    className="hidden"
+                  />
+                </label>
+              )}
+              <div className="flex-1">
+                <p className="text-sm text-gray-600">
+                  Upload a high-quality main product image. Recommended size: 800x800px or larger.
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Supported formats: JPG, PNG, WebP, GIF (Max 5MB)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Images */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Additional Images <span className="text-gray-500 text-xs">(Optional, will be uploaded when you submit)</span>
+            </label>
+            <div className="flex flex-wrap gap-4">
+              {additionalImagePreviews.map((preview, index) => (
+                <div key={index} className="relative">
+                  <img 
+                    src={preview} 
+                    alt={`Additional ${index + 1}`} 
+                    className="w-24 h-24 object-cover rounded-lg border-2 border-gray-300"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeAdditionalImage(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600 text-xs"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              
+              <label className="w-24 h-24 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span className="text-xs text-gray-500 mt-1">Add</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleAdditionalImagesChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Add multiple product images to show different angles or details
+            </p>
           </div>
         </div>
 
