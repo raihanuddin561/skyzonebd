@@ -234,20 +234,39 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="space-y-4">
                   {order.items.map((item, index) => (
                     <div key={index} className="flex gap-4 pb-4 border-b border-gray-200 last:border-0 last:pb-0">
-                      <div className="flex-shrink-0">
-                        <Image
-                          src={item.imageUrl || '/images/placeholder.jpg'}
-                          alt={item.name}
-                          width={80}
-                          height={80}
-                          className="rounded-lg object-cover"
-                        />
-                      </div>
+                      <Link 
+                        href={`/products/${item.productId}`}
+                        className="flex-shrink-0 group"
+                      >
+                        <div className="relative overflow-hidden rounded-lg">
+                          <Image
+                            src={item.imageUrl || '/images/placeholder.jpg'}
+                            alt={item.name}
+                            width={80}
+                            height={80}
+                            className="rounded-lg object-cover transition-transform group-hover:scale-110"
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity rounded-lg flex items-center justify-center">
+                            <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </Link>
                       
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-gray-900 mb-1 truncate">
-                          {item.name}
-                        </h3>
+                        <Link 
+                          href={`/products/${item.productId}`}
+                          className="group"
+                        >
+                          <h3 className="text-sm font-medium text-gray-900 mb-1 truncate group-hover:text-blue-600 transition-colors">
+                            {item.name}
+                            <svg className="inline-block w-4 h-4 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </h3>
+                        </Link>
                         {item.sku && (
                           <p className="text-xs text-gray-500 mb-2">SKU: {item.sku}</p>
                         )}
