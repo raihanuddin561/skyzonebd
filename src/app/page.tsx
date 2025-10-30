@@ -21,22 +21,22 @@ export default function HomePage() {
       
       {/* Hero Section */}
       <section className="bg-gray-50 py-8 md:py-16 text-center px-4">
-        <h2 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2">
-          Grow Your Business with <span className="text-blue-800">SkyzoneBD</span>
+        <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-2">
+          Grow Your Business with <span className="text-blue-700">SkyzoneBD</span>
         </h2>
-        <p className="text-sm md:text-base text-gray-600 mb-6">
+        <p className="text-sm md:text-base text-gray-700 mb-6">
           Connect with verified wholesalers and retailers
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-3 md:gap-4 mb-8 md:mb-12 max-w-md mx-auto sm:max-w-none">
           <Link href="/auth/register" className="bg-red-500 text-white px-6 py-3 rounded-xl font-semibold shadow hover:bg-red-600 transition-colors text-sm md:text-base">
             Register Company
           </Link>
-          <Link href="/products" className="border border-gray-400 px-6 py-3 rounded-xl font-semibold text-gray-800 hover:bg-gray-100 transition-colors text-sm md:text-base">
+          <Link href="/products" className="border-2 border-gray-600 px-6 py-3 rounded-xl font-semibold text-gray-900 bg-white hover:bg-gray-100 transition-colors text-sm md:text-base">
             Explore Products
           </Link>
         </div>
 
-        <h3 className="text-base md:text-lg font-semibold mb-4 md:mb-6">Browse Categories</h3>
+        <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-4 md:mb-6">Browse Categories</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 max-w-7xl mx-auto place-items-center">
           {categoriesLoading ? (
             <div className="col-span-full text-center py-8">
@@ -68,7 +68,7 @@ export default function HomePage() {
 
       {/* Featured Products */}
       <section className="py-8 md:py-12 px-4 md:px-6 max-w-7xl mx-auto">
-        <h3 className="text-xl md:text-2xl font-semibold mb-4 md:mb-6">Featured Products</h3>
+        <h3 className="text-xl md:text-2xl font-semibold text-gray-900 mb-4 md:mb-6">Featured Products</h3>
         {productsLoading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -94,7 +94,7 @@ export default function HomePage() {
 
       {/* How It Works */}
       <section className="py-8 md:py-16 bg-gray-100 text-center px-4">
-        <h3 className="text-xl md:text-2xl font-semibold mb-6 md:mb-8">How It Works</h3>
+        <h3 className="text-xl md:text-2xl font-semibold text-gray-900 mb-6 md:mb-8">How It Works</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 max-w-5xl mx-auto">
           {[
             'Register your company on SkyzoneBD',
@@ -103,7 +103,7 @@ export default function HomePage() {
           ].map((step, idx) => (
             <div key={idx} className="p-4 md:p-6 bg-white rounded-xl shadow">
               <div className="text-3xl md:text-4xl font-bold text-blue-600 mb-2">{idx + 1}</div>
-              <p className="text-sm md:text-base">{step}</p>
+              <p className="text-sm md:text-base text-gray-800">{step}</p>
             </div>
           ))}
         </div>
