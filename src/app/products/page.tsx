@@ -37,9 +37,12 @@ export default function ProductsPage() {
       );
     }
 
-    // Category filter
+    // Category filter - compare by category name since API returns category as string name
     if (selectedCategory !== 'all') {
-      products = products.filter(product => product.category === selectedCategory);
+      // Find the category name from the selected category ID
+      const selectedCat = categories.find(cat => cat.id === selectedCategory);
+      const categoryNameToMatch = selectedCat?.name || selectedCategory;
+      products = products.filter(product => product.category === categoryNameToMatch);
     }
 
     // Price range filter
@@ -160,7 +163,8 @@ export default function ProductsPage() {
                       </span>
                     </label>
                     {categories.map(category => {
-                      const count = allProducts?.filter((p: Product) => p.category === category.id).length || 0;
+                      // Count by category name since API returns category as string name
+                      const count = allProducts?.filter((p: Product) => p.category === category.name).length || 0;
                       return (
                         <label key={category.id} className="flex items-center p-3 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors border border-transparent hover:border-blue-200">
                           <input
