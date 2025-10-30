@@ -381,8 +381,8 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Only admin can update order status
-    if (decoded.role !== 'admin') {
+    // Only admin can update order status (case-insensitive check)
+    if (decoded.role.toUpperCase() !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }

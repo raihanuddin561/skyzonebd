@@ -15,7 +15,8 @@ function verifyAdmin(request: NextRequest) {
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string; role: string };
 
-    if (decoded.role !== 'ADMIN') {
+    // Case-insensitive role check (login returns lowercase, but DB stores uppercase)
+    if (decoded.role.toUpperCase() !== 'ADMIN') {
       return { authorized: false, error: 'Admin access required' };
     }
 
