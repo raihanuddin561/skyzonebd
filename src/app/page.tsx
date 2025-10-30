@@ -37,34 +37,32 @@ export default function HomePage() {
         </div>
 
         <h3 className="text-base md:text-lg font-semibold mb-4 md:mb-6">Browse Categories</h3>
-        <div className="flex justify-center items-center w-full">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 justify-items-center">
-            {categoriesLoading ? (
-              <div className="col-span-full text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              </div>
-            ) : categories.length > 0 ? (
-              categories.map(category => (
-                <Link
-                  key={category.id}
-                  href={`/products?category=${category.id}`}
-                  className={`flex flex-col items-center justify-center text-center hover:shadow-lg p-4 md:p-6 rounded-xl transition-all transform hover:scale-105 hover:-translate-y-1 w-[140px] md:w-[160px] ${getCategoryColor(category.name)}`}
-                >
-                  <div className="text-4xl md:text-5xl mb-2 md:mb-3">
-                    {category.icon || getCategoryIcon(category.name)}
-                  </div>
-                  <p className="text-xs md:text-sm font-semibold">{category.name}</p>
-                  {category.productCount !== undefined && category.productCount > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">{category.productCount} items</p>
-                  )}
-                </Link>
-              ))
-            ) : (
-              <div className="col-span-full text-center py-8 text-gray-500">
-                <p>No categories available</p>
-              </div>
-            )}
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 max-w-7xl mx-auto place-items-center">
+          {categoriesLoading ? (
+            <div className="col-span-full text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            </div>
+          ) : categories.length > 0 ? (
+            categories.map(category => (
+              <Link
+                key={category.id}
+                href={`/products?category=${category.id}`}
+                className={`flex flex-col items-center justify-center text-center hover:shadow-lg p-4 md:p-6 rounded-xl transition-all transform hover:scale-105 hover:-translate-y-1 w-[140px] md:w-[160px] ${getCategoryColor(category.name)}`}
+              >
+                <div className="text-4xl md:text-5xl mb-2 md:mb-3">
+                  {category.icon || getCategoryIcon(category.name)}
+                </div>
+                <p className="text-xs md:text-sm font-semibold">{category.name}</p>
+                {category.productCount !== undefined && category.productCount > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">{category.productCount} items</p>
+                )}
+              </Link>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-8 text-gray-500">
+              <p>No categories available</p>
+            </div>
+          )}
         </div>
       </section>
 
