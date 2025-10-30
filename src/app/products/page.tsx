@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Header from '../components/Header';
 import ProductCard from '../components/ProductCard';
 import { useProducts } from '@/hooks/useProducts';
@@ -11,6 +12,7 @@ import { Product } from '@/types/cart';
 import { getCategoryIcon } from '@/utils/categoryIcons';
 
 export default function ProductsPage() {
+  const searchParams = useSearchParams();
   const { products: allProducts, loading: productsLoading } = useProducts();
   const { categories, loading: categoriesLoading } = useCategories();
   
@@ -22,6 +24,14 @@ export default function ProductsPage() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const productsPerPage = 12;
+
+  // Read category from URL on mount
+  useEffect(() => {
+    const categoryFromUrl = searchParams.get('category');
+    if (categoryFromUrl) {
+      setSelectedCategory(categoryFromUrl);
+    }
+  }, [searchParams]);
 
   // Filter and sort products
   useEffect(() => {
@@ -70,7 +80,7 @@ export default function ProductsPage() {
 
     setFilteredProducts(products);
     setCurrentPage(1);
-  }, [allProducts, productsLoading, searchQuery, selectedCategory, sortBy, priceRange]);
+  }, [allProducts, productsLoading, searchQuery, selectedCategory, sortBy, priceRange, categories]);
 
   // Pagination
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
