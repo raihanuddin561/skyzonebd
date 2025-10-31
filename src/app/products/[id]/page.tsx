@@ -174,6 +174,14 @@ export default function ProductDetailPage() {
                     target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect width="400" height="400" fill="%23f3f4f6"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="18" fill="%236b7280"%3EImage not available%3C/text%3E%3C/svg%3E';
                   }}
                 />
+                
+                {/* Image Counter */}
+                {getProductImages().length > 1 && (
+                  <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-1.5 rounded-full text-sm font-medium backdrop-blur-sm">
+                    {getProductImages().indexOf(selectedImage || product.imageUrl) + 1} / {getProductImages().length}
+                  </div>
+                )}
+                
                 {/* Hover zoom indicator */}
                 <div className="absolute bottom-6 right-6 bg-white/90 backdrop-blur-sm rounded-full p-3 opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-lg border border-gray-200">
                   <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -212,12 +220,18 @@ export default function ProductDetailPage() {
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-sm border border-blue-100 overflow-hidden">
               <div className="grid grid-cols-3 divide-x divide-blue-200">
                 <div className="p-4 text-center hover:bg-white/50 transition-colors">
-                  <div className="flex items-center justify-center mb-2">
-                    <span className="text-2xl font-bold text-gray-900">{product.rating || '4.5'}</span>
-                    <svg className="w-5 h-5 ml-1 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  </div>
+                  {product.rating ? (
+                    <div className="flex items-center justify-center mb-2">
+                      <span className="text-2xl font-bold text-gray-900">{product.rating.toFixed(1)}</span>
+                      <svg className="w-5 h-5 ml-1 text-yellow-400 fill-current" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    </div>
+                  ) : (
+                    <div className="mb-2">
+                      <span className="text-2xl font-bold text-gray-400">N/A</span>
+                    </div>
+                  )}
                   <div className="text-xs font-medium text-gray-600 uppercase tracking-wide">Rating</div>
                 </div>
                 <div className="p-4 text-center hover:bg-white/50 transition-colors">
@@ -239,7 +253,7 @@ export default function ProductDetailPage() {
               <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4 leading-tight">{product.name}</h1>
               
               <div className="flex flex-wrap items-center gap-4 mb-4">
-                {product.rating && (
+                {product.rating ? (
                   <div className="flex items-center bg-gradient-to-r from-yellow-50 to-orange-50 px-3 py-2 rounded-lg border border-yellow-200">
                     <div className="flex text-yellow-400 mr-2">
                       {[...Array(5)].map((_, i) => (
@@ -249,8 +263,12 @@ export default function ProductDetailPage() {
                       ))}
                     </div>
                     <span className="text-sm font-semibold text-gray-700">
-                      {product.rating} <span className="text-gray-500">({product.reviews} reviews)</span>
+                      {product.rating.toFixed(1)} <span className="text-gray-500">({product.reviews || 0} reviews)</span>
                     </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                    <span className="text-sm font-semibold text-gray-500">No ratings yet</span>
                   </div>
                 )}
                 
