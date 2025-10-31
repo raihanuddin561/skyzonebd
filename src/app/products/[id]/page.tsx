@@ -154,75 +154,75 @@ export default function ProductDetailPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Product Images */}
-          <div>
-            <div className="mb-4 relative group">
+          {/* Product Images - Amazon/Alibaba Style */}
+          <div className="sticky top-4 self-start">
+            {/* Main Image Container */}
+            <div className="bg-white border border-gray-200 rounded-lg p-6 mb-4">
               <div 
-                className="relative cursor-zoom-in bg-white rounded-lg border"
+                className="relative w-full cursor-pointer overflow-hidden rounded-lg bg-gray-50 flex items-center justify-center"
+                style={{ minHeight: '400px', maxHeight: '500px' }}
                 onClick={() => openImageModal(getProductImages().indexOf(selectedImage || product.imageUrl))}
               >
-                <Image
+                <img
                   src={selectedImage || product.imageUrl}
                   alt={product.name}
-                  width={600}
-                  height={600}
-                  className="w-full h-[500px] object-contain rounded-lg"
-                  priority
+                  className="max-w-full max-h-full w-auto h-auto object-contain"
+                  style={{ maxHeight: '500px' }}
                   onError={(e) => {
-                    console.error('Image load error:', e);
+                    console.error('Image load error:', selectedImage || product.imageUrl);
                     const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
+                    target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect width="400" height="400" fill="%23f3f4f6"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="18" fill="%236b7280"%3EImage not available%3C/text%3E%3C/svg%3E';
                   }}
                 />
-                {/* Zoom hint overlay */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all rounded-lg flex items-center justify-center">
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white bg-opacity-90 px-4 py-2 rounded-lg">
-                    <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                    </svg>
-                    <span className="text-sm font-medium text-gray-700 ml-2">Click to enlarge</span>
-                  </div>
+                {/* Hover zoom indicator */}
+                <div className="absolute bottom-4 right-4 bg-white rounded-full p-2 opacity-0 hover:opacity-100 transition-opacity shadow-lg">
+                  <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                  </svg>
                 </div>
               </div>
+              
+              {/* Thumbnails Row */}
+              {getProductImages().length > 1 && (
+                <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
+                  {getProductImages().map((image, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedImage(image)}
+                      className={`flex-shrink-0 w-16 h-16 rounded border-2 transition-all overflow-hidden bg-gray-50 ${
+                        (selectedImage || product.imageUrl) === image 
+                          ? 'border-blue-600 ring-1 ring-blue-600' 
+                          : 'border-gray-200 hover:border-gray-400'
+                      }`}
+                    >
+                      <img
+                        src={image}
+                        alt={`View ${index + 1}`}
+                        className="w-full h-full object-contain p-1"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             
-            {/* Image Thumbnails */}
-            {getProductImages().length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {getProductImages().map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImage(image)}
-                    className={`flex-shrink-0 w-20 h-20 rounded-lg border-2 transition-all ${
-                      selectedImage === image 
-                        ? 'border-blue-500 shadow-md' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <Image
-                      src={image}
-                      alt={`${product.name} ${index + 1}`}
-                      width={80}
-                      height={80}
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-            
             {/* Product Stats */}
-            <div className="mt-6 grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="grid grid-cols-3 gap-3 bg-gray-50 border border-gray-200 rounded-lg p-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{product.rating || 'N/A'}</div>
+                <div className="flex items-center justify-center text-yellow-400 mb-1">
+                  <span className="text-xl font-bold text-gray-900">{product.rating || '4.5'}</span>
+                  <svg className="w-4 h-4 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                </div>
                 <div className="text-xs text-gray-600">Rating</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{product.stock || 0}</div>
+              <div className="text-center border-x border-gray-300">
+                <div className="text-xl font-bold text-green-600">{product.stock || 0}</div>
                 <div className="text-xs text-gray-600">In Stock</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">{product.reviews || 0}</div>
+                <div className="text-xl font-bold text-gray-900">{product.reviews || 0}</div>
                 <div className="text-xs text-gray-600">Reviews</div>
               </div>
             </div>
