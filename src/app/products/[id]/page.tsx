@@ -152,22 +152,22 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Product Images - Amazon/Alibaba Style */}
-          <div className="sticky top-4 self-start">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+          {/* Product Images - Professional Design */}
+          <div className="lg:sticky lg:top-6 self-start">
             {/* Main Image Container */}
-            <div className="bg-white border border-gray-200 rounded-lg p-6 mb-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4 transition-shadow hover:shadow-md">
               <div 
-                className="relative w-full cursor-pointer overflow-hidden rounded-lg bg-gray-50 flex items-center justify-center"
-                style={{ minHeight: '400px', maxHeight: '500px' }}
+                className="relative w-full cursor-zoom-in bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center group"
+                style={{ minHeight: '450px', height: '500px' }}
                 onClick={() => openImageModal(getProductImages().indexOf(selectedImage || product.imageUrl))}
               >
                 <img
                   src={selectedImage || product.imageUrl}
                   alt={product.name}
-                  className="max-w-full max-h-full w-auto h-auto object-contain"
-                  style={{ maxHeight: '500px' }}
+                  className="max-w-full max-h-full w-auto h-auto object-contain p-8 transition-transform group-hover:scale-105 duration-300"
+                  style={{ maxHeight: '484px' }}
                   onError={(e) => {
                     console.error('Image load error:', selectedImage || product.imageUrl);
                     const target = e.target as HTMLImageElement;
@@ -175,7 +175,7 @@ export default function ProductDetailPage() {
                   }}
                 />
                 {/* Hover zoom indicator */}
-                <div className="absolute bottom-4 right-4 bg-white rounded-full p-2 opacity-0 hover:opacity-100 transition-opacity shadow-lg">
+                <div className="absolute bottom-6 right-6 bg-white/90 backdrop-blur-sm rounded-full p-3 opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-lg border border-gray-200">
                   <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
                   </svg>
@@ -184,90 +184,104 @@ export default function ProductDetailPage() {
               
               {/* Thumbnails Row */}
               {getProductImages().length > 1 && (
-                <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
-                  {getProductImages().map((image, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedImage(image)}
-                      className={`flex-shrink-0 w-16 h-16 rounded border-2 transition-all overflow-hidden bg-gray-50 ${
-                        (selectedImage || product.imageUrl) === image 
-                          ? 'border-blue-600 ring-1 ring-blue-600' 
-                          : 'border-gray-200 hover:border-gray-400'
-                      }`}
-                    >
-                      <img
-                        src={image}
-                        alt={`View ${index + 1}`}
-                        className="w-full h-full object-contain p-1"
-                      />
-                    </button>
-                  ))}
+                <div className="bg-white border-t border-gray-100 p-4">
+                  <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+                    {getProductImages().map((image, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setSelectedImage(image)}
+                        className={`flex-shrink-0 w-20 h-20 rounded-lg border-2 transition-all overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 hover:shadow-md ${
+                          (selectedImage || product.imageUrl) === image 
+                            ? 'border-blue-600 ring-2 ring-blue-100 shadow-md scale-105' 
+                            : 'border-gray-200 hover:border-blue-300 hover:scale-105'
+                        }`}
+                      >
+                        <img
+                          src={image}
+                          alt={`View ${index + 1}`}
+                          className="w-full h-full object-contain p-2"
+                        />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
             
-            {/* Product Stats */}
-            <div className="grid grid-cols-3 gap-3 bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <div className="text-center">
-                <div className="flex items-center justify-center text-yellow-400 mb-1">
-                  <span className="text-xl font-bold text-gray-900">{product.rating || '4.5'}</span>
-                  <svg className="w-4 h-4 ml-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
+            {/* Product Stats - Enhanced Design */}
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-sm border border-blue-100 overflow-hidden">
+              <div className="grid grid-cols-3 divide-x divide-blue-200">
+                <div className="p-4 text-center hover:bg-white/50 transition-colors">
+                  <div className="flex items-center justify-center mb-2">
+                    <span className="text-2xl font-bold text-gray-900">{product.rating || '4.5'}</span>
+                    <svg className="w-5 h-5 ml-1 text-yellow-400 fill-current" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  </div>
+                  <div className="text-xs font-medium text-gray-600 uppercase tracking-wide">Rating</div>
                 </div>
-                <div className="text-xs text-gray-600">Rating</div>
-              </div>
-              <div className="text-center border-x border-gray-300">
-                <div className="text-xl font-bold text-green-600">{product.stock || 0}</div>
-                <div className="text-xs text-gray-600">In Stock</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xl font-bold text-gray-900">{product.reviews || 0}</div>
-                <div className="text-xs text-gray-600">Reviews</div>
+                <div className="p-4 text-center hover:bg-white/50 transition-colors">
+                  <div className="text-2xl font-bold text-green-600 mb-2">{product.stock || 0}</div>
+                  <div className="text-xs font-medium text-gray-600 uppercase tracking-wide">In Stock</div>
+                </div>
+                <div className="p-4 text-center hover:bg-white/50 transition-colors">
+                  <div className="text-2xl font-bold text-indigo-600 mb-2">{product.reviews || 0}</div>
+                  <div className="text-xs font-medium text-gray-600 uppercase tracking-wide">Reviews</div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Product Info */}
-          <div>
-            <div className="mb-4">
-              <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
-              <div className="flex items-center gap-4 mb-4">
+          {/* Product Info - Professional Layout */}
+          <div className="space-y-6">
+            {/* Product Title & Rating */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4 leading-tight">{product.name}</h1>
+              
+              <div className="flex flex-wrap items-center gap-4 mb-4">
                 {product.rating && (
-                  <div className="flex items-center">
-                    <div className="flex text-yellow-400">
+                  <div className="flex items-center bg-gradient-to-r from-yellow-50 to-orange-50 px-3 py-2 rounded-lg border border-yellow-200">
+                    <div className="flex text-yellow-400 mr-2">
                       {[...Array(5)].map((_, i) => (
-                        <span key={i} className={i < Math.floor(product.rating!) ? 'text-yellow-400' : 'text-gray-300'}>
-                          ★
-                        </span>
+                        <svg key={i} className={`w-5 h-5 ${i < Math.floor(product.rating!) ? 'text-yellow-400 fill-current' : 'text-gray-300 fill-current'}`} viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
                       ))}
                     </div>
-                    <span className="ml-2 text-sm text-gray-600">
-                      {product.rating} ({product.reviews} reviews)
+                    <span className="text-sm font-semibold text-gray-700">
+                      {product.rating} <span className="text-gray-500">({product.reviews} reviews)</span>
                     </span>
                   </div>
                 )}
-                <span className={`px-2 py-1 rounded text-sm ${
+                
+                <span className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-semibold ${
                   product.availability === 'in_stock' 
-                    ? 'bg-green-100 text-green-800' 
+                    ? 'bg-green-50 text-green-700 border border-green-200' 
                     : product.availability === 'limited'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-red-100 text-red-800'
+                    ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                    : 'bg-red-50 text-red-700 border border-red-200'
                 }`}>
+                  <span className={`w-2 h-2 rounded-full mr-2 ${
+                    product.availability === 'in_stock' ? 'bg-green-500' :
+                    product.availability === 'limited' ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}></span>
                   {product.availability === 'in_stock' ? 'In Stock' : 
                    product.availability === 'limited' ? 'Limited Stock' : 'Out of Stock'}
                 </span>
               </div>
             </div>
 
-            {/* Price */}
-            <div className="mb-6">
-              <div className="flex items-center gap-4 mb-2">
-                <span className="text-3xl font-bold text-blue-600">৳{product.price.toLocaleString()}</span>
+            {/* Price Section */}
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-sm border border-blue-200 p-6">
+              <div className="flex items-baseline gap-3 mb-3">
+                <span className="text-4xl font-bold text-blue-600">৳{product.price.toLocaleString()}</span>
                 {product.discount && (
-                  <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-sm">
-                    {product.discount}% OFF
-                  </span>
+                  <>
+                    <span className="text-xl text-gray-400 line-through">৳{(product.price / (1 - product.discount / 100)).toFixed(0)}</span>
+                    <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                      -{product.discount}% OFF
+                    </span>
+                  </>
                 )}
               </div>
               {/* Show MOQ ONLY for wholesale users, NOT for guests or retail */}
