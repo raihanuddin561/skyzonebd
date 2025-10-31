@@ -92,7 +92,12 @@ export default function CartPage() {
                     />
                     
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold">{item.product.name}</h3>
+                      <Link 
+                        href={`/products/${item.product.id}`}
+                        className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors inline-block"
+                      >
+                        {item.product.name}
+                      </Link>
                       <p className="text-sm text-gray-600">{item.product.companyName}</p>
                       {/* Show MOQ only for wholesale users */}
                       {user && user.userType === 'wholesale' && (
