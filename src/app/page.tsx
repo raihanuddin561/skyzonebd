@@ -10,52 +10,58 @@ import { useFeaturedProducts } from "@/hooks/useProducts";
 import { useCategories } from "@/hooks/useCategories";
 import { getCategoryIcon, getCategoryColor } from "@/utils/categoryIcons";
 
-// Hero Slider Data
-const heroSlides = [
-  {
-    id: 1,
-    title: "Grow Your Business with SkyzoneBD",
-    subtitle: "Connect with verified wholesalers and retailers",
-    bgGradient: "from-blue-600 to-indigo-600",
-    textColor: "text-white",
-    ctaText: "Register Company",
-    ctaLink: "/auth/register",
-    image: null
-  },
-  {
-    id: 2,
-    title: "Wholesale Prices for Bulk Orders",
-    subtitle: "Get the best deals on bulk purchases",
-    bgGradient: "from-purple-600 to-pink-600",
-    textColor: "text-white",
-    ctaText: "View Products",
-    ctaLink: "/products",
-    image: null
-  },
-  {
-    id: 3,
-    title: "Fast & Reliable Delivery",
-    subtitle: "Order now and get delivery within 3-5 business days",
-    bgGradient: "from-green-600 to-teal-600",
-    textColor: "text-white",
-    ctaText: "Shop Now",
-    ctaLink: "/products",
-    image: null
-  }
-];
+interface HeroSlide {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  imageUrl: string;
+  linkUrl: string | null;
+  buttonText: string;
+  bgColor: string;
+  textColor: string;
+  product?: {
+    id: string;
+    name: string;
+    slug: string;
+    imageUrl: string;
+    retailPrice: number;
+  };
+}
 
 export default function HomePage() {
   const { products: featuredProducts, loading: productsLoading } = useFeaturedProducts();
   const { categories, loading: categoriesLoading } = useCategories();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
+  const [slidesLoading, setSlidesLoading] = useState(true);
+
+  // Fetch hero slides from API
+  useEffect(() => {
+    const fetchHeroSlides = async () => {
+      try {
+        const response = await fetch('/api/hero-slides');
+        const data = await response.json();
+        if (data.success && data.data.length > 0) {
+          setHeroSlides(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching hero slides:', error);
+      } finally {
+        setSlidesLoading(false);
+      }
+    };
+    fetchHeroSlides();
+  }, []);
 
   // Auto-slide effect
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
-    }, 5000); // Change slide every 5 seconds
-    return () => clearInterval(timer);
-  }, []);
+    if (heroSlides.length > 1) {
+      const timer = setInterval(() => {
+        setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+      }, 5000); // Change slide every 5 seconds
+      return () => clearInterval(timer);
+    }
+  }, [heroSlides.length]);
 
   const goToSlide = (index: number) => {
     setCurrentSlide(index);
@@ -75,69 +81,133 @@ export default function HomePage() {
       
       {/* Hero Slider Section - Alibaba Style */}
       <section className="relative overflow-hidden bg-gray-900 border-b border-gray-200">
-        <div className="relative h-[400px] md:h-[500px] lg:h-[600px]">
-          {heroSlides.map((slide, index) => (
-            <div
-              key={slide.id}
-              className={`absolute inset-0 transition-opacity duration-1000 ${
-                index === currentSlide ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
-              <div className={`w-full h-full bg-gradient-to-r ${slide.bgGradient} flex items-center justify-center`}>
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                  <h2 className={`text-3xl md:text-5xl lg:text-7xl font-bold ${slide.textColor} mb-4 md:mb-6 leading-tight animate-fade-in`}>
-                    {slide.title}
-                  </h2>
-                  <p className={`text-lg md:text-2xl ${slide.textColor} mb-8 md:mb-12 max-w-3xl mx-auto opacity-90 animate-fade-in`}>
-                    {slide.subtitle}
-                  </p>
-                  <Link
-                    href={slide.ctaLink}
-                    className="inline-block bg-white text-gray-900 px-8 md:px-12 py-4 md:py-5 rounded-full font-bold text-base md:text-lg shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 animate-fade-in"
-                  >
-                    {slide.ctaText}
-                  </Link>
+        {slidesLoading ? (
+          <div className="h-[250px] md:h-[350px] flex items-center justify-center bg-gradient-to-r from-blue-600 to-indigo-600">
+            <div className="text-white text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+              <p>Loading...</p>
+            </div>
+          </div>
+        ) : heroSlides.length === 0 ? (
+          <div className="h-[250px] md:h-[350px] bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center">
+            <div className="text-center text-white px-4">
+              <h2 className="text-3xl md:text-5xl font-bold mb-4">Welcome to SkyzoneBD</h2>
+              <p className="text-lg md:text-xl mb-8 opacity-90">Your trusted B2B marketplace</p>
+              <Link href="/products" className="inline-block bg-white text-gray-900 px-8 py-4 rounded-full font-bold shadow-2xl hover:scale-105 transition-all">
+                Shop Now
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="relative h-[250px] md:h-[350px]">
+            {heroSlides.map((slide, index) => (
+              <div
+                key={slide.id}
+                className={`absolute inset-0 transition-opacity duration-1000 ${
+                  index === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+              >
+                <div 
+                  className="w-full h-full relative flex items-center justify-center"
+                  style={{ backgroundColor: slide.bgColor }}
+                >
+                  {/* Background Image */}
+                  {slide.imageUrl && (
+                    <img
+                      src={slide.imageUrl}
+                      alt={slide.title}
+                      className="absolute inset-0 w-full h-full object-cover opacity-60"
+                    />
+                  )}
+                  
+                  {/* Content Overlay */}
+                  <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    {/* Text Content */}
+                    <div className="text-left">
+                      <h2 
+                        className="text-2xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4 leading-tight animate-fade-in"
+                        style={{ color: slide.textColor }}
+                      >
+                        {slide.title}
+                      </h2>
+                      {slide.subtitle && (
+                        <p 
+                          className="text-base md:text-xl mb-6 md:mb-8 opacity-90 animate-fade-in"
+                          style={{ color: slide.textColor }}
+                        >
+                          {slide.subtitle}
+                        </p>
+                      )}
+                      <Link
+                        href={slide.linkUrl || (slide.product ? `/products/${slide.product.id}` : '/products')}
+                        className="inline-block bg-white text-gray-900 px-6 md:px-10 py-3 md:py-4 rounded-full font-bold text-sm md:text-base shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 animate-fade-in"
+                      >
+                        {slide.buttonText}
+                      </Link>
+                    </div>
+                    
+                    {/* Product Image (if linked to a product) */}
+                    {slide.product && (
+                      <div className="hidden md:flex justify-center animate-fade-in">
+                        <Link href={`/products/${slide.product.id}`} className="group">
+                          <div className="bg-white/10 backdrop-blur-sm p-6 rounded-2xl border-2 border-white/30 hover:border-white/60 transition-all group-hover:scale-105">
+                            <img
+                              src={slide.product.imageUrl}
+                              alt={slide.product.name}
+                              className="w-48 h-48 object-contain mb-4"
+                            />
+                            <h3 className="text-white font-semibold text-center text-lg">{slide.product.name}</h3>
+                            <p className="text-white/90 text-center font-bold text-xl mt-2">৳{slide.product.retailPrice.toLocaleString()}</p>
+                          </div>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-
-          {/* Navigation Arrows */}
-          <button
-            onClick={prevSlide}
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white p-3 md:p-4 rounded-full transition-all duration-300 z-10 group"
-            aria-label="Previous slide"
-          >
-            <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            onClick={nextSlide}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white p-3 md:p-4 rounded-full transition-all duration-300 z-10 group"
-            aria-label="Next slide"
-          >
-            <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-
-          {/* Slide Indicators */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-10">
-            {heroSlides.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => goToSlide(index)}
-                className={`transition-all duration-300 rounded-full ${
-                  index === currentSlide
-                    ? 'bg-white w-10 h-3'
-                    : 'bg-white/50 hover:bg-white/75 w-3 h-3'
-                }`}
-                aria-label={`Go to slide ${index + 1}`}
-              />
             ))}
+
+            {/* Navigation Arrows */}
+            {heroSlides.length > 1 && (
+              <>
+                <button
+                  onClick={prevSlide}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white p-3 md:p-4 rounded-full transition-all duration-300 z-10 group"
+                  aria-label="Previous slide"
+                >
+                  <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={nextSlide}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white p-3 md:p-4 rounded-full transition-all duration-300 z-10 group"
+                  aria-label="Next slide"
+                >
+                  <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+
+                {/* Slide Indicators */}
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-10">
+                  {heroSlides.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => goToSlide(index)}
+                      className={`transition-all duration-300 rounded-full ${
+                        index === currentSlide
+                          ? 'bg-white w-10 h-3'
+                          : 'bg-white/50 hover:bg-white/75 w-3 h-3'
+                      }`}
+                      aria-label={`Go to slide ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
-        </div>
+        )}
       </section>
 
       {/* Categories Section */}

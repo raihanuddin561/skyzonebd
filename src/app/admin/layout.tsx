@@ -60,6 +60,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     {
       category: 'Content',
       items: [
+        { name: 'Hero Slides', icon: '🎯', path: '/admin/hero-slides' },
         { name: 'Banners', icon: '🖼️', path: '/admin/banners' },
         { name: 'Reviews', icon: '⭐', path: '/admin/reviews' },
         { name: 'Notifications', icon: '🔔', path: '/admin/notifications' },

@@ -156,6 +156,7 @@ model Product {
   orderItems       OrderItem[]
   wholesaleTiers   WholesaleTier[]
   rfqItems         RFQItem[]
+  heroSlides       HeroSlide[]
   
   @@map("products")
 }
@@ -348,4 +349,28 @@ enum PaymentMethod {
   CREDIT_CARD
   INVOICE_NET30  // B2B payment terms
   INVOICE_NET60
+}
+
+// Hero Slider for Homepage
+model HeroSlide {
+  id          String   @id @default(cuid())
+  title       String
+  subtitle    String?
+  imageUrl    String   // Main banner image
+  linkUrl     String?  // Link to product or category
+  productId   String?  // Optional: Link to specific product
+  buttonText  String   @default("Shop Now")
+  position    Int      @default(0) // Order of slides
+  isActive    Boolean  @default(true)
+  bgColor     String   @default("#3B82F6") // Background color (hex)
+  textColor   String   @default("#FFFFFF") // Text color (hex)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  
+  @@map("hero_slides")
+  @@index([position])
+  @@index([isActive])
 }
