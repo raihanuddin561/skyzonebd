@@ -20,50 +20,61 @@ export default function HomePage() {
 
       
       {/* Hero Section */}
-      <section className="bg-gray-50 py-8 md:py-16 text-center px-4">
-        <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-2">
-          Grow Your Business with <span className="text-blue-700">SkyzoneBD</span>
-        </h2>
-        <p className="text-sm md:text-base text-gray-700 mb-6">
-          Connect with verified wholesalers and retailers
-        </p>
-        <div className="flex flex-col sm:flex-row justify-center gap-3 md:gap-4 mb-8 md:mb-12 max-w-md mx-auto sm:max-w-none">
-          <Link href="/auth/register" className="bg-red-500 text-white px-6 py-3 rounded-xl font-semibold shadow hover:bg-red-600 transition-colors text-sm md:text-base">
-            Register Company
-          </Link>
-          <Link href="/products" className="border-2 border-gray-600 px-6 py-3 rounded-xl font-semibold text-gray-900 bg-white hover:bg-gray-100 transition-colors text-sm md:text-base">
-            Explore Products
-          </Link>
+      <section className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-10 md:py-20 text-center px-4 border-b border-gray-200">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 leading-tight">
+            Grow Your Business with <span className="text-blue-600 bg-clip-text">SkyzoneBD</span>
+          </h2>
+          <p className="text-base md:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            Connect with verified wholesalers and retailers across Bangladesh
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4 md:gap-5 mb-12 md:mb-16 max-w-md mx-auto sm:max-w-none">
+            <Link href="/auth/register" className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 transition-all transform hover:scale-105 text-sm md:text-base">
+              Register Company
+            </Link>
+            <Link href="/products" className="border-2 border-blue-600 px-8 py-4 rounded-xl font-semibold text-blue-600 bg-white hover:bg-blue-50 transition-all transform hover:scale-105 shadow-md hover:shadow-lg text-sm md:text-base">
+              Explore Products
+            </Link>
+          </div>
         </div>
 
-        <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-4 md:mb-6">Browse Categories</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 max-w-7xl mx-auto place-items-center">
-          {categoriesLoading ? (
-            <div className="col-span-full text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+        <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-6 md:mb-8">Browse Categories</h3>
+        
+        {categoriesLoading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="text-gray-500 mt-3">Loading categories...</p>
+          </div>
+        ) : categories.length > 0 ? (
+          <div className="max-w-7xl mx-auto">
+            <div className="flex flex-wrap justify-center gap-4 md:gap-6">
+              {categories.map(category => (
+                <Link
+                  key={category.id}
+                  href={`/products?category=${category.id}`}
+                  className={`group flex flex-col items-center justify-center text-center hover:shadow-xl p-5 md:p-6 rounded-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-2 w-[140px] sm:w-[150px] md:w-[160px] border-2 border-transparent hover:border-blue-300 ${getCategoryColor(category.name)}`}
+                >
+                  <div className="text-4xl md:text-5xl mb-3 transition-transform group-hover:scale-110 duration-300">
+                    {category.icon || getCategoryIcon(category.name)}
+                  </div>
+                  <p className="text-sm md:text-base font-semibold text-gray-900 mb-1 line-clamp-2">{category.name}</p>
+                  {category.productCount !== undefined && category.productCount > 0 && (
+                    <p className="text-xs text-gray-600 font-medium bg-white/50 px-2 py-1 rounded-full mt-1">
+                      {category.productCount} items
+                    </p>
+                  )}
+                </Link>
+              ))}
             </div>
-          ) : categories.length > 0 ? (
-            categories.map(category => (
-              <Link
-                key={category.id}
-                href={`/products?category=${category.id}`}
-                className={`flex flex-col items-center justify-center text-center hover:shadow-lg p-4 md:p-6 rounded-xl transition-all transform hover:scale-105 hover:-translate-y-1 w-[140px] md:w-[160px] ${getCategoryColor(category.name)}`}
-              >
-                <div className="text-4xl md:text-5xl mb-2 md:mb-3">
-                  {category.icon || getCategoryIcon(category.name)}
-                </div>
-                <p className="text-xs md:text-sm font-semibold">{category.name}</p>
-                {category.productCount !== undefined && category.productCount > 0 && (
-                  <p className="text-xs text-gray-500 mt-1">{category.productCount} items</p>
-                )}
-              </Link>
-            ))
-          ) : (
-            <div className="col-span-full text-center py-8 text-gray-500">
-              <p>No categories available</p>
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="text-center py-12 text-gray-500 bg-white rounded-xl border-2 border-dashed border-gray-300 max-w-md mx-auto">
+            <svg className="w-16 h-16 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+            <p className="font-medium">No categories available</p>
+          </div>
+        )}
       </section>
 
       {/* Featured Products */}
