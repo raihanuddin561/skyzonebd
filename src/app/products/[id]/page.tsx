@@ -34,10 +34,20 @@ export default function ProductDetailPage() {
       const initialQty = (user && user.userType === 'wholesale') ? product.minOrderQuantity : 1;
       setQuantity(initialQty);
       
-      // Set the first available image
-      const images = (product as any).imageUrls || product.images;
-      const firstImage = (images && images.length > 0) ? images[0] : product.imageUrl;
-      setSelectedImage(firstImage);
+      // Set the first available image - with extensive debugging
+      const images = (product as any).imageUrls || product.images || [];
+      const firstImage = (images && Array.isArray(images) && images.length > 0) ? images[0] : product.imageUrl;
+      
+      console.log('🖼️ Product Image Debug:', {
+        productId: product.id,
+        imageUrl: product.imageUrl,
+        imageUrls: (product as any).imageUrls,
+        images: product.images,
+        firstImage,
+        selectedImage: firstImage
+      });
+      
+      setSelectedImage(firstImage || '');
     } else if (!productLoading && !product) {
       router.push('/products');
     }
@@ -148,29 +158,22 @@ export default function ProductDetailPage() {
           <div>
             <div className="mb-4 relative group">
               <div 
-                className="relative cursor-zoom-in"
-                onClick={() => openImageModal(getProductImages().indexOf(selectedImage))}
+                className="relative cursor-zoom-in bg-white rounded-lg border"
+                onClick={() => openImageModal(getProductImages().indexOf(selectedImage || product.imageUrl))}
               >
-                {selectedImage ? (
-                  <Image
-                    src={selectedImage}
-                    alt={product.name}
-                    width={600}
-                    height={600}
-                    className="w-full h-[500px] object-contain rounded-lg border bg-white"
-                    priority
-                    unoptimized={selectedImage.startsWith('http') && !selectedImage.includes('vercel-storage.com')}
-                  />
-                ) : (
-                  <div className="w-full h-[500px] flex items-center justify-center bg-gray-100 rounded-lg border">
-                    <div className="text-center">
-                      <svg className="w-16 h-16 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <p className="text-gray-500 text-sm">Loading image...</p>
-                    </div>
-                  </div>
-                )}
+                <Image
+                  src={selectedImage || product.imageUrl}
+                  alt={product.name}
+                  width={600}
+                  height={600}
+                  className="w-full h-[500px] object-contain rounded-lg"
+                  priority
+                  onError={(e) => {
+                    console.error('Image load error:', e);
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
+                />
                 {/* Zoom hint overlay */}
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all rounded-lg flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white bg-opacity-90 px-4 py-2 rounded-lg">
