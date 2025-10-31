@@ -136,14 +136,17 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
         setPrimaryImage(product.imageUrl || '');
 
         // Check if product has existing hero slide
+        console.log('Checking for hero slide for product:', productId);
         const heroSlideResponse = await fetch(`/api/hero-slides`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
         const heroSlideResult = await heroSlideResponse.json();
+        console.log('Hero slides response:', heroSlideResult);
         if (heroSlideResult.success) {
           const existingSlide = heroSlideResult.data.find((slide: any) => slide.productId === productId);
+          console.log('Found existing hero slide:', existingSlide);
           if (existingSlide) {
             setExistingHeroSlide(existingSlide);
             setAddToHeroSlider(true);
@@ -151,6 +154,14 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
             setHeroSlideSubtitle(existingSlide.subtitle || '');
             setHeroSlideButtonText(existingSlide.buttonText || 'Shop Now');
             setHeroSlideBgColor(existingSlide.bgColor || '#3B82F6');
+            console.log('Hero slide settings loaded:', {
+              title: existingSlide.title,
+              subtitle: existingSlide.subtitle,
+              buttonText: existingSlide.buttonText,
+              bgColor: existingSlide.bgColor
+            });
+          } else {
+            console.log('No hero slide found for this product');
           }
         }
       } else {
@@ -761,17 +772,34 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
               <input
                 type="checkbox"
                 checked={addToHeroSlider}
-                onChange={(e) => setAddToHeroSlider(e.target.checked)}
+                onChange={(e) => {
+                  console.log('Hero slider checkbox toggled:', e.target.checked);
+                  setAddToHeroSlider(e.target.checked);
+                }}
                 className="rounded border-gray-300"
               />
-              <span className="text-sm font-medium text-gray-700">Add to Hero Slider</span>
+              <span className="text-sm font-medium text-gray-700">
+                Add to Hero Slider
+                {existingHeroSlide && <span className="text-xs text-green-600 ml-2">(Has slide)</span>}
+              </span>
             </label>
           </div>
+
+          {/* Debug Info - Remove this after testing */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
+              <strong>Debug:</strong> addToHeroSlider={String(addToHeroSlider)}, 
+              existingHeroSlide={existingHeroSlide ? 'Found' : 'None'}
+            </div>
+          )}
 
           {/* Hero Slider Settings */}
           {addToHeroSlider && (
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
-              <h4 className="font-semibold text-blue-900">Hero Slider Settings</h4>
+              <h4 className="font-semibold text-blue-900">
+                Hero Slider Settings
+                {existingHeroSlide && <span className="text-xs ml-2">(Editing existing slide)</span>}
+              </h4>
               
               {existingHeroSlide && (
                 <p className="text-sm text-green-700 bg-green-50 p-2 rounded">
