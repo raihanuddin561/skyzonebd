@@ -659,6 +659,17 @@ export default function ProductDetailPage() {
             className="relative max-w-6xl max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Product Title - Clickable */}
+            <div className="absolute top-4 left-4 right-16 z-10">
+              <Link
+                href={`/products/${product.id}`}
+                className="inline-block bg-black bg-opacity-70 text-white px-6 py-3 rounded-lg text-lg font-semibold hover:bg-opacity-90 transition-all"
+                onClick={() => setShowImageModal(false)}
+              >
+                {product.name}
+              </Link>
+            </div>
+
             <Image
               src={getProductImages()[modalImageIndex]}
               alt={`${product.name} - Image ${modalImageIndex + 1}`}
