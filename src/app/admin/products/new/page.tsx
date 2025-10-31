@@ -44,6 +44,13 @@ export default function NewProduct() {
     // SEO & Tags
     tags: '',
     featured: false,
+    
+    // Hero Slider
+    addToHeroSlider: false,
+    heroSlideTitle: '',
+    heroSlideSubtitle: '',
+    heroSlideButtonText: 'Shop Now',
+    heroSlideBgColor: '#3B82F6',
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -209,6 +216,40 @@ export default function NewProduct() {
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to create product');
+      }
+
+      const result = await response.json();
+      const createdProductId = result.data?.id;
+
+      // If addToHeroSlider is checked, create a hero slide for this product
+      if (formData.addToHeroSlider && createdProductId && formData.heroSlideTitle) {
+        try {
+          const heroSlideResponse = await fetch('/api/hero-slides', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              title: formData.heroSlideTitle,
+              subtitle: formData.heroSlideSubtitle || null,
+              imageUrl: mainImageUrl || '',
+              linkUrl: `/products/${createdProductId}`,
+              productId: createdProductId,
+              buttonText: formData.heroSlideButtonText,
+              bgColor: formData.heroSlideBgColor,
+              textColor: '#FFFFFF',
+              isActive: true,
+            }),
+          });
+
+          if (heroSlideResponse.ok) {
+            toast.success('Product added to hero slider!');
+          }
+        } catch (error) {
+          console.error('Failed to create hero slide:', error);
+          toast.warning('Product created but failed to add to hero slider');
+        }
       }
 
       toast.success('Product created successfully!');
@@ -670,6 +711,86 @@ export default function NewProduct() {
                 Mark as Featured Product
               </label>
             </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="addToHeroSlider"
+                checked={formData.addToHeroSlider}
+                onChange={handleInputChange}
+                className="rounded border-gray-300"
+              />
+              <label className="text-sm font-medium text-gray-700">
+                Add to Hero Slider (Homepage Banner)
+              </label>
+            </div>
+
+            {/* Hero Slider Settings - Only show if addToHeroSlider is checked */}
+            {formData.addToHeroSlider && (
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+                <h4 className="font-semibold text-blue-900">Hero Slider Settings</h4>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Slide Title *
+                  </label>
+                  <input
+                    type="text"
+                    name="heroSlideTitle"
+                    value={formData.heroSlideTitle}
+                    onChange={handleInputChange}
+                    placeholder="Featured Product! Limited Stock"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Slide Subtitle
+                  </label>
+                  <input
+                    type="text"
+                    name="heroSlideSubtitle"
+                    value={formData.heroSlideSubtitle}
+                    onChange={handleInputChange}
+                    placeholder="Special offer - Get it now!"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Button Text
+                    </label>
+                    <input
+                      type="text"
+                      name="heroSlideButtonText"
+                      value={formData.heroSlideButtonText}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Background Color
+                    </label>
+                    <input
+                      type="color"
+                      name="heroSlideBgColor"
+                      value={formData.heroSlideBgColor}
+                      onChange={handleInputChange}
+                      className="w-full h-10 px-1 py-1 border rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-sm text-blue-700">
+                  💡 This product will be featured in the homepage hero slider with its image and details.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

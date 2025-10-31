@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -79,15 +80,19 @@ export default function ProductCard({ product }: ProductCardProps) {
         </svg>
       </button>
 
-      <Image
-        src={product.imageUrl}
-        alt={product.name}
-        width={300}
-        height={200}
-        className="w-full h-32 object-cover rounded mb-2"
-      />
+      <Link href={`/products/${product.id}`}>
+        <Image
+          src={product.imageUrl}
+          alt={product.name}
+          width={300}
+          height={200}
+          className="w-full h-32 object-cover rounded mb-2 cursor-pointer hover:opacity-90 transition-opacity"
+        />
+      </Link>
       
-      <h4 className="text-md font-semibold mb-1">{product.name}</h4>
+      <Link href={`/products/${product.id}`} className="hover:text-blue-600 transition-colors">
+        <h4 className="text-md font-semibold mb-1 cursor-pointer">{product.name}</h4>
+      </Link>
       
       {/* Show MOQ ONLY for wholesale users, NOT for guests or retail */}
       {isClient && user && user.userType === 'wholesale' && (

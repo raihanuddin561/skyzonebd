@@ -292,6 +292,18 @@ export default function HeroSlidesAdmin() {
             <h2 className="text-xl font-bold mb-4">
               {editingId ? 'Edit Hero Slide' : 'Create New Hero Slide'}
             </h2>
+            
+            {/* Info Banner */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <h3 className="font-semibold text-blue-900 mb-2">💡 How Hero Slides Work:</h3>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>• <strong>With Product:</strong> Product image & details shown on the right side</li>
+                <li>• <strong>Without Product:</strong> Full-width banner with your custom image</li>
+                <li>• <strong>Position:</strong> Lower numbers appear first in the slider</li>
+                <li>• <strong>Active/Inactive:</strong> Only active slides are visible on homepage</li>
+              </ul>
+            </div>
+
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Title *</label>
@@ -341,7 +353,9 @@ export default function HeroSlidesAdmin() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Link to Product</label>
+                <label className="block text-sm font-medium mb-2">
+                  Link to Product (Product will be shown in hero slide)
+                </label>
                 <select
                   value={formData.productId}
                   onChange={(e) => {
@@ -354,13 +368,18 @@ export default function HeroSlidesAdmin() {
                   }}
                   className="w-full px-3 py-2 border rounded-lg"
                 >
-                  <option value="">Select a product (optional)</option>
+                  <option value="">No product - Just banner with link</option>
                   {products.map((product) => (
                     <option key={product.id} value={product.id}>
                       {product.name} - ৳{product.retailPrice}
                     </option>
                   ))}
                 </select>
+                {formData.productId && (
+                  <p className="text-sm text-green-600 mt-1">
+                    ✓ Product will be displayed on the right side of the hero slide
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Or Custom Link URL</label>

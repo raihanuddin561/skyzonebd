@@ -70,6 +70,14 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
   const [newTag, setNewTag] = useState('');
   const [newSpecKey, setNewSpecKey] = useState('');
   const [newSpecValue, setNewSpecValue] = useState('');
+  
+  // Hero Slider state
+  const [addToHeroSlider, setAddToHeroSlider] = useState(false);
+  const [heroSlideTitle, setHeroSlideTitle] = useState('');
+  const [heroSlideSubtitle, setHeroSlideSubtitle] = useState('');
+  const [heroSlideButtonText, setHeroSlideButtonText] = useState('Shop Now');
+  const [heroSlideBgColor, setHeroSlideBgColor] = useState('#3B82F6');
+  const [existingHeroSlide, setExistingHeroSlide] = useState<any>(null);
 
   useEffect(() => {
     const loadParams = async () => {
@@ -126,6 +134,25 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
         
         setImages(product.imageUrls || [product.imageUrl] || []);
         setPrimaryImage(product.imageUrl || '');
+
+        // Check if product has existing hero slide
+        const heroSlideResponse = await fetch(`/api/hero-slides`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const heroSlideResult = await heroSlideResponse.json();
+        if (heroSlideResult.success) {
+          const existingSlide = heroSlideResult.data.find((slide: any) => slide.productId === productId);
+          if (existingSlide) {
+            setExistingHeroSlide(existingSlide);
+            setAddToHeroSlider(true);
+            setHeroSlideTitle(existingSlide.title || '');
+            setHeroSlideSubtitle(existingSlide.subtitle || '');
+            setHeroSlideButtonText(existingSlide.buttonText || 'Shop Now');
+            setHeroSlideBgColor(existingSlide.bgColor || '#3B82F6');
+          }
+        }
       } else {
         console.error('Product not found in API response:', result);
         toast.error('Product not found');
@@ -244,7 +271,65 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
 
       const result = await response.json();
       if (result.success) {
-        toast.success('Product updated successfully');
+        // Handle hero slider
+        if (addToHeroSlider && heroSlideTitle) {
+          try {
+            const heroSlideData = {
+              title: heroSlideTitle,
+              subtitle: heroSlideSubtitle || null,
+              imageUrl: primaryImage,
+              linkUrl: `/products/${productId}`,
+              productId: productId,
+              buttonText: heroSlideButtonText,
+              bgColor: heroSlideBgColor,
+              textColor: '#FFFFFF',
+              isActive: true,
+            };
+
+            if (existingHeroSlide) {
+              // Update existing hero slide
+              await fetch(`/api/hero-slides/${existingHeroSlide.id}`, {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(heroSlideData),
+              });
+              toast.success('Product and hero slide updated!');
+            } else {
+              // Create new hero slide
+              await fetch('/api/hero-slides', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(heroSlideData),
+              });
+              toast.success('Product updated and added to hero slider!');
+            }
+          } catch (error) {
+            console.error('Failed to update hero slide:', error);
+            toast.warning('Product updated but hero slide update failed');
+          }
+        } else if (!addToHeroSlider && existingHeroSlide) {
+          // Remove from hero slider if unchecked
+          try {
+            await fetch(`/api/hero-slides/${existingHeroSlide.id}`, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+            toast.success('Product updated and removed from hero slider');
+          } catch (error) {
+            console.error('Failed to remove hero slide:', error);
+          }
+        } else {
+          toast.success('Product updated successfully');
+        }
+        
         router.push('/admin/products');
       } else {
         toast.error(result.error || 'Failed to update product');
@@ -672,7 +757,81 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
               />
               <span className="text-sm font-medium text-gray-700">Enable Wholesale</span>
             </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={addToHeroSlider}
+                onChange={(e) => setAddToHeroSlider(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm font-medium text-gray-700">Add to Hero Slider</span>
+            </label>
           </div>
+
+          {/* Hero Slider Settings */}
+          {addToHeroSlider && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+              <h4 className="font-semibold text-blue-900">Hero Slider Settings</h4>
+              
+              {existingHeroSlide && (
+                <p className="text-sm text-green-700 bg-green-50 p-2 rounded">
+                  ✓ This product already has a hero slide. Changes will update it.
+                </p>
+              )}
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Slide Title *
+                </label>
+                <input
+                  type="text"
+                  value={heroSlideTitle}
+                  onChange={(e) => setHeroSlideTitle(e.target.value)}
+                  placeholder="Featured Product! Limited Stock"
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Slide Subtitle
+                </label>
+                <input
+                  type="text"
+                  value={heroSlideSubtitle}
+                  onChange={(e) => setHeroSlideSubtitle(e.target.value)}
+                  placeholder="Special offer - Get it now!"
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Button Text
+                  </label>
+                  <input
+                    type="text"
+                    value={heroSlideButtonText}
+                    onChange={(e) => setHeroSlideButtonText(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Background Color
+                  </label>
+                  <input
+                    type="color"
+                    value={heroSlideBgColor}
+                    onChange={(e) => setHeroSlideBgColor(e.target.value)}
+                    className="w-full h-10 px-1 py-1 border rounded-lg"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
