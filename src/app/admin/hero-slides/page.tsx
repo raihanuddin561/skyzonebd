@@ -66,8 +66,12 @@ export default function HeroSlidesAdmin() {
     try {
       const response = await fetch('/api/products');
       const data = await response.json();
-      if (data.success) {
-        setProducts(data.data);
+      console.log('Products API response:', data);
+      if (data.success && data.data) {
+        // API returns data.data.products array
+        const productsList = data.data.products || data.data;
+        console.log('Products list:', productsList);
+        setProducts(productsList);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -104,6 +108,8 @@ export default function HeroSlidesAdmin() {
         linkUrl: formData.linkUrl || null,
         subtitle: formData.subtitle || null,
       };
+
+      console.log('Submitting hero slide data:', submitData);
 
       const url = editingId ? `/api/hero-slides/${editingId}` : '/api/hero-slides';
       const method = editingId ? 'PUT' : 'POST';
@@ -355,11 +361,15 @@ export default function HeroSlidesAdmin() {
               <div>
                 <label className="block text-sm font-medium mb-2">
                   Link to Product (Product will be shown in hero slide)
+                  {products.length > 0 && (
+                    <span className="text-xs text-gray-500 ml-2">({products.length} products available)</span>
+                  )}
                 </label>
                 <select
                   value={formData.productId}
                   onChange={(e) => {
                     const productId = e.target.value;
+                    console.log('Selected product ID:', productId);
                     setFormData({ 
                       ...formData, 
                       productId,
@@ -369,11 +379,15 @@ export default function HeroSlidesAdmin() {
                   className="w-full px-3 py-2 border rounded-lg"
                 >
                   <option value="">No product - Just banner with link</option>
-                  {products.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} - ৳{product.retailPrice}
-                    </option>
-                  ))}
+                  {products.length === 0 ? (
+                    <option disabled>Loading products...</option>
+                  ) : (
+                    products.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.name} - ৳{product.retailPrice || 0}
+                      </option>
+                    ))
+                  )}
                 </select>
                 {formData.productId && (
                   <p className="text-sm text-green-600 mt-1">
