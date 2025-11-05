@@ -6,7 +6,47 @@ import Link from 'next/link';
 import Header from '../components/Header';
 import ProductCard from '../components/ProductCard';
 import { useProductSearch } from '@/hooks/useProducts';
+import { usePopularSearches } from '@/hooks/useSearch';
 import { Product } from '@/types/cart';
+
+// Popular Searches Component
+function PopularSearches() {
+  const { searches, loading } = usePopularSearches();
+
+  if (loading) {
+    return (
+      <div className="mt-16 bg-white rounded-lg p-6 shadow">
+        <h3 className="text-lg font-semibold mb-4">Popular Searches</h3>
+        <div className="flex flex-wrap gap-2">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-8 w-24 bg-gray-200 rounded-full animate-pulse"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!searches || searches.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-16 bg-white rounded-lg p-6 shadow">
+      <h3 className="text-lg font-semibold mb-4">Popular Searches</h3>
+      <div className="flex flex-wrap gap-2">
+        {searches.map(term => (
+          <Link
+            key={term}
+            href={`/search?q=${encodeURIComponent(term)}`}
+            className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 text-sm transition-colors"
+          >
+            {term}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function SearchContent() {
   const searchParams = useSearchParams();
@@ -208,20 +248,7 @@ function SearchContent() {
         )}
 
         {/* Popular Searches */}
-        <div className="mt-16 bg-white rounded-lg p-6 shadow">
-          <h3 className="text-lg font-semibold mb-4">Popular Searches</h3>
-          <div className="flex flex-wrap gap-2">
-            {['Electronics', 'Baby Items', 'Clothing', 'Headphones', 'Toys', 'Industrial', 'Office', 'Home'].map(term => (
-              <Link
-                key={term}
-                href={`/search?q=${encodeURIComponent(term)}`}
-                className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 text-sm"
-              >
-                {term}
-              </Link>
-            ))}
-          </div>
-        </div>
+        <PopularSearches />
       </div>
     </main>
   );

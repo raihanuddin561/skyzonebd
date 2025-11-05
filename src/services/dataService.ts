@@ -16,14 +16,16 @@ import {
 import { Product } from '@/types/cart';
 
 // Configuration to switch between static data and API
-// Always use API - static data only as emergency fallback
+// IMPORTANT: Always use API - static data removed for production
 const USE_API = true;
+const ENABLE_FALLBACK = false; // Disable fallback to static data
 
 // Debug logging
 if (typeof window !== 'undefined') {
   console.log('🔧 DataService Configuration:', {
     USE_API: true,
-    message: 'Always using API endpoints'
+    ENABLE_FALLBACK: false,
+    message: 'Using real database data via API'
   });
 }
 
@@ -41,7 +43,7 @@ const getRelatedProducts = (id: number) => {
   ).slice(0, 4);
 };
 
-// Helper function to handle API calls with fallback to static data
+// Helper function to handle API calls
 const withFallback = async <T>(
   apiCall: () => Promise<T>,
   fallbackData: T,
@@ -55,8 +57,20 @@ const withFallback = async <T>(
     const response = await apiCall();
     return response;
   } catch (error) {
-    console.warn('API call failed, falling back to static data:', error);
-    return fallbackFunction ? fallbackFunction() : fallbackData;
+    console.error('API call failed:', error);
+    
+    // Only use fallback if explicitly enabled (disabled by default)
+    if (ENABLE_FALLBACK) {
+      console.warn('Using fallback data (not recommended for production)');
+      return fallbackFunction ? fallbackFunction() : fallbackData;
+    }
+    
+    // Return empty data structure instead of fallback
+    console.error('Fallback disabled - returning empty data');
+    if (Array.isArray(fallbackData)) {
+      return [] as T;
+    }
+    throw error;
   }
 };
 
