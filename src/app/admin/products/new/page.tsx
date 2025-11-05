@@ -1,8 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 export default function NewProduct() {
   const router = useRouter();
@@ -11,6 +17,8 @@ export default function NewProduct() {
   const [additionalImageFiles, setAdditionalImageFiles] = useState<File[]>([]);
   const [mainImagePreview, setMainImagePreview] = useState<string>('');
   const [additionalImagePreviews, setAdditionalImagePreviews] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   
   const [formData, setFormData] = useState({
     // Basic Information
@@ -120,6 +128,28 @@ export default function NewProduct() {
     setAdditionalImageFiles(prev => prev.filter((_, i) => i !== index));
     setAdditionalImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const response = await fetch('/api/categories');
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+          setCategories(data.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+        toast.error('Failed to load categories');
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const uploadImage = async (file: File, folder: string = 'products'): Promise<string> => {
     const formData = new FormData();
@@ -323,14 +353,23 @@ export default function NewProduct() {
                 required
                 value={formData.category}
                 onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                disabled={loadingCategories}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
-                <option value="">Select Category</option>
-                <option value="electronics">Electronics</option>
-                <option value="baby-items">Baby Items</option>
-                <option value="clothing">Clothing</option>
-                <option value="home-garden">Home & Garden</option>
+                <option value="">
+                  {loadingCategories ? 'Loading categories...' : 'Select Category'}
+                </option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
               </select>
+              {categories.length === 0 && !loadingCategories && (
+                <p className="text-xs text-red-500 mt-1">
+                  No categories found. Please create categories first.
+                </p>
+              )}
             </div>
 
             <div>
