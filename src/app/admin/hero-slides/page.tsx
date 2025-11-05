@@ -284,16 +284,16 @@ export default function HeroSlidesAdmin() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6 flex justify-between items-center">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
+        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Hero Slides Management</h1>
-            <p className="text-gray-600 mt-2">Manage homepage banner slides</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Hero Slides Management</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Manage homepage banner slides</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
             <Link
               href="/admin"
-              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition"
+              className="flex-1 sm:flex-none bg-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-gray-700 transition text-center text-sm sm:text-base"
             >
               Back to Admin
             </Link>
@@ -314,7 +314,7 @@ export default function HeroSlidesAdmin() {
                 }
                 setShowForm(!showForm);
               }}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+              className="flex-1 sm:flex-none bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-blue-700 transition text-sm sm:text-base"
             >
               {showForm ? 'Cancel' : '+ Add New Slide'}
             </button>
@@ -322,15 +322,15 @@ export default function HeroSlidesAdmin() {
         </div>
 
         {showForm && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4">
+          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-bold mb-4">
               {editingId ? 'Edit Hero Slide' : 'Create New Hero Slide'}
             </h2>
             
             {/* Info Banner */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <h3 className="font-semibold text-blue-900 mb-2">💡 How Hero Slides Work:</h3>
-              <ul className="text-sm text-blue-800 space-y-1">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+              <h3 className="font-semibold text-sm sm:text-base text-blue-900 mb-2">💡 How Hero Slides Work:</h3>
+              <ul className="text-xs sm:text-sm text-blue-800 space-y-1">
                 <li>• <strong>With Product:</strong> Product image & details shown automatically on the right side</li>
                 <li>• <strong>Product Image:</strong> Automatically uses product's image (no upload needed)</li>
                 <li>• <strong>Without Product:</strong> Full-width banner - requires custom image upload</li>
@@ -340,7 +340,7 @@ export default function HeroSlidesAdmin() {
               </ul>
             </div>
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Title *</label>
                 <input
@@ -554,39 +554,39 @@ export default function HeroSlidesAdmin() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4">
           {slides.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-8 text-center">
-              <p className="text-gray-500">No hero slides yet. Create your first slide!</p>
+            <div className="bg-white rounded-lg shadow p-6 sm:p-8 text-center">
+              <p className="text-sm sm:text-base text-gray-500">No hero slides yet. Create your first slide!</p>
             </div>
           ) : (
             slides.map((slide) => (
-              <div key={slide.id} className="bg-white rounded-lg shadow-md p-6 flex gap-6">
+              <div key={slide.id} className="bg-white rounded-lg shadow-md p-4 sm:p-6 flex flex-col sm:flex-row gap-4 sm:gap-6">
                 <img
                   src={slide.imageUrl}
                   alt={slide.title}
-                  className="w-48 h-32 object-cover rounded-lg"
+                  className="w-full sm:w-48 h-32 object-cover rounded-lg flex-shrink-0"
                 />
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold mb-2">{slide.title}</h3>
-                  {slide.subtitle && <p className="text-gray-600 mb-2">{slide.subtitle}</p>}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg sm:text-xl font-bold mb-2 break-words">{slide.title}</h3>
+                  {slide.subtitle && <p className="text-sm sm:text-base text-gray-600 mb-2 break-words">{slide.subtitle}</p>}
                   {slide.product && (
-                    <p className="text-sm text-blue-600 mb-2">
+                    <p className="text-xs sm:text-sm text-blue-600 mb-2 truncate">
                       Linked to: {slide.product.name}
                     </p>
                   )}
-                  <div className="flex gap-4 text-sm text-gray-500">
+                  <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
                     <span>Position: {slide.position}</span>
-                    <span>Button: {slide.buttonText}</span>
+                    <span className="truncate">Button: {slide.buttonText}</span>
                     <span className="flex items-center gap-1">
                       BG: <div className="w-4 h-4 rounded border" style={{ backgroundColor: slide.bgColor }}></div>
                     </span>
                   </div>
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex sm:flex-col gap-2 sm:w-auto">
                   <button
                     onClick={() => toggleActive(slide.id, slide.isActive)}
-                    className={`px-4 py-2 rounded-lg transition ${
+                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg transition text-xs sm:text-sm whitespace-nowrap ${
                       slide.isActive
                         ? 'bg-green-100 text-green-700 hover:bg-green-200'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -596,13 +596,13 @@ export default function HeroSlidesAdmin() {
                   </button>
                   <button
                     onClick={() => handleEdit(slide)}
-                    className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
+                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition text-xs sm:text-sm"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDelete(slide.id)}
-                    className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition"
+                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition text-xs sm:text-sm"
                   >
                     Delete
                   </button>

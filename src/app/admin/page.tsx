@@ -60,49 +60,49 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 lg:px-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Welcome back! Here's what's happening today.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Welcome back! Here's what's happening today.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3">
           <Link
             href="/admin/hero-slides"
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
+            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             <span>🎯</span>
-            <span className="hidden sm:inline">Hero Slides</span>
+            <span className="sm:inline">Hero Slides</span>
           </Link>
           <Link
             href="/admin/products/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             <span>+</span>
-            <span className="hidden sm:inline">Add Product</span>
+            <span className="sm:inline">Add Product</span>
           </Link>
         </div>
       </div>
 
       {/* Hero Carousel Management Banner */}
-      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg shadow-lg p-6 text-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="bg-white/20 backdrop-blur-sm p-4 rounded-lg">
-              <span className="text-4xl">🎯</span>
+      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg shadow-lg p-4 sm:p-6 text-white">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3 sm:gap-4">
+            <div className="bg-white/20 backdrop-blur-sm p-3 sm:p-4 rounded-lg flex-shrink-0">
+              <span className="text-2xl sm:text-4xl">🎯</span>
             </div>
             <div>
-              <h2 className="text-2xl font-bold mb-1">Manage Homepage Carousel</h2>
-              <p className="text-purple-100">Feature products on your homepage with custom promotional text and images</p>
+              <h2 className="text-lg sm:text-2xl font-bold mb-1">Manage Homepage Carousel</h2>
+              <p className="text-xs sm:text-sm text-purple-100">Feature products on your homepage with custom promotional text and images</p>
             </div>
           </div>
           <Link
             href="/admin/hero-slides"
-            className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-50 transition-colors flex items-center gap-2 whitespace-nowrap"
+            className="bg-white text-purple-600 px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-purple-50 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             <span>Manage Slides</span>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
           </Link>
@@ -156,46 +156,68 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Orders */}
           <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
+            <div className="p-4 sm:p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">Recent Orders</h2>
-                <Link href="/admin/orders" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Recent Orders</h2>
+                <Link href="/admin/orders" className="text-blue-600 hover:text-blue-700 text-xs sm:text-sm font-medium">
                   View All →
                 </Link>
               </div>
             </div>
             <div className="overflow-x-auto">
               {recentOrders.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  <p>No orders yet</p>
+                <div className="p-6 sm:p-8 text-center text-gray-500">
+                  <p className="text-sm sm:text-base">No orders yet</p>
                 </div>
               ) : (
-                <table className="w-full">
+                <div className="block sm:hidden">
+                  {/* Mobile Card View */}
+                  <div className="divide-y divide-gray-200">
+                    {recentOrders.map((order) => (
+                      <div key={order.id} className="p-4 hover:bg-gray-50">
+                        <div className="flex items-start justify-between mb-2">
+                          <Link href={`/admin/orders/${order.id}`} className="text-blue-600 hover:text-blue-700 font-medium text-sm">
+                            {order.id}
+                          </Link>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                            {order.status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-900 font-medium">{order.customer}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-sm font-semibold text-gray-900">৳{order.amount.toLocaleString()}</span>
+                          <span className="text-xs text-gray-500">{order.date}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <table className="hidden sm:table w-full min-w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {recentOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Link href={`/admin/orders/${order.id}`} className="text-blue-600 hover:text-blue-700 font-medium">
+                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                      <Link href={`/admin/orders/${order.id}`} className="text-blue-600 hover:text-blue-700 font-medium text-sm">
                         {order.id}
                       </Link>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">{order.customer}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-900">৳{order.amount.toLocaleString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-900 text-sm">{order.customer}</td>
+                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-900 text-sm">৳{order.amount.toLocaleString()}</td>
+                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
                         {order.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600 text-sm">{order.date}</td>
+                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-600 text-sm">{order.date}</td>
                   </tr>
                     ))}
                   </tbody>
@@ -206,45 +228,51 @@ export default function AdminDashboard() {
 
           {/* Pending Verifications */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
+          <div className="p-4 sm:p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">Pending B2B Verifications</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Pending B2B</h2>
               <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
                 {pendingVerifications.length}
               </span>
             </div>
           </div>
           <div className="divide-y divide-gray-200">
-            {pendingVerifications.map((verification) => (
-              <div key={verification.id} className="p-4 hover:bg-gray-50">
+            {pendingVerifications.length === 0 ? (
+              <div className="p-6 text-center text-gray-500 text-sm">
+                <p>No pending verifications</p>
+              </div>
+            ) : (
+              pendingVerifications.map((verification) => (
+              <div key={verification.id} className="p-3 sm:p-4 hover:bg-gray-50">
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900">{verification.company}</h3>
-                    <p className="text-sm text-gray-600 mt-1">Type: {verification.type}</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate">{verification.company}</h3>
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1">Type: {verification.type}</p>
                     <p className="text-xs text-gray-500 mt-1">Submitted: {verification.submitted}</p>
                   </div>
                 </div>
                 <div className="flex gap-2 mt-3">
-                  <button className="flex-1 px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700">
+                  <button className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-green-600 text-white text-xs sm:text-sm rounded hover:bg-green-700">
                     Approve
                   </button>
-                  <button className="flex-1 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700">
+                  <button className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-red-600 text-white text-xs sm:text-sm rounded hover:bg-red-700">
                     Reject
                   </button>
                   <Link
                     href={`/admin/verification/${verification.id}`}
-                    className="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300"
+                    className="px-2 sm:px-3 py-1.5 sm:py-2 bg-gray-200 text-gray-700 text-xs sm:text-sm rounded hover:bg-gray-300 whitespace-nowrap"
                   >
                     View
                   </Link>
                 </div>
               </div>
-            ))}
+            ))
+            )}
           </div>
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-3 sm:p-4 border-t border-gray-200">
             <Link
               href="/admin/verification"
-              className="block text-center text-blue-600 hover:text-blue-700 text-sm font-medium"
+              className="block text-center text-blue-600 hover:text-blue-700 text-xs sm:text-sm font-medium"
             >
               View All Verifications →
             </Link>
@@ -255,44 +283,44 @@ export default function AdminDashboard() {
 
       {/* Quick Actions */}
       {!loading && !error && (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
           <Link
             href="/admin/hero-slides"
-            className="p-4 border-2 border-solid border-purple-300 bg-purple-50 rounded-lg hover:border-purple-500 hover:bg-purple-100 transition-all text-center group"
+            className="p-3 sm:p-4 border-2 border-solid border-purple-300 bg-purple-50 rounded-lg hover:border-purple-500 hover:bg-purple-100 transition-all text-center group"
           >
-            <div className="text-3xl mb-2">🎯</div>
-            <div className="text-sm font-bold text-purple-700">Hero Carousel</div>
-            <div className="text-xs text-purple-600 mt-1">Feature Products</div>
+            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">🎯</div>
+            <div className="text-xs sm:text-sm font-bold text-purple-700">Hero Carousel</div>
+            <div className="text-xs text-purple-600 mt-1 hidden sm:block">Feature Products</div>
           </Link>
           <Link
             href="/admin/products/new"
-            className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
+            className="p-3 sm:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-3xl mb-2">�</div>
-            <div className="text-sm font-medium text-gray-700">Add Product</div>
+            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">📦</div>
+            <div className="text-xs sm:text-sm font-medium text-gray-700">Add Product</div>
           </Link>
           <Link
             href="/admin/products"
-            className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
+            className="p-3 sm:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-3xl mb-2">�</div>
-            <div className="text-sm font-medium text-gray-700">All Products</div>
+            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">📋</div>
+            <div className="text-xs sm:text-sm font-medium text-gray-700">All Products</div>
           </Link>
           <Link
             href="/admin/orders"
-            className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
+            className="p-3 sm:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-3xl mb-2">🛒</div>
-            <div className="text-sm font-medium text-gray-700">Manage Orders</div>
+            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">🛒</div>
+            <div className="text-xs sm:text-sm font-medium text-gray-700">Manage Orders</div>
           </Link>
           <Link
             href="/admin/users"
-            className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
+            className="p-3 sm:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-3xl mb-2">👥</div>
-            <div className="text-sm font-medium text-gray-700">Manage Users</div>
+            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">👥</div>
+            <div className="text-xs sm:text-sm font-medium text-gray-700">Manage Users</div>
           </Link>
         </div>
       </div>

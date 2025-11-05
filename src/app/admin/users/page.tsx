@@ -114,21 +114,22 @@ export default function UsersManagement() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 lg:px-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-600 mt-1">Manage customers, sellers, and admins</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">User Management</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Manage customers, sellers, and admins</p>
         </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
+        <div className="flex gap-2 sm:gap-3">
+          <button className="flex-1 sm:flex-none px-3 sm:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2 text-sm sm:text-base">
             <span>📊</span>
-            <span>Export Users</span>
+            <span className="hidden sm:inline">Export Users</span>
+            <span className="sm:hidden">Export</span>
           </button>
           <Link
             href="/admin/users/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             <span>+</span>
             <span>Add User</span>
@@ -137,50 +138,50 @@ export default function UsersManagement() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
-              <p className="text-sm text-gray-600">Total Users</p>
-              <p className="text-2xl font-bold text-gray-900">1,247</p>
+              <p className="text-xs sm:text-sm text-gray-600">Total Users</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">1,247</p>
             </div>
-            <span className="text-3xl">👥</span>
+            <span className="text-2xl sm:text-3xl">👥</span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
-              <p className="text-sm text-gray-600">Retail Buyers</p>
-              <p className="text-2xl font-bold text-blue-600">856</p>
+              <p className="text-xs sm:text-sm text-gray-600">Retail Buyers</p>
+              <p className="text-xl sm:text-2xl font-bold text-blue-600">856</p>
             </div>
-            <span className="text-3xl">🛍️</span>
+            <span className="text-2xl sm:text-3xl">🛍️</span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
-              <p className="text-sm text-gray-600">Wholesale</p>
-              <p className="text-2xl font-bold text-purple-600">312</p>
+              <p className="text-xs sm:text-sm text-gray-600">Wholesale</p>
+              <p className="text-xl sm:text-2xl font-bold text-purple-600">312</p>
             </div>
-            <span className="text-3xl">🏢</span>
+            <span className="text-2xl sm:text-3xl">🏢</span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
-              <p className="text-sm text-gray-600">Sellers</p>
-              <p className="text-2xl font-bold text-green-600">68</p>
+              <p className="text-xs sm:text-sm text-gray-600">Sellers</p>
+              <p className="text-xl sm:text-2xl font-bold text-green-600">68</p>
             </div>
-            <span className="text-3xl">🏪</span>
+            <span className="text-2xl sm:text-3xl">🏪</span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 col-span-2 sm:col-span-1">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
-              <p className="text-sm text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-yellow-600">11</p>
+              <p className="text-xs sm:text-sm text-gray-600">Pending</p>
+              <p className="text-xl sm:text-2xl font-bold text-yellow-600">11</p>
             </div>
-            <span className="text-3xl">⏳</span>
+            <span className="text-2xl sm:text-3xl">⏳</span>
           </div>
         </div>
       </div>
@@ -211,22 +212,22 @@ export default function UsersManagement() {
       {/* Filters and Search */}
       {!loading && !error && (
         <>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <div className="md:col-span-2">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+              <div className="sm:col-span-2">
                 <input
                   type="text"
                   placeholder="Search by name, email, phone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
           <div>
             <select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Roles</option>
               <option value="admin">Admin</option>
@@ -238,7 +239,7 @@ export default function UsersManagement() {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Types</option>
               <option value="retail">Retail</option>
@@ -249,7 +250,7 @@ export default function UsersManagement() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
@@ -262,22 +263,22 @@ export default function UsersManagement() {
 
       {/* Bulk Actions */}
       {selectedUsers.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-blue-900">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <span className="text-xs sm:text-sm font-medium text-blue-900">
               {selectedUsers.length} user(s) selected
             </span>
-            <div className="flex gap-2">
-              <button className="px-3 py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-sm">
+            <div className="grid grid-cols-2 sm:flex gap-2">
+              <button className="px-3 py-1.5 sm:py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-xs sm:text-sm">
                 Activate
               </button>
-              <button className="px-3 py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-sm">
+              <button className="px-3 py-1.5 sm:py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-xs sm:text-sm">
                 Suspend
               </button>
-              <button className="px-3 py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-sm">
+              <button className="px-3 py-1.5 sm:py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-xs sm:text-sm hidden sm:block">
                 Export Selected
               </button>
-              <button className="px-3 py-1 bg-white border border-red-300 text-red-700 rounded hover:bg-red-50 text-sm">
+              <button className="px-3 py-1.5 sm:py-1 bg-white border border-red-300 text-red-700 rounded hover:bg-red-50 text-xs sm:text-sm col-span-2 sm:col-span-1">
                 Delete
               </button>
             </div>
@@ -287,33 +288,131 @@ export default function UsersManagement() {
 
       {/* Users Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile Card View */}
+        <div className="block lg:hidden divide-y divide-gray-200">
+          {users.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              <p>No users found</p>
+            </div>
+          ) : (
+            users.map((user) => (
+              <div key={user.id} className="p-4 hover:bg-gray-50">
+                <div className="flex items-start gap-3 mb-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedUsers.includes(user.id)}
+                    onChange={() => handleSelectUser(user.id)}
+                    className="rounded border-gray-300 mt-1"
+                  />
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                    {user.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-gray-900 truncate">{user.name}</div>
+                    <div className="text-sm text-gray-600 truncate">{user.email}</div>
+                    <div className="text-xs text-gray-500">{user.phone}</div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${getRoleBadge(user.role).class}`}>
+                    <span>{getRoleBadge(user.role).icon}</span>
+                    <span>{getRoleBadge(user.role).text}</span>
+                  </span>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${getUserTypeBadge(user.userType).class}`}>
+                    {getUserTypeBadge(user.userType).text}
+                  </span>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadge(user.status).class}`}>
+                    {getStatusBadge(user.status).text}
+                  </span>
+                </div>
+                {user.businessName && (
+                  <div className="mb-3 p-2 bg-gray-50 rounded text-xs">
+                    <div className="font-medium text-gray-900">{user.businessName}</div>
+                    <div className="text-gray-600 flex items-center gap-1 mt-1">
+                      {user.businessVerified ? (
+                        <>
+                          <span className="text-green-600">✓</span>
+                          <span>Verified</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-yellow-600">⚠</span>
+                          <span>Pending</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3 text-xs mb-3">
+                  <div>
+                    <span className="text-gray-600">Orders: </span>
+                    <span className="font-medium">{user.totalOrders}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Spent: </span>
+                    <span className="font-medium">
+                      {user.totalSpent > 0 ? `৳${user.totalSpent.toLocaleString()}` : '-'}
+                    </span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-gray-600">Last Login: </span>
+                    <span className="font-medium">{new Date(user.lastLogin).toLocaleDateString('en-GB')}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Link
+                    href={`/admin/users/${user.id}`}
+                    className="flex-1 text-center px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                  >
+                    Edit
+                  </Link>
+                  <Link
+                    href={`/admin/orders?user=${user.id}`}
+                    className="flex-1 text-center px-3 py-1.5 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                  >
+                    Orders
+                  </Link>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left">
+                <th className="px-4 xl:px-6 py-3 text-left">
                   <input
                     type="checkbox"
-                    checked={selectedUsers.length === users.length}
+                    checked={selectedUsers.length === users.length && users.length > 0}
                     onChange={handleSelectAll}
                     className="rounded border-gray-300"
                   />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Business</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Orders</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Spent</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Login</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Business</th>
+                <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Orders</th>
+                <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Spent</th>
+                <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Login</th>
+                <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {users.map((user) => (
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
+                    No users found
+                  </td>
+                </tr>
+              ) : (
+                users.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
+                  <td className="px-4 xl:px-6 py-4">
                     <input
                       type="checkbox"
                       checked={selectedUsers.includes(user.id)}
@@ -321,33 +420,33 @@ export default function UsersManagement() {
                       className="rounded border-gray-300"
                     />
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 xl:px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
                         {user.name.charAt(0)}
                       </div>
-                      <div>
-                        <div className="font-medium text-gray-900">{user.name}</div>
-                        <div className="text-sm text-gray-600">{user.email}</div>
+                      <div className="min-w-0">
+                        <div className="font-medium text-gray-900 truncate">{user.name}</div>
+                        <div className="text-sm text-gray-600 truncate">{user.email}</div>
                         <div className="text-xs text-gray-500">{user.phone}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${getRoleBadge(user.role).class}`}>
                       <span>{getRoleBadge(user.role).icon}</span>
                       <span>{getRoleBadge(user.role).text}</span>
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${getUserTypeBadge(user.userType).class}`}>
                       {getUserTypeBadge(user.userType).text}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 xl:px-6 py-4">
                     {user.businessName ? (
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{user.businessName}</div>
+                        <div className="text-sm font-medium text-gray-900 truncate">{user.businessName}</div>
                         <div className="text-xs text-gray-600 flex items-center gap-1 mt-1">
                           {user.businessVerified ? (
                             <>
@@ -366,11 +465,11 @@ export default function UsersManagement() {
                       <span className="text-sm text-gray-400">-</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{user.totalOrders}</td>
-                  <td className="px-6 py-4 font-medium text-gray-900">
+                  <td className="px-4 xl:px-6 py-4 text-sm text-gray-900 whitespace-nowrap">{user.totalOrders}</td>
+                  <td className="px-4 xl:px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
                     {user.totalSpent > 0 ? `৳${user.totalSpent.toLocaleString()}` : '-'}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
                     <select
                       value={user.status}
                       onChange={(e) => handleStatusChange(user.id, e.target.value)}
@@ -381,10 +480,10 @@ export default function UsersManagement() {
                       <option value="suspended">Suspended</option>
                     </select>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="px-4 xl:px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                     {new Date(user.lastLogin).toLocaleDateString('en-GB')}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/admin/users/${user.id}`}
@@ -401,23 +500,24 @@ export default function UsersManagement() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>
 
         {/* Pagination */}
-        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-          <div className="text-sm text-gray-600">
+        <div className="px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-xs sm:text-sm text-gray-600">
             Showing 1 to {users.length} of {users.length} users
           </div>
-          <div className="flex gap-2">
-            <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 text-sm">
+          <div className="flex gap-1 sm:gap-2">
+            <button className="px-2 sm:px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 text-xs sm:text-sm">
               Previous
             </button>
-            <button className="px-3 py-1 bg-blue-600 text-white rounded text-sm">1</button>
-            <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 text-sm">2</button>
-            <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 text-sm">
+            <button className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded text-xs sm:text-sm">1</button>
+            <button className="px-2 sm:px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 text-xs sm:text-sm">2</button>
+            <button className="px-2 sm:px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 text-xs sm:text-sm">
               Next
             </button>
           </div>

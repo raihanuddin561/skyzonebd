@@ -214,72 +214,72 @@ export default function B2BVerification() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 lg:px-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">B2B Verification</h1>
-          <p className="text-gray-600 mt-1">Review and approve wholesale business applications</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">B2B Verification</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Review and approve wholesale business applications</p>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
-              <p className="text-sm text-gray-600">Pending Review</p>
-              <p className="text-2xl font-bold text-yellow-600">8</p>
+              <p className="text-xs sm:text-sm text-gray-600">Pending Review</p>
+              <p className="text-xl sm:text-2xl font-bold text-yellow-600">8</p>
             </div>
-            <span className="text-3xl">⏳</span>
+            <span className="text-2xl sm:text-3xl">⏳</span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
-              <p className="text-sm text-gray-600">Under Review</p>
-              <p className="text-2xl font-bold text-blue-600">3</p>
+              <p className="text-xs sm:text-sm text-gray-600">Under Review</p>
+              <p className="text-xl sm:text-2xl font-bold text-blue-600">3</p>
             </div>
-            <span className="text-3xl">🔍</span>
+            <span className="text-2xl sm:text-3xl">🔍</span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
-              <p className="text-sm text-gray-600">Approved</p>
-              <p className="text-2xl font-bold text-green-600">156</p>
+              <p className="text-xs sm:text-sm text-gray-600">Approved</p>
+              <p className="text-xl sm:text-2xl font-bold text-green-600">156</p>
             </div>
-            <span className="text-3xl">✅</span>
+            <span className="text-2xl sm:text-3xl">✅</span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
-              <p className="text-sm text-gray-600">Rejected</p>
-              <p className="text-2xl font-bold text-red-600">12</p>
+              <p className="text-xs sm:text-sm text-gray-600">Rejected</p>
+              <p className="text-xl sm:text-2xl font-bold text-red-600">12</p>
             </div>
-            <span className="text-3xl">❌</span>
+            <span className="text-2xl sm:text-3xl">❌</span>
           </div>
         </div>
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <input
               type="text"
               placeholder="Search by business name, applicant..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <div>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
@@ -291,64 +291,70 @@ export default function B2BVerification() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Applications List */}
-        <div className="lg:col-span-1 space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900">Applications</h2>
-          {applications.map((app) => (
+        <div className="lg:col-span-1 space-y-3 sm:space-y-4">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">Applications</h2>
+          {applications.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center text-gray-500">
+              <p className="text-sm">No applications found</p>
+            </div>
+          ) : (
+            applications.map((app) => (
             <div
               key={app.id}
               onClick={() => setSelectedApp(app)}
-              className={`bg-white rounded-lg shadow-sm border-2 p-4 cursor-pointer transition-all ${
+              className={`bg-white rounded-lg shadow-sm border-2 p-3 sm:p-4 cursor-pointer transition-all ${
                 selectedApp?.id === app.id ? 'border-blue-500' : 'border-gray-200 hover:border-gray-300'
               }`}
             >
               <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{app.businessInfo.businessName}</h3>
-                  <p className="text-sm text-gray-600">{app.user.name}</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm sm:text-base text-gray-900 truncate">{app.businessInfo.businessName}</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 truncate">{app.user.name}</p>
                 </div>
-                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${getStatusBadge(app.status).class}`}>
+                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium flex-shrink-0 ${getStatusBadge(app.status).class}`}>
                   <span>{getStatusBadge(app.status).icon}</span>
-                  <span>{getStatusBadge(app.status).text}</span>
+                  <span className="hidden sm:inline">{getStatusBadge(app.status).text}</span>
                 </span>
               </div>
-              <div className="space-y-1 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <span>📧</span>
-                  <span>{app.user.email}</span>
+              <div className="space-y-1 text-xs sm:text-sm text-gray-600">
+                <div className="flex items-center gap-2 truncate">
+                  <span className="flex-shrink-0">📧</span>
+                  <span className="truncate">{app.user.email}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span>📱</span>
+                  <span className="flex-shrink-0">📱</span>
                   <span>{app.user.phone}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span>🏢</span>
-                  <span>{app.businessInfo.businessType}</span>
+                  <span className="flex-shrink-0">🏢</span>
+                  <span className="truncate">{app.businessInfo.businessType}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span>📄</span>
+                  <span className="flex-shrink-0">📄</span>
                   <span>{app.documents.length} documents</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
-                  <span>🕒</span>
+                  <span className="flex-shrink-0">🕒</span>
                   <span>{new Date(app.submittedAt).toLocaleDateString('en-GB')}</span>
                 </div>
               </div>
             </div>
-          ))}
+          ))
+          )}
         </div>
 
         {/* Application Details */}
         <div className="lg:col-span-2">
           {selectedApp ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{selectedApp.businessInfo.businessName}</h2>
-                  <p className="text-gray-600 mt-1">{selectedApp.businessInfo.businessType}</p>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 space-y-4 sm:space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 break-words">{selectedApp.businessInfo.businessName}</h2>
+                  <p className="text-sm sm:text-base text-gray-600 mt-1">{selectedApp.businessInfo.businessType}</p>
                 </div>
-                <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium ${getStatusBadge(selectedApp.status).class}`}>
+                <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium flex-shrink-0 ${getStatusBadge(selectedApp.status).class}`}>
                   <span>{getStatusBadge(selectedApp.status).icon}</span>
                   <span>{getStatusBadge(selectedApp.status).text}</span>
                 </span>
@@ -356,40 +362,40 @@ export default function B2BVerification() {
 
               {/* Applicant Info */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Applicant Information</h3>
-                <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-lg p-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3">Applicant Information</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 bg-gray-50 rounded-lg p-3 sm:p-4">
                   <div>
-                    <p className="text-sm text-gray-600">Name</p>
-                    <p className="font-medium">{selectedApp.user.name}</p>
+                    <p className="text-xs sm:text-sm text-gray-600">Name</p>
+                    <p className="text-sm sm:text-base font-medium break-words">{selectedApp.user.name}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Email</p>
-                    <p className="font-medium">{selectedApp.user.email}</p>
+                    <p className="text-xs sm:text-sm text-gray-600">Email</p>
+                    <p className="text-sm sm:text-base font-medium break-all">{selectedApp.user.email}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Phone</p>
-                    <p className="font-medium">{selectedApp.user.phone}</p>
+                    <p className="text-xs sm:text-sm text-gray-600">Phone</p>
+                    <p className="text-sm sm:text-base font-medium">{selectedApp.user.phone}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Submitted</p>
-                    <p className="font-medium">{new Date(selectedApp.submittedAt).toLocaleString('en-GB')}</p>
+                    <p className="text-xs sm:text-sm text-gray-600">Submitted</p>
+                    <p className="text-sm sm:text-base font-medium">{new Date(selectedApp.submittedAt).toLocaleString('en-GB')}</p>
                   </div>
                 </div>
               </div>
 
               {/* Business Info */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Business Information</h3>
-                <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-lg p-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3">Business Information</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 bg-gray-50 rounded-lg p-3 sm:p-4">
                   <div>
-                    <p className="text-sm text-gray-600">Registration Number</p>
-                    <p className="font-medium">{selectedApp.businessInfo.registrationNumber}</p>
+                    <p className="text-xs sm:text-sm text-gray-600">Registration Number</p>
+                    <p className="text-sm sm:text-base font-medium break-all">{selectedApp.businessInfo.registrationNumber}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">Tax Number</p>
-                    <p className="font-medium">{selectedApp.businessInfo.taxNumber}</p>
+                    <p className="text-xs sm:text-sm text-gray-600">Tax Number</p>
+                    <p className="text-sm sm:text-base font-medium break-all">{selectedApp.businessInfo.taxNumber}</p>
                   </div>
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <p className="text-sm text-gray-600">Address</p>
                     <p className="font-medium">{selectedApp.businessInfo.address}</p>
                     <p className="font-medium">{selectedApp.businessInfo.city}, {selectedApp.businessInfo.country}</p>
