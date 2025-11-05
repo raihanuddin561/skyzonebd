@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { toast } from 'react-toastify';
 
 interface VerificationApplication {
   id: string;
@@ -78,112 +79,6 @@ export default function B2BVerification() {
   }, [filterStatus, searchTerm]);
 
   const getStatusBadge = (status: string) => {
-        user: {
-          id: 'u1',
-          name: 'Fatima Noor',
-          email: 'fatima@noordist.com',
-          phone: '+880-1744-456789'
-        },
-        businessInfo: {
-          businessName: 'Noor Distributors Ltd.',
-          businessType: 'Wholesale Distributor',
-          registrationNumber: 'BD-REG-2024-001234',
-          taxNumber: 'TIN-987654321',
-          address: 'House 45, Road 12, Dhanmondi',
-          city: 'Dhaka',
-          country: 'Bangladesh',
-          website: 'www.noordist.com'
-        },
-        documents: [
-          {
-            type: 'Trade License',
-            name: 'trade_license.pdf',
-            url: '/documents/trade_license_1.pdf',
-            uploadedAt: '2024-10-20T08:15:00'
-          },
-          {
-            type: 'Tax Certificate',
-            name: 'tax_cert.pdf',
-            url: '/documents/tax_cert_1.pdf',
-            uploadedAt: '2024-10-20T08:16:00'
-          },
-          {
-            type: 'Business Registration',
-            name: 'business_reg.pdf',
-            url: '/documents/business_reg_1.pdf',
-            uploadedAt: '2024-10-20T08:17:00'
-          }
-        ],
-        status: 'pending',
-        submittedAt: '2024-10-20T08:15:00'
-      },
-      {
-        id: '2',
-        user: {
-          id: 'u2',
-          name: 'Kamal Rahman',
-          email: 'kamal@superstore.com',
-          phone: '+880-1755-567890'
-        },
-        businessInfo: {
-          businessName: 'Super Store BD',
-          businessType: 'Retail Chain',
-          registrationNumber: 'BD-REG-2024-005678',
-          taxNumber: 'TIN-123456789',
-          address: 'Plot 23, Gulshan Avenue',
-          city: 'Dhaka',
-          country: 'Bangladesh'
-        },
-        documents: [
-          {
-            type: 'Trade License',
-            name: 'trade_license.pdf',
-            url: '/documents/trade_license_2.pdf',
-            uploadedAt: '2024-10-19T14:30:00'
-          },
-          {
-            type: 'Tax Certificate',
-            name: 'tax_certificate.pdf',
-            url: '/documents/tax_cert_2.pdf',
-            uploadedAt: '2024-10-19T14:31:00'
-          }
-        ],
-        status: 'under_review',
-        submittedAt: '2024-10-19T14:30:00'
-      },
-      {
-        id: '3',
-        user: {
-          id: 'u3',
-          name: 'Rashid Ali',
-          email: 'rashid@import.com',
-          phone: '+880-1766-678901'
-        },
-        businessInfo: {
-          businessName: 'Ali Import & Export',
-          businessType: 'Import/Export',
-          registrationNumber: 'BD-REG-2024-009012',
-          taxNumber: 'TIN-456789123',
-          address: 'Building 7, Motijheel',
-          city: 'Dhaka',
-          country: 'Bangladesh',
-          website: 'www.aliimport.com'
-        },
-        documents: [
-          {
-            type: 'Trade License',
-            name: 'license.pdf',
-            url: '/documents/trade_license_3.pdf',
-            uploadedAt: '2024-10-18T10:00:00'
-          }
-        ],
-        status: 'pending',
-        submittedAt: '2024-10-18T10:00:00'
-      }
-    ]);
-  }, []);
-
-  const getStatusBadge = (status: string) => {
     const badges: { [key: string]: { class: string; text: string; icon: string } } = {
       pending: { class: 'bg-yellow-100 text-yellow-800', text: 'Pending', icon: '⏳' },
       under_review: { class: 'bg-blue-100 text-blue-800', text: 'Under Review', icon: '🔍' },
@@ -193,24 +88,130 @@ export default function B2BVerification() {
     return badges[status] || badges.pending;
   };
 
-  const handleApprove = (appId: string) => {
-    console.log(`Approving application ${appId}`);
-    // TODO: Implement approve API call
-    setSelectedApp(null);
+  const handleApprove = async (appId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/admin/verification`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ applicationId: appId, action: 'approve' })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Application approved successfully');
+        fetchApplications();
+      } else {
+        toast.error(data.error || 'Failed to approve application');
+      }
+    } catch (error) {
+      console.error('Error approving application:', error);
+      toast.error('Failed to approve application');
+    }
   };
 
   const handleReject = (appId: string) => {
-    console.log(`Rejecting application ${appId} with reason: ${rejectionReason}`);
-    // TODO: Implement reject API call
-    setShowRejectModal(false);
-    setRejectionReason('');
-    setSelectedApp(null);
+    setSelectedApp(applications.find(app => app.id === appId) || null);
+    setShowRejectModal(true);
   };
 
-  const handleMarkUnderReview = (appId: string) => {
-    console.log(`Marking application ${appId} as under review`);
-    // TODO: Implement status change API call
+  const handleRejectSubmit = async () => {
+    if (!selectedApp) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/admin/verification`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          applicationId: selectedApp.id, 
+          action: 'reject',
+          reason: rejectionReason 
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Application rejected');
+        setShowRejectModal(false);
+        setRejectionReason('');
+        setSelectedApp(null);
+        fetchApplications();
+      } else {
+        toast.error(data.error || 'Failed to reject application');
+      }
+    } catch (error) {
+      console.error('Error rejecting application:', error);
+      toast.error('Failed to reject application');
+    }
   };
+
+  // Fetch applications when component mounts
+  const fetchApplications = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        status: filterStatus,
+        ...(searchTerm && { search: searchTerm }),
+      });
+
+      const response = await fetch(`/api/admin/verification?${params}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch applications');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setApplications(result.data.applications);
+      } else {
+        throw new Error(result.error || 'Failed to load applications');
+      }
+    } catch (err) {
+      console.error('Error fetching applications:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load applications');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  useEffect(() => {
+    fetchApplications();
+  }, [filterStatus, searchTerm]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading applications...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <p className="text-red-600 font-semibold">Error loading applications</p>
+        <p className="text-red-500 text-sm mt-1">{error}</p>
+        <button
+          onClick={fetchApplications}
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -434,14 +435,6 @@ export default function B2BVerification() {
               {/* Action Buttons */}
               {(selectedApp.status === 'pending' || selectedApp.status === 'under_review') && (
                 <div className="flex gap-3 pt-4 border-t border-gray-200">
-                  {selectedApp.status === 'pending' && (
-                    <button
-                      onClick={() => handleMarkUnderReview(selectedApp.id)}
-                      className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                    >
-                      Mark Under Review
-                    </button>
-                  )}
                   <button
                     onClick={() => handleApprove(selectedApp.id)}
                     className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"

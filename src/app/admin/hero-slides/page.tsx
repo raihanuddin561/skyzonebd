@@ -101,18 +101,25 @@ export default function HeroSlidesAdmin() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // If product is selected, use product image automatically
+    // Get the image URL - either custom or from product
     let imageUrl = formData.imageUrl;
-    if (formData.productId && !imageUrl) {
+    
+    // If no custom image but product is selected, try to use product image
+    if (!imageUrl && formData.productId) {
       const selectedProduct = products.find(p => p.id === formData.productId);
       if (selectedProduct?.imageUrl) {
         imageUrl = selectedProduct.imageUrl;
+        console.log('Using product image:', imageUrl);
       }
     }
     
-    // Validate: Either product OR image URL must be provided
-    if (!formData.productId && !imageUrl) {
-      toast.error('Please either select a product or provide an image');
+    // Validate: Image URL is required (either from upload or product)
+    if (!imageUrl) {
+      if (formData.productId) {
+        toast.error('Selected product has no image. Please upload an image manually.');
+      } else {
+        toast.error('Please upload an image or enter an image URL');
+      }
       return;
     }
     
@@ -366,26 +373,40 @@ export default function HeroSlidesAdmin() {
                   className="w-full px-3 py-2 border rounded-lg"
                 />
                 {uploading && <p className="text-sm text-blue-600 mt-1">Uploading...</p>}
-                {formData.productId && !formData.imageUrl && (
-                  <p className="text-sm text-green-600 mt-1">
-                    ✓ Product image will be used automatically
-                  </p>
-                )}
                 {formData.imageUrl && (
                   <div className="mt-2">
                     <img src={formData.imageUrl} alt="Preview" className="w-32 h-20 object-cover rounded" />
-                    <p className="text-xs text-gray-500 mt-1">Custom image (overrides product image)</p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {formData.productId ? (
+                        (() => {
+                          const selectedProduct = products.find(p => p.id === formData.productId);
+                          return formData.imageUrl === selectedProduct?.imageUrl 
+                            ? '✓ Using product image' 
+                            : 'Custom image (overrides product image)';
+                        })()
+                      ) : (
+                        'Slide image preview'
+                      )}
+                    </p>
                   </div>
                 )}
                 {!formData.productId && !formData.imageUrl && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    Required if no product is selected
+                  <p className="text-sm text-red-500 mt-1">
+                    ⚠ Image required (upload file or enter URL below)
+                  </p>
+                )}
+                {formData.productId && !formData.imageUrl && (
+                  <p className="text-sm text-yellow-600 mt-1">
+                    ⚠ No product image found - please upload an image
                   </p>
                 )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">
                   Or Image URL {!formData.productId && <span className="text-red-500">*</span>}
+                  {formData.productId && formData.imageUrl && (
+                    <span className="text-green-600 text-xs ml-2">✓ Auto-filled from product</span>
+                  )}
                 </label>
                 <input
                   type="url"
@@ -394,9 +415,15 @@ export default function HeroSlidesAdmin() {
                   className="w-full px-3 py-2 border rounded-lg"
                   placeholder="https://example.com/image.jpg"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Leave empty to use product image when product is selected
-                </p>
+                {formData.productId && formData.imageUrl ? (
+                  <p className="text-xs text-green-600 mt-1">
+                    ✓ Product image loaded automatically (you can change it by entering a different URL)
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Paste an image URL here, or select a product above to use its image
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">
@@ -410,11 +437,31 @@ export default function HeroSlidesAdmin() {
                   onChange={(e) => {
                     const productId = e.target.value;
                     console.log('Selected product ID:', productId);
-                    setFormData({ 
-                      ...formData, 
-                      productId,
-                      linkUrl: productId ? `/products/${productId}` : ''
-                    });
+                    
+                    if (productId) {
+                      // Product selected - auto-populate image from product
+                      const selectedProduct = products.find(p => p.id === productId);
+                      const productImageUrl = selectedProduct?.imageUrl || '';
+                      
+                      console.log('Selected product:', selectedProduct);
+                      console.log('Product image URL:', productImageUrl);
+                      
+                      setFormData({ 
+                        ...formData, 
+                        productId,
+                        linkUrl: `/products/${productId}`,
+                        imageUrl: productImageUrl // Always use product image when product is selected
+                      });
+                    } else {
+                      // Product deselected - clear product-related fields but keep custom image if uploaded
+                      setFormData({ 
+                        ...formData, 
+                        productId: '',
+                        linkUrl: '',
+                        // Keep imageUrl if it was manually uploaded, clear if it was from product
+                        imageUrl: formData.imageUrl || ''
+                      });
+                    }
                   }}
                   className="w-full px-3 py-2 border rounded-lg"
                 >
