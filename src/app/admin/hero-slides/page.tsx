@@ -100,10 +100,27 @@ export default function HeroSlidesAdmin() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // If product is selected, use product image automatically
+    let imageUrl = formData.imageUrl;
+    if (formData.productId && !imageUrl) {
+      const selectedProduct = products.find(p => p.id === formData.productId);
+      if (selectedProduct?.imageUrl) {
+        imageUrl = selectedProduct.imageUrl;
+      }
+    }
+    
+    // Validate: Either product OR image URL must be provided
+    if (!formData.productId && !imageUrl) {
+      toast.error('Please either select a product or provide an image');
+      return;
+    }
+    
     try {
       const token = localStorage.getItem('token');
       const submitData = {
         ...formData,
+        imageUrl: imageUrl || '', // Use product image if available
         productId: formData.productId || null,
         linkUrl: formData.linkUrl || null,
         subtitle: formData.subtitle || null,
@@ -303,8 +320,10 @@ export default function HeroSlidesAdmin() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <h3 className="font-semibold text-blue-900 mb-2">💡 How Hero Slides Work:</h3>
               <ul className="text-sm text-blue-800 space-y-1">
-                <li>• <strong>With Product:</strong> Product image & details shown on the right side</li>
-                <li>• <strong>Without Product:</strong> Full-width banner with your custom image</li>
+                <li>• <strong>With Product:</strong> Product image & details shown automatically on the right side</li>
+                <li>• <strong>Product Image:</strong> Automatically uses product's image (no upload needed)</li>
+                <li>• <strong>Without Product:</strong> Full-width banner - requires custom image upload</li>
+                <li>• <strong>Custom Image:</strong> Optional - overrides product image if uploaded</li>
                 <li>• <strong>Position:</strong> Lower numbers appear first in the slider</li>
                 <li>• <strong>Active/Inactive:</strong> Only active slides are visible on homepage</li>
               </ul>
@@ -333,7 +352,12 @@ export default function HeroSlidesAdmin() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Image *</label>
+                <label className="block text-sm font-medium mb-2">
+                  Image Upload {!formData.productId && <span className="text-red-500">*</span>}
+                  {formData.productId && (
+                    <span className="text-green-600 text-xs ml-2">(Optional - Product image will be used)</span>
+                  )}
+                </label>
                 <input
                   type="file"
                   accept="image/*"
@@ -342,14 +366,27 @@ export default function HeroSlidesAdmin() {
                   className="w-full px-3 py-2 border rounded-lg"
                 />
                 {uploading && <p className="text-sm text-blue-600 mt-1">Uploading...</p>}
+                {formData.productId && !formData.imageUrl && (
+                  <p className="text-sm text-green-600 mt-1">
+                    ✓ Product image will be used automatically
+                  </p>
+                )}
                 {formData.imageUrl && (
                   <div className="mt-2">
                     <img src={formData.imageUrl} alt="Preview" className="w-32 h-20 object-cover rounded" />
+                    <p className="text-xs text-gray-500 mt-1">Custom image (overrides product image)</p>
                   </div>
+                )}
+                {!formData.productId && !formData.imageUrl && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Required if no product is selected
+                  </p>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Or Image URL</label>
+                <label className="block text-sm font-medium mb-2">
+                  Or Image URL {!formData.productId && <span className="text-red-500">*</span>}
+                </label>
                 <input
                   type="url"
                   value={formData.imageUrl}
@@ -357,6 +394,9 @@ export default function HeroSlidesAdmin() {
                   className="w-full px-3 py-2 border rounded-lg"
                   placeholder="https://example.com/image.jpg"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave empty to use product image when product is selected
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">
@@ -390,9 +430,27 @@ export default function HeroSlidesAdmin() {
                   )}
                 </select>
                 {formData.productId && (
-                  <p className="text-sm text-green-600 mt-1">
-                    ✓ Product will be displayed on the right side of the hero slide
-                  </p>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-sm text-green-600">
+                      ✓ Product will be displayed on the right side of the hero slide
+                    </p>
+                    <p className="text-sm text-blue-600">
+                      ✓ Product image will be used automatically (unless you upload a custom image)
+                    </p>
+                    {(() => {
+                      const selectedProduct = products.find(p => p.id === formData.productId);
+                      return selectedProduct?.imageUrl && (
+                        <div className="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
+                          <p className="text-xs text-gray-600 mb-1">Product image preview:</p>
+                          <img 
+                            src={selectedProduct.imageUrl} 
+                            alt={selectedProduct.name}
+                            className="w-32 h-20 object-cover rounded"
+                          />
+                        </div>
+                      );
+                    })()}
+                  </div>
                 )}
               </div>
               <div>
