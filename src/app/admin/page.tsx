@@ -52,15 +52,43 @@ export default function AdminDashboard() {
           <p className="text-gray-600 mt-1">Welcome back! Here's what's happening today.</p>
         </div>
         <div className="flex gap-3">
-          <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-            Export Data
-          </button>
+          <Link
+            href="/admin/hero-slides"
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
+          >
+            <span>🎯</span>
+            <span className="hidden sm:inline">Hero Slides</span>
+          </Link>
           <Link
             href="/admin/products/new"
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
           >
             <span>+</span>
-            <span>Add Product</span>
+            <span className="hidden sm:inline">Add Product</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* Hero Carousel Management Banner */}
+      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg shadow-lg p-6 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 backdrop-blur-sm p-4 rounded-lg">
+              <span className="text-4xl">🎯</span>
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold mb-1">Manage Homepage Carousel</h2>
+              <p className="text-purple-100">Feature products on your homepage with custom promotional text and images</p>
+            </div>
+          </div>
+          <Link
+            href="/admin/hero-slides"
+            className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-50 transition-colors flex items-center gap-2 whitespace-nowrap"
+          >
+            <span>Manage Slides</span>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
           </Link>
         </div>
       </div>
@@ -179,13 +207,28 @@ export default function AdminDashboard() {
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <Link
+            href="/admin/hero-slides"
+            className="p-4 border-2 border-solid border-purple-300 bg-purple-50 rounded-lg hover:border-purple-500 hover:bg-purple-100 transition-all text-center group"
+          >
+            <div className="text-3xl mb-2">🎯</div>
+            <div className="text-sm font-bold text-purple-700">Hero Carousel</div>
+            <div className="text-xs text-purple-600 mt-1">Feature Products</div>
+          </Link>
           <Link
             href="/admin/products/new"
             className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-3xl mb-2">📦</div>
+            <div className="text-3xl mb-2">�</div>
             <div className="text-sm font-medium text-gray-700">Add Product</div>
+          </Link>
+          <Link
+            href="/admin/products"
+            className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
+          >
+            <div className="text-3xl mb-2">�</div>
+            <div className="text-sm font-medium text-gray-700">All Products</div>
           </Link>
           <Link
             href="/admin/orders"
@@ -198,22 +241,8 @@ export default function AdminDashboard() {
             href="/admin/users"
             className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-3xl mb-2">👥</div>
+            <div className="text-3xl mb-2">�</div>
             <div className="text-sm font-medium text-gray-700">Manage Users</div>
-          </Link>
-          <Link
-            href="/admin/hero-slides"
-            className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
-          >
-            <div className="text-3xl mb-2">🎯</div>
-            <div className="text-sm font-medium text-gray-700">Hero Slides</div>
-          </Link>
-          <Link
-            href="/admin/reports"
-            className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
-          >
-            <div className="text-3xl mb-2">📊</div>
-            <div className="text-sm font-medium text-gray-700">View Reports</div>
           </Link>
         </div>
       </div>
