@@ -34,16 +34,13 @@ export default function ProductDetailPage() {
       const initialQty = (user && user.userType === 'wholesale') ? product.minOrderQuantity : 1;
       setQuantity(initialQty);
       
-      // Set the first available image - with extensive debugging
-      const images = (product as any).imageUrls || product.images || [];
-      const firstImage = (images && Array.isArray(images) && images.length > 0) ? images[0] : product.imageUrl;
+      // Automatically set the first available image
+      const images = getProductImages();
+      const firstImage = images.length > 0 ? images[0] : product.imageUrl;
       
-      console.log('🖼️ Product Image Debug:', {
+      console.log('🖼️ Product Image Auto-Selected:', {
         productId: product.id,
-        imageUrl: product.imageUrl,
-        imageUrls: (product as any).imageUrls,
-        images: product.images,
-        firstImage,
+        totalImages: images.length,
         selectedImage: firstImage
       });
       
@@ -175,6 +172,45 @@ export default function ProductDetailPage() {
                   }}
                 />
                 
+                {/* Navigation Arrows - Show when multiple images exist */}
+                {getProductImages().length > 1 && (
+                  <>
+                    {/* Previous Image Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const images = getProductImages();
+                        const currentIndex = images.indexOf(selectedImage || product.imageUrl);
+                        const prevIndex = (currentIndex - 1 + images.length) % images.length;
+                        setSelectedImage(images[prevIndex]);
+                      }}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white backdrop-blur-sm rounded-full p-3 shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 z-10"
+                      aria-label="Previous image"
+                    >
+                      <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    
+                    {/* Next Image Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const images = getProductImages();
+                        const currentIndex = images.indexOf(selectedImage || product.imageUrl);
+                        const nextIndex = (currentIndex + 1) % images.length;
+                        setSelectedImage(images[nextIndex]);
+                      }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white backdrop-blur-sm rounded-full p-3 shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 z-10"
+                      aria-label="Next image"
+                    >
+                      <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+                
                 {/* Image Counter */}
                 {getProductImages().length > 1 && (
                   <div className="absolute top-4 right-4 bg-black/70 text-white px-3 py-1.5 rounded-full text-sm font-medium backdrop-blur-sm">
@@ -190,28 +226,57 @@ export default function ProductDetailPage() {
                 </div>
               </div>
               
-              {/* Thumbnails Row */}
+              {/* Thumbnails Row - Enhanced with Better Selection Indicators */}
               {getProductImages().length > 1 && (
-                <div className="bg-white border-t border-gray-100 p-4">
-                  <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-t border-gray-200 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-sm font-semibold text-gray-700">Product Images ({getProductImages().length})</span>
+                  </div>
+                  <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                     {getProductImages().map((image, index) => (
                       <button
                         key={index}
-                        onClick={() => setSelectedImage(image)}
-                        className={`flex-shrink-0 w-20 h-20 rounded-lg border-2 transition-all overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 hover:shadow-md ${
+                        onClick={() => {
+                          setSelectedImage(image);
+                          console.log(`🖼️ Image ${index + 1} of ${getProductImages().length} selected`);
+                        }}
+                        className={`group relative flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-lg border-2 transition-all duration-200 overflow-hidden ${
                           (selectedImage || product.imageUrl) === image 
-                            ? 'border-blue-600 ring-2 ring-blue-100 shadow-md scale-105' 
-                            : 'border-gray-200 hover:border-blue-300 hover:scale-105'
+                            ? 'border-blue-600 ring-4 ring-blue-200 shadow-lg scale-105 bg-white' 
+                            : 'border-gray-300 hover:border-blue-400 hover:shadow-md hover:scale-105 bg-white'
                         }`}
+                        aria-label={`Select image ${index + 1}`}
                       >
                         <img
                           src={image}
-                          alt={`View ${index + 1}`}
-                          className="w-full h-full object-contain p-2"
+                          alt={`${product.name} - View ${index + 1}`}
+                          className="w-full h-full object-contain p-1.5 sm:p-2"
+                          loading="lazy"
                         />
+                        
+                        {/* Selected Indicator Badge */}
+                        {(selectedImage || product.imageUrl) === image && (
+                          <div className="absolute top-1 right-1 bg-blue-600 rounded-full p-0.5 shadow-md">
+                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        )}
+                        
+                        {/* Hover Overlay */}
+                        <div className="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-10 transition-opacity duration-200" />
+                        
+                        {/* Image Number Badge */}
+                        <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded-full font-medium backdrop-blur-sm">
+                          {index + 1}
+                        </div>
                       </button>
                     ))}
                   </div>
+                  <p className="text-xs text-gray-500 mt-2 text-center">Click any image to view in detail</p>
                 </div>
               )}
             </div>
@@ -334,24 +399,71 @@ export default function ProductDetailPage() {
             <div className="mb-6">
               {product.availability === 'in_stock' || product.availability === 'limited' ? (
                 <>
-                  <div className="flex items-center gap-4 mb-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
                     <div>
-                      <label htmlFor="quantity" className="block text-sm font-medium mb-1">
+                      <label className="block text-sm font-medium mb-2">
                         Quantity {(user && user.userType === 'wholesale') ? `(Min: ${product.minOrderQuantity})` : ''}
                       </label>
-                      <input
-                        id="quantity"
-                        type="number"
-                        min={(user && user.userType === 'wholesale') ? product.minOrderQuantity : 1}
-                        max={product.stock}
-                        value={quantity}
-                        onChange={(e) => handleQuantityChange(parseInt(e.target.value) || ((user && user.userType === 'wholesale') ? product.minOrderQuantity : 1))}
-                        className="w-24 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
+                      <div className="flex items-center border-2 border-gray-300 rounded-lg overflow-hidden shadow-sm">
+                        {/* Decrease Button */}
+                        <button
+                          onClick={() => {
+                            const minQty = (user && user.userType === 'wholesale') ? product.minOrderQuantity : 1;
+                            const newQty = Math.max(quantity - 1, minQty);
+                            handleQuantityChange(newQty);
+                          }}
+                          disabled={quantity <= ((user && user.userType === 'wholesale') ? product.minOrderQuantity : 1)}
+                          className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-gray-50 hover:bg-blue-50 active:bg-blue-100 text-gray-700 hover:text-blue-600 transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:text-gray-700"
+                          aria-label="Decrease quantity"
+                        >
+                          <svg 
+                            className="w-5 h-5 sm:w-6 sm:h-6" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                            strokeWidth="3"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
+                          </svg>
+                        </button>
+                        
+                        {/* Quantity Display */}
+                        <div className="w-16 sm:w-20 h-10 sm:h-12 flex items-center justify-center bg-white text-gray-900 font-bold text-base sm:text-lg border-x-2 border-gray-300">
+                          {quantity}
+                        </div>
+                        
+                        {/* Increase Button */}
+                        <button
+                          onClick={() => {
+                            const newQty = quantity + 1;
+                            if (product.stock && newQty <= product.stock) {
+                              handleQuantityChange(newQty);
+                            }
+                          }}
+                          disabled={product.stock ? quantity >= product.stock : false}
+                          className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-gray-50 hover:bg-blue-50 active:bg-blue-100 text-gray-700 hover:text-blue-600 transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:text-gray-700"
+                          aria-label="Increase quantity"
+                        >
+                          <svg 
+                            className="w-5 h-5 sm:w-6 sm:h-6" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                            strokeWidth="3"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                          </svg>
+                        </button>
+                      </div>
+                      {product.stock && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {product.stock} units available
+                        </p>
+                      )}
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 w-full sm:w-auto">
                       <p className="text-sm text-gray-600 mb-1">Total Price</p>
-                      <p className="text-xl font-bold text-blue-600">
+                      <p className="text-2xl sm:text-3xl font-bold text-blue-600">
                         ৳{calculateTotalPrice().toLocaleString()}
                       </p>
                     </div>
