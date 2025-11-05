@@ -26,71 +26,45 @@ export default function UsersManagement() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    setUsers([
-      {
-        id: '1',
-        name: 'Ahmed Khan',
-        email: 'ahmed@example.com',
-        phone: '+880-1711-123456',
-        role: 'buyer',
-        userType: 'wholesale',
-        status: 'active',
-        businessVerified: true,
-        businessName: 'Khan Trading Co.',
-        totalOrders: 45,
-        totalSpent: 2350000,
-        createdAt: '2024-01-15T10:00:00',
-        lastLogin: '2024-10-22T09:30:00'
-      },
-      {
-        id: '2',
-        name: 'Sara Ahmed',
-        email: 'sara@example.com',
-        phone: '+880-1722-234567',
-        role: 'buyer',
-        userType: 'retail',
-        status: 'active',
-        businessVerified: false,
-        totalOrders: 12,
-        totalSpent: 85000,
-        createdAt: '2024-03-22T14:20:00',
-        lastLogin: '2024-10-22T11:15:00'
-      },
-      {
-        id: '3',
-        name: 'Mohammad Hassan',
-        email: 'hassan@store.com',
-        phone: '+880-1733-345678',
-        role: 'seller',
-        userType: 'wholesale',
-        status: 'active',
-        businessVerified: true,
-        businessName: 'Hassan Electronics',
-        totalOrders: 0,
-        totalSpent: 0,
-        createdAt: '2024-02-10T11:00:00',
-        lastLogin: '2024-10-21T16:45:00'
-      },
-      {
-        id: '4',
-        name: 'Fatima Noor',
-        email: 'fatima@example.com',
-        phone: '+880-1744-456789',
-        role: 'buyer',
-        userType: 'wholesale',
-        status: 'pending',
-        businessVerified: false,
-        businessName: 'Noor Distributors',
-        totalOrders: 0,
-        totalSpent: 0,
-        createdAt: '2024-10-20T08:15:00',
-        lastLogin: '2024-10-20T08:15:00'
-      },
-    ]);
-  }, []);
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams({
+          role: filterRole,
+          userType: filterType,
+          status: filterStatus,
+          ...(searchTerm && { search: searchTerm }),
+        });
+
+        const response = await fetch(`/api/admin/users?${params}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch users');
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+          setUsers(result.data.users);
+        } else {
+          throw new Error(result.error || 'Failed to load users');
+        }
+      } catch (err) {
+        console.error('Error fetching users:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load users');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [filterRole, filterType, filterStatus, searchTerm]);
+
+
 
   const getRoleBadge = (role: string) => {
     const badges: { [key: string]: { class: string; text: string; icon: string } } = {
@@ -211,18 +185,43 @@ export default function UsersManagement() {
         </div>
       </div>
 
-      {/* Filters and Search */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="md:col-span-2">
-            <input
-              type="text"
-              placeholder="Search by name, email, phone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+      {/* Loading State */}
+      {loading && (
+        <div className="flex justify-center items-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading users...</p>
           </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">⚠️</span>
+            <div>
+              <h3 className="font-semibold text-red-800">Error Loading Users</h3>
+              <p className="text-red-600 text-sm mt-1">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters and Search */}
+      {!loading && !error && (
+        <>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="md:col-span-2">
+                <input
+                  type="text"
+                  placeholder="Search by name, email, phone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
           <div>
             <select
               value={filterRole}
@@ -424,6 +423,8 @@ export default function UsersManagement() {
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

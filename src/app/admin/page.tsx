@@ -12,25 +12,41 @@ interface StatCard {
 }
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<StatCard[]>([
-    { title: 'Total Revenue', value: '৳2,450,000', change: '+12.5%', icon: '💰', color: 'blue' },
-    { title: 'Total Orders', value: '1,234', change: '+8.2%', icon: '🛒', color: 'green' },
-    { title: 'Total Users', value: '5,678', change: '+15.3%', icon: '👥', color: 'purple' },
-    { title: 'Products', value: '456', change: '+3', icon: '📦', color: 'orange' },
-  ]);
+  const [stats, setStats] = useState<StatCard[]>([]);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [pendingVerifications, setPendingVerifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [recentOrders, setRecentOrders] = useState([
-    { id: 'ORD-001', customer: 'Ahmed Khan', amount: 25000, status: 'pending', date: '2024-10-22' },
-    { id: 'ORD-002', customer: 'Sara Ahmed', amount: 15000, status: 'processing', date: '2024-10-22' },
-    { id: 'ORD-003', customer: 'Karim Hassan', amount: 35000, status: 'shipped', date: '2024-10-21' },
-    { id: 'ORD-004', customer: 'Fatima Ali', amount: 42000, status: 'delivered', date: '2024-10-21' },
-  ]);
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/admin/stats');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch dashboard data');
+        }
 
-  const [pendingVerifications, setPendingVerifications] = useState([
-    { id: 1, company: 'ABC Trading Ltd.', submitted: '2024-10-20', type: 'Wholesale' },
-    { id: 2, company: 'XYZ Distributors', submitted: '2024-10-21', type: 'Wholesale' },
-    { id: 3, company: 'Modern Retail Co.', submitted: '2024-10-22', type: 'Wholesale' },
-  ]);
+        const result = await response.json();
+        
+        if (result.success) {
+          setStats(result.data.stats);
+          setRecentOrders(result.data.recentOrders);
+          setPendingVerifications(result.data.pendingVerifications);
+        } else {
+          throw new Error(result.error || 'Failed to load data');
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   const getStatusColor = (status: string) => {
     const colors: { [key: string]: string } = {
@@ -93,48 +109,79 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-3xl">{stat.icon}</span>
-              <span className={`text-sm font-medium ${
-                stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {stat.change}
-              </span>
-            </div>
-            <h3 className="text-gray-600 text-sm font-medium">{stat.title}</h3>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+      {/* Loading State */}
+      {loading && (
+        <div className="flex justify-center items-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading dashboard data...</p>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Orders */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">Recent Orders</h2>
-              <Link href="/admin/orders" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                View All →
-              </Link>
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">⚠️</span>
+            <div>
+              <h3 className="font-semibold text-red-800">Error Loading Dashboard</h3>
+              <p className="text-red-600 text-sm mt-1">{error}</p>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {recentOrders.map((order) => (
+        </div>
+      )}
+
+      {/* Stats Cards */}
+      {!loading && !error && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {stats.map((stat, index) => (
+            <div key={index} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-3xl">{stat.icon}</span>
+                <span className={`text-sm font-medium ${
+                  stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {stat.change}
+                </span>
+              </div>
+              <h3 className="text-gray-600 text-sm font-medium">{stat.title}</h3>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && !error && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Recent Orders */}
+          <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">Recent Orders</h2>
+                <Link href="/admin/orders" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                  View All →
+                </Link>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              {recentOrders.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <p>No orders yet</p>
+                </div>
+              ) : (
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {recentOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Link href={`/admin/orders/${order.id}`} className="text-blue-600 hover:text-blue-700 font-medium">
@@ -150,13 +197,14 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-600 text-sm">{order.date}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Pending Verifications */}
+          {/* Pending Verifications */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
@@ -202,9 +250,11 @@ export default function AdminDashboard() {
             </Link>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
+      {!loading && !error && (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -241,11 +291,12 @@ export default function AdminDashboard() {
             href="/admin/users"
             className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-3xl mb-2">�</div>
+            <div className="text-3xl mb-2">👥</div>
             <div className="text-sm font-medium text-gray-700">Manage Users</div>
           </Link>
         </div>
       </div>
+      )}
     </div>
   );
 }
