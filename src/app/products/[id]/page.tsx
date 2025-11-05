@@ -300,10 +300,6 @@ export default function ProductDetailPage() {
                   <div className="text-xs font-medium text-gray-600 uppercase tracking-wide">Rating</div>
                 </div>
                 <div className="p-4 text-center hover:bg-white/50 transition-colors">
-                  <div className="text-2xl font-bold text-green-600 mb-2">{product.stock || 0}</div>
-                  <div className="text-xs font-medium text-gray-600 uppercase tracking-wide">In Stock</div>
-                </div>
-                <div className="p-4 text-center hover:bg-white/50 transition-colors">
                   <div className="text-2xl font-bold text-indigo-600 mb-2">{product.reviews || 0}</div>
                   <div className="text-xs font-medium text-gray-600 uppercase tracking-wide">Reviews</div>
                 </div>
@@ -371,11 +367,6 @@ export default function ProductDetailPage() {
               {(user && user.userType === 'wholesale') && (
                 <p className="text-sm text-gray-600">
                   Minimum Order Quantity: {product.minOrderQuantity} units
-                </p>
-              )}
-              {product.stock && (
-                <p className="text-sm text-gray-600">
-                  Available Stock: {product.stock} units
                 </p>
               )}
             </div>
@@ -455,11 +446,6 @@ export default function ProductDetailPage() {
                           </svg>
                         </button>
                       </div>
-                      {product.stock && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {product.stock} units available
-                        </p>
-                      )}
                     </div>
                     <div className="flex-1 w-full sm:w-auto">
                       <p className="text-sm text-gray-600 mb-1">Total Price</p>

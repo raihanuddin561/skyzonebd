@@ -86,23 +86,23 @@ export default function AdminDashboard() {
       </div>
 
       {/* Hero Carousel Management Banner */}
-      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg shadow-lg p-4 sm:p-6 text-white">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-start sm:items-center gap-3 sm:gap-4">
-            <div className="bg-white/20 backdrop-blur-sm p-3 sm:p-4 rounded-lg flex-shrink-0">
-              <span className="text-2xl sm:text-4xl">🎯</span>
+      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg shadow-lg p-3 sm:p-4 lg:p-6 text-white">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-start sm:items-center gap-2 sm:gap-3 lg:gap-4">
+            <div className="bg-white/20 backdrop-blur-sm p-2 sm:p-3 lg:p-4 rounded-lg flex-shrink-0">
+              <span className="text-xl sm:text-3xl lg:text-4xl">🎯</span>
             </div>
-            <div>
-              <h2 className="text-lg sm:text-2xl font-bold mb-1">Manage Homepage Carousel</h2>
-              <p className="text-xs sm:text-sm text-purple-100">Feature products on your homepage with custom promotional text and images</p>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-sm sm:text-lg lg:text-2xl font-bold mb-0.5 sm:mb-1">Manage Homepage Carousel</h2>
+              <p className="text-xs sm:text-sm text-purple-100 leading-tight">Feature products on your homepage with custom promotional text and images</p>
             </div>
           </div>
           <Link
             href="/admin/hero-slides"
-            className="bg-white text-purple-600 px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-purple-50 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="bg-white text-purple-600 px-3 sm:px-4 lg:px-6 py-2 sm:py-2.5 lg:py-3 rounded-lg font-semibold hover:bg-purple-50 transition-colors flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm lg:text-base whitespace-nowrap"
           >
             <span>Manage Slides</span>
-            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
           </Link>
@@ -134,31 +134,31 @@ export default function AdminDashboard() {
 
       {/* Stats Cards */}
       {!loading && !error && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           {stats.map((stat, index) => (
-            <div key={index} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-3xl">{stat.icon}</span>
-                <span className={`text-sm font-medium ${
+            <div key={index} className="bg-white rounded-lg shadow-sm p-4 sm:p-5 lg:p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <span className="text-2xl sm:text-3xl">{stat.icon}</span>
+                <span className={`text-xs sm:text-sm font-medium ${
                   stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
                 }`}>
                   {stat.change}
                 </span>
               </div>
-              <h3 className="text-gray-600 text-sm font-medium">{stat.title}</h3>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+              <h3 className="text-gray-600 text-xs sm:text-sm font-medium">{stat.title}</h3>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
             </div>
           ))}
         </div>
       )}
 
       {!loading && !error && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Recent Orders */}
           <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-4 sm:p-6 border-b border-gray-200">
+            <div className="p-3 sm:p-4 lg:p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Recent Orders</h2>
+                <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900">Recent Orders</h2>
                 <Link href="/admin/orders" className="text-blue-600 hover:text-blue-700 text-xs sm:text-sm font-medium">
                   View All →
                 </Link>
@@ -171,29 +171,29 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <>
-                  <div className="block sm:hidden">
-                    {/* Mobile Card View */}
+                  <div className="block lg:hidden">
+                    {/* Mobile & Tablet Card View */}
                     <div className="divide-y divide-gray-200">
                       {recentOrders.map((order) => (
-                        <div key={order.id} className="p-4 hover:bg-gray-50">
+                        <div key={order.id} className="p-3 sm:p-4 hover:bg-gray-50">
                           <div className="flex items-start justify-between mb-2">
-                            <Link href={`/admin/orders/${order.id}`} className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-                              {order.id}
+                            <Link href={`/admin/orders/${order.id}`} className="text-blue-600 hover:text-blue-700 font-medium text-xs sm:text-sm">
+                              #{order.id}
                             </Link>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
                               {order.status}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-900 font-medium">{order.customer}</p>
+                          <p className="text-xs sm:text-sm text-gray-900 font-medium truncate">{order.customer}</p>
                           <div className="flex items-center justify-between mt-2">
-                            <span className="text-sm font-semibold text-gray-900">৳{order.amount.toLocaleString()}</span>
+                            <span className="text-sm sm:text-base font-semibold text-gray-900">৳{order.amount.toLocaleString()}</span>
                             <span className="text-xs text-gray-500">{order.date}</span>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                  <table className="hidden sm:table w-full min-w-full">
+                  <table className="hidden lg:table w-full min-w-full">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
@@ -230,9 +230,9 @@ export default function AdminDashboard() {
 
           {/* Pending Verifications */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-4 sm:p-6 border-b border-gray-200">
+          <div className="p-3 sm:p-4 lg:p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Pending B2B</h2>
+              <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900">Pending B2B</h2>
               <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
                 {pendingVerifications.length}
               </span>
@@ -240,31 +240,31 @@ export default function AdminDashboard() {
           </div>
           <div className="divide-y divide-gray-200">
             {pendingVerifications.length === 0 ? (
-              <div className="p-6 text-center text-gray-500 text-sm">
+              <div className="p-4 sm:p-6 text-center text-gray-500 text-xs sm:text-sm">
                 <p>No pending verifications</p>
               </div>
             ) : (
               pendingVerifications.map((verification) => (
               <div key={verification.id} className="p-3 sm:p-4 hover:bg-gray-50">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate">{verification.company}</h3>
-                    <p className="text-xs sm:text-sm text-gray-600 mt-1">Type: {verification.type}</p>
-                    <p className="text-xs text-gray-500 mt-1">Submitted: {verification.submitted}</p>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <h3 className="font-medium text-gray-900 text-xs sm:text-sm lg:text-base truncate">{verification.company}</h3>
+                    <p className="text-xs text-gray-600 mt-1">Type: {verification.type}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">Submitted: {verification.submitted}</p>
                   </div>
                 </div>
-                <div className="flex gap-2 mt-3">
-                  <button className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-green-600 text-white text-xs sm:text-sm rounded hover:bg-green-700">
-                    Approve
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button className="flex-1 px-2 py-1.5 sm:py-2 bg-green-600 text-white text-xs rounded hover:bg-green-700 whitespace-nowrap">
+                    ✓ Approve
                   </button>
-                  <button className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-red-600 text-white text-xs sm:text-sm rounded hover:bg-red-700">
-                    Reject
+                  <button className="flex-1 px-2 py-1.5 sm:py-2 bg-red-600 text-white text-xs rounded hover:bg-red-700 whitespace-nowrap">
+                    ✗ Reject
                   </button>
                   <Link
                     href={`/admin/verification/${verification.id}`}
-                    className="px-2 sm:px-3 py-1.5 sm:py-2 bg-gray-200 text-gray-700 text-xs sm:text-sm rounded hover:bg-gray-300 whitespace-nowrap"
+                    className="flex-1 px-2 py-1.5 sm:py-2 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300 text-center whitespace-nowrap"
                   >
-                    View
+                    View Details
                   </Link>
                 </div>
               </div>
@@ -285,44 +285,44 @@ export default function AdminDashboard() {
 
       {/* Quick Actions */}
       {!loading && !error && (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
+        <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4">
           <Link
             href="/admin/hero-slides"
-            className="p-3 sm:p-4 border-2 border-solid border-purple-300 bg-purple-50 rounded-lg hover:border-purple-500 hover:bg-purple-100 transition-all text-center group"
+            className="p-2 sm:p-3 lg:p-4 border-2 border-solid border-purple-300 bg-purple-50 rounded-lg hover:border-purple-500 hover:bg-purple-100 transition-all text-center group"
           >
-            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">🎯</div>
-            <div className="text-xs sm:text-sm font-bold text-purple-700">Hero Carousel</div>
-            <div className="text-xs text-purple-600 mt-1 hidden sm:block">Feature Products</div>
+            <div className="text-xl sm:text-2xl lg:text-3xl mb-1 sm:mb-2">🎯</div>
+            <div className="text-xs font-bold text-purple-700 leading-tight">Hero Carousel</div>
+            <div className="text-xs text-purple-600 mt-1 hidden lg:block">Feature Products</div>
           </Link>
           <Link
             href="/admin/products/new"
-            className="p-3 sm:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
+            className="p-2 sm:p-3 lg:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">📦</div>
-            <div className="text-xs sm:text-sm font-medium text-gray-700">Add Product</div>
+            <div className="text-xl sm:text-2xl lg:text-3xl mb-1 sm:mb-2">📦</div>
+            <div className="text-xs font-medium text-gray-700 leading-tight">Add Product</div>
           </Link>
           <Link
             href="/admin/products"
-            className="p-3 sm:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
+            className="p-2 sm:p-3 lg:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">📋</div>
-            <div className="text-xs sm:text-sm font-medium text-gray-700">All Products</div>
+            <div className="text-xl sm:text-2xl lg:text-3xl mb-1 sm:mb-2">📋</div>
+            <div className="text-xs font-medium text-gray-700 leading-tight">All Products</div>
           </Link>
           <Link
             href="/admin/orders"
-            className="p-3 sm:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
+            className="p-2 sm:p-3 lg:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">🛒</div>
-            <div className="text-xs sm:text-sm font-medium text-gray-700">Manage Orders</div>
+            <div className="text-xl sm:text-2xl lg:text-3xl mb-1 sm:mb-2">🛒</div>
+            <div className="text-xs font-medium text-gray-700 leading-tight">Manage Orders</div>
           </Link>
           <Link
             href="/admin/users"
-            className="p-3 sm:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
+            className="p-2 sm:p-3 lg:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">👥</div>
-            <div className="text-xs sm:text-sm font-medium text-gray-700">Manage Users</div>
+            <div className="text-xl sm:text-2xl lg:text-3xl mb-1 sm:mb-2">👥</div>
+            <div className="text-xs font-medium text-gray-700 leading-tight">Manage Users</div>
           </Link>
         </div>
       </div>
