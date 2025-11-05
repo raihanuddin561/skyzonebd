@@ -170,58 +170,60 @@ export default function AdminDashboard() {
                   <p className="text-sm sm:text-base">No orders yet</p>
                 </div>
               ) : (
-                <div className="block sm:hidden">
-                  {/* Mobile Card View */}
-                  <div className="divide-y divide-gray-200">
-                    {recentOrders.map((order) => (
-                      <div key={order.id} className="p-4 hover:bg-gray-50">
-                        <div className="flex items-start justify-between mb-2">
-                          <Link href={`/admin/orders/${order.id}`} className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-                            {order.id}
-                          </Link>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                            {order.status}
-                          </span>
+                <>
+                  <div className="block sm:hidden">
+                    {/* Mobile Card View */}
+                    <div className="divide-y divide-gray-200">
+                      {recentOrders.map((order) => (
+                        <div key={order.id} className="p-4 hover:bg-gray-50">
+                          <div className="flex items-start justify-between mb-2">
+                            <Link href={`/admin/orders/${order.id}`} className="text-blue-600 hover:text-blue-700 font-medium text-sm">
+                              {order.id}
+                            </Link>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                              {order.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-900 font-medium">{order.customer}</p>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-sm font-semibold text-gray-900">৳{order.amount.toLocaleString()}</span>
+                            <span className="text-xs text-gray-500">{order.date}</span>
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-900 font-medium">{order.customer}</p>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-sm font-semibold text-gray-900">৳{order.amount.toLocaleString()}</span>
-                          <span className="text-xs text-gray-500">{order.date}</span>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <table className="hidden sm:table w-full min-w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
-                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {recentOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                      <Link href={`/admin/orders/${order.id}`} className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-                        {order.id}
-                      </Link>
-                    </td>
-                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-900 text-sm">{order.customer}</td>
-                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-900 text-sm">৳{order.amount.toLocaleString()}</td>
-                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-600 text-sm">{order.date}</td>
-                  </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  <table className="hidden sm:table w-full min-w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
+                        <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                        <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                        <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {recentOrders.map((order) => (
+                        <tr key={order.id} className="hover:bg-gray-50">
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                            <Link href={`/admin/orders/${order.id}`} className="text-blue-600 hover:text-blue-700 font-medium text-sm">
+                              {order.id}
+                            </Link>
+                          </td>
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-900 text-sm">{order.customer}</td>
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-900 text-sm">৳{order.amount.toLocaleString()}</td>
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                              {order.status}
+                            </span>
+                          </td>
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-600 text-sm">{order.date}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
               )}
             </div>
           </div>
