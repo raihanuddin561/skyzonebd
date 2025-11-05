@@ -202,17 +202,21 @@ export default function HeroSlidesAdmin() {
       const formDataUpload = new FormData();
       formDataUpload.append('file', file);
 
+      const token = localStorage.getItem('token');
       const response = await fetch('/api/upload', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: formDataUpload,
       });
 
       const data = await response.json();
       if (data.success) {
-        setFormData({ ...formData, imageUrl: data.url });
+        setFormData({ ...formData, imageUrl: data.data.url });
         toast.success('Image uploaded successfully');
       } else {
-        toast.error('Failed to upload image');
+        toast.error(data.error || 'Failed to upload image');
       }
     } catch (error) {
       console.error('Error uploading image:', error);
