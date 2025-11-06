@@ -42,11 +42,53 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/admin/analytics?range=${timeRange}`);
+      // Convert timeRange to API format
+      const rangeMap = {
+        today: '1d',
+        week: '7d',
+        month: '30d',
+        year: '1y'
+      };
+      const apiRange = rangeMap[timeRange];
+      
+      const response = await fetch(`/api/admin/analytics?range=${apiRange}`);
       
       if (response.ok) {
-        const data = await response.json();
-        setAnalytics(data);
+        const result = await response.json();
+        if (result.success && result.data) {
+          // Transform API data to match frontend interface
+          const apiData = result.data;
+          setAnalytics({
+            revenue: {
+              today: apiData.overview?.totalRevenue?.value || 0,
+              week: apiData.overview?.totalRevenue?.value || 0,
+              month: apiData.overview?.totalRevenue?.value || 0,
+              year: apiData.overview?.totalRevenue?.value || 0,
+              growth: apiData.overview?.totalRevenue?.growth || 0,
+            },
+            orders: {
+              total: apiData.overview?.totalOrders?.value || 0,
+              pending: apiData.orderDistribution?.find((o: any) => o.status === 'PENDING')?._count?.status || 0,
+              completed: apiData.orderDistribution?.find((o: any) => o.status === 'COMPLETED' || o.status === 'DELIVERED')?._count?.status || 0,
+              cancelled: apiData.orderDistribution?.find((o: any) => o.status === 'CANCELLED')?._count?.status || 0,
+            },
+            customers: {
+              total: apiData.overview?.newCustomers?.value || 0,
+              new: apiData.overview?.newCustomers?.value || 0,
+              active: apiData.overview?.newCustomers?.value || 0,
+              b2b: 0,
+            },
+            products: {
+              totalViews: 0,
+              topSelling: (apiData.topSellingProducts || []).map((p: any) => ({
+                name: p.name,
+                sold: p.unitsSold,
+                revenue: p.revenue,
+              })),
+              lowStock: 0,
+            },
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching analytics:', error);
