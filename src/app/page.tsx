@@ -120,9 +120,9 @@ export default function HomePage() {
           </div>
         ) : heroSlides.length === 0 ? (
           <div className="h-[300px] sm:h-[350px] md:h-[400px] lg:h-[450px] bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center">
-            <div className="text-center text-white px-4 max-w-4xl mx-auto">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 animate-fade-in">Welcome to SkyzoneBD</h2>
-              <p className="text-base sm:text-lg md:text-xl lg:text-2xl mb-6 sm:mb-8 opacity-90 animate-fade-in">Your trusted B2B marketplace</p>
+            <div className="max-w-4xl mx-auto text-center px-4 relative z-10 py-16 sm:py-24 md:py-32">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 animate-fade-in text-white">Welcome to SkyzoneBD</h2>
+              <p className="text-base sm:text-lg md:text-xl lg:text-2xl mb-6 sm:mb-8 opacity-90 animate-fade-in text-white">Your trusted B2B marketplace</p>
               <Link href="/products" className="inline-block bg-white text-gray-900 px-6 sm:px-8 md:px-10 py-3 sm:py-4 rounded-full font-bold text-sm sm:text-base md:text-lg shadow-2xl hover:scale-105 hover:shadow-3xl transition-all duration-300">
                 Shop Now
               </Link>

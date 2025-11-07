@@ -16,7 +16,7 @@ function PopularSearches() {
   if (loading) {
     return (
       <div className="mt-16 bg-white rounded-lg p-6 shadow">
-        <h3 className="text-lg font-semibold mb-4">Popular Searches</h3>
+        <h3 className="text-lg font-semibold mb-4 text-gray-900">Popular Searches</h3>
         <div className="flex flex-wrap gap-2">
           {[1, 2, 3, 4, 5, 6].map(i => (
             <div key={i} className="h-8 w-24 bg-gray-200 rounded-full animate-pulse"></div>
@@ -32,7 +32,7 @@ function PopularSearches() {
 
   return (
     <div className="mt-16 bg-white rounded-lg p-6 shadow">
-      <h3 className="text-lg font-semibold mb-4">Popular Searches</h3>
+      <h3 className="text-lg font-semibold mb-4 text-gray-900">Popular Searches</h3>
       <div className="flex flex-wrap gap-2">
         {searches.map(term => (
           <Link
@@ -98,7 +98,7 @@ function SearchContent() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold mb-2">
+              <h1 className="text-2xl font-bold mb-2 text-gray-900">
                 Search Results {query && `for "${query}"`}
               </h1>
               <p className="text-gray-600">
@@ -131,7 +131,7 @@ function SearchContent() {
         {!query && (
           <div className="text-center py-12">
             <div className="text-gray-400 text-6xl mb-4">🔍</div>
-            <h2 className="text-xl font-semibold mb-2">Start your search</h2>
+            <h2 className="text-xl font-semibold mb-2 text-gray-900">Start your search</h2>
             <p className="text-gray-600 mb-4">
               Enter a product name, category, or company to find what you're looking for
             </p>
@@ -152,11 +152,11 @@ function SearchContent() {
           </div>
         )}
 
-        {/* No Results State */}
+        {/* No Results */}
         {!loading && query && sortedResults.length === 0 && (
           <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">😔</div>
-            <h2 className="text-xl font-semibold mb-2">No results found</h2>
+            <div className="text-gray-400 text-6xl mb-4">�</div>
+            <h2 className="text-xl font-semibold mb-2 text-gray-900">No results found</h2>
             <p className="text-gray-600 mb-4">
               We couldn't find any products matching "{query}"
             </p>

@@ -71,13 +71,13 @@ export default function ComparePage() {
       
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-4">Compare Products</h1>
+          <h1 className="text-3xl font-bold mb-4 text-gray-900">Compare Products</h1>
           <p className="text-gray-600">Compare up to 3 products side by side</p>
         </div>
 
         {/* Add Product Section */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">Add Products to Compare</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-900">Add Products to Compare</h2>
           <div className="flex gap-4">
             <input
               type="number"
@@ -153,7 +153,7 @@ export default function ComparePage() {
         ) : (
           <div className="text-center py-12">
             <div className="text-gray-400 text-6xl mb-4">📊</div>
-            <h3 className="text-xl font-semibold mb-2">No Products Selected</h3>
+            <h3 className="text-xl font-semibold mb-2 text-gray-900">No Products Selected</h3>
             <p className="text-gray-600">
               Add products using their IDs to start comparing
             </p>
@@ -162,7 +162,7 @@ export default function ComparePage() {
 
         {/* Quick Add Popular Products */}
         <div className="mt-8 bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-4">Popular Products</h3>
+          <h3 className="text-lg font-semibold mb-4 text-gray-900">Popular Products</h3>
           {loading && popularProducts.length === 0 ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>

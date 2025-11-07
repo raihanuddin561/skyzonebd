@@ -374,7 +374,7 @@ export default function ProductDetailPage() {
             {/* Bulk Pricing */}
             {product.bulkPricing && (
               <div className="mb-6">
-                <h3 className="font-semibold mb-2">Bulk Pricing</h3>
+                <h3 className="font-semibold mb-2 text-gray-900">Bulk Pricing</h3>
                 <div className="grid grid-cols-2 gap-2">
                   {product.bulkPricing.map((pricing, index) => (
                     <div key={index} className="bg-gray-50 p-2 rounded text-sm">
@@ -493,7 +493,7 @@ export default function ProductDetailPage() {
             {/* Key Features */}
             {product.specifications && Object.keys(product.specifications).length > 0 && (
               <div className="border-t pt-6 mb-6">
-                <h3 className="font-semibold mb-3">Key Features</h3>
+                <h3 className="font-semibold mb-3 text-gray-900">Key Features</h3>
                 <ul className="space-y-2">
                   {Object.entries(product.specifications).slice(0, 5).map(([key, value]) => (
                     <li key={key} className="flex items-start text-sm">
@@ -539,7 +539,7 @@ export default function ProductDetailPage() {
 
             {/* Company Info */}
             <div className="border-t pt-6">
-              <h3 className="font-semibold mb-3">Seller Information</h3>
+              <h3 className="font-semibold mb-3 text-gray-900">Seller Information</h3>
               <div className="flex items-center gap-4">
                 {product.companyLogo && (
                   <Image
@@ -598,7 +598,7 @@ export default function ProductDetailPage() {
           <div className="mt-8">
             {activeTab === 'description' && (
               <div>
-                <h3 className="text-lg font-semibold mb-4">Product Description</h3>
+                <h3 className="text-lg font-semibold mb-4 text-gray-900">Product Description</h3>
                 <p className="text-gray-700 leading-relaxed">{product.description}</p>
                 
                 {product.tags && (
@@ -618,7 +618,7 @@ export default function ProductDetailPage() {
 
             {activeTab === 'specifications' && (
               <div>
-                <h3 className="text-lg font-semibold mb-4">Product Specifications</h3>
+                <h3 className="text-lg font-semibold mb-4 text-gray-900">Product Specifications</h3>
                 {product.specifications ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {Object.entries(product.specifications).map(([key, value]) => (
@@ -636,7 +636,7 @@ export default function ProductDetailPage() {
 
             {activeTab === 'shipping' && (
               <div>
-                <h3 className="text-lg font-semibold mb-4">Shipping & Returns</h3>
+                <h3 className="text-lg font-semibold mb-4 text-gray-900">Shipping & Returns</h3>
                 <div className="space-y-4">
                   {product.leadTime && (
                     <div>
@@ -668,7 +668,7 @@ export default function ProductDetailPage() {
 
             {activeTab === 'reviews' && (
               <div>
-                <h3 className="text-lg font-semibold mb-4">Customer Reviews</h3>
+                <h3 className="text-lg font-semibold mb-4 text-gray-900">Customer Reviews</h3>
                 {product.rating && product.reviews ? (
                   <div className="text-center py-8">
                     <div className="text-4xl mb-2">{product.rating}/5</div>
@@ -693,7 +693,7 @@ export default function ProductDetailPage() {
         {/* Related Products */}
         {relatedProducts.length > 0 && (
           <div className="mt-16">
-            <h3 className="text-2xl font-semibold mb-8">Related Products</h3>
+            <h3 className="text-2xl font-semibold mb-8 text-gray-900">Related Products</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {relatedProducts.map((relatedProduct) => (
                 <Link

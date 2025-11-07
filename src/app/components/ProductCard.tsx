@@ -91,7 +91,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       </Link>
       
       <Link href={`/products/${product.id}`} className="hover:text-blue-600 transition-colors">
-        <h4 className="text-md font-semibold mb-1 cursor-pointer">{product.name}</h4>
+        <h4 className="text-md font-semibold mb-1 cursor-pointer text-gray-900">{product.name}</h4>
       </Link>
       
       {/* Show MOQ ONLY for wholesale users, NOT for guests or retail */}

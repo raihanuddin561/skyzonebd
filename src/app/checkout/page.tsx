@@ -208,7 +208,7 @@ export default function CheckoutPage() {
               {/* Checkout Type Selection */}
               {!user && (
                 <div className="bg-white p-6 rounded-lg shadow-sm">
-                  <h2 className="text-xl font-semibold mb-4">Checkout Options</h2>
+                  <h2 className="text-xl font-semibold mb-4 text-gray-900">Checkout Options</h2>
                   
                   {/* Guest Welcome Message */}
                   <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
@@ -250,7 +250,7 @@ export default function CheckoutPage() {
 
               {/* User Information */}
               <div className="bg-white p-6 rounded-lg shadow-sm">
-                <h2 className="text-xl font-semibold mb-4">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900">
                   {user ? 'Account Information' : 'Contact Information'}
                 </h2>
                 {user ? (
@@ -338,7 +338,7 @@ export default function CheckoutPage() {
 
                 {/* Shipping Information */}
                 <div className="bg-white p-6 rounded-lg shadow-sm">
-                  <h2 className="text-xl font-semibold mb-4">Shipping Address</h2>
+                  <h2 className="text-xl font-semibold mb-4 text-gray-900">Shipping Address</h2>
                   <textarea
                     name="shippingAddress"
                     value={orderData.shippingAddress}
@@ -352,7 +352,7 @@ export default function CheckoutPage() {
 
                 {/* Billing Information */}
                 <div className="bg-white p-6 rounded-lg shadow-sm">
-                  <h2 className="text-xl font-semibold mb-4">Billing Address</h2>
+                  <h2 className="text-xl font-semibold mb-4 text-gray-900">Billing Address</h2>
                   <textarea
                     name="billingAddress"
                     value={orderData.billingAddress}
@@ -366,7 +366,7 @@ export default function CheckoutPage() {
 
                 {/* Payment Method */}
                 <div className="bg-white p-6 rounded-lg shadow-sm">
-                  <h2 className="text-xl font-semibold mb-4">Payment Method</h2>
+                  <h2 className="text-xl font-semibold mb-4 text-gray-900">Payment Method</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {[
                       { value: 'bank_transfer', label: 'Bank Transfer', icon: '🏦', desc: 'Direct bank transfer' },
@@ -443,7 +443,7 @@ export default function CheckoutPage() {
 
                 {/* Order Notes */}
                 <div className="bg-white p-6 rounded-lg shadow-sm">
-                  <h2 className="text-xl font-semibold mb-4">Order Notes (Optional)</h2>
+                  <h2 className="text-xl font-semibold mb-4 text-gray-900">Order Notes (Optional)</h2>
                   <textarea
                     name="notes"
                     value={orderData.notes}
@@ -458,7 +458,7 @@ export default function CheckoutPage() {
               {/* Order Summary */}
               <div className="lg:col-span-1">
                 <div className="bg-white p-6 rounded-lg shadow-sm sticky top-4">
-                  <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
+                  <h2 className="text-xl font-semibold mb-4 text-gray-900">Order Summary</h2>
                   
                   {/* Order Items */}
                   <div className="space-y-4 mb-6">

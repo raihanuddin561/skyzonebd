@@ -37,7 +37,7 @@ export default function CartPage() {
       <main className="min-h-screen bg-white text-gray-800">
         <Header />
         <div className="max-w-4xl mx-auto px-4 py-8">
-          <h1 className="text-3xl font-bold mb-8">Your Cart</h1>
+          <h1 className="text-3xl font-bold mb-8 text-gray-900">Your Cart</h1>
           
           <div className="text-center py-16">
             <div className="mb-4">
@@ -64,7 +64,7 @@ export default function CartPage() {
       <Header />
       <div className="max-w-6xl mx-auto px-4 py-4 sm:py-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold">Your Cart ({getTotalItems()} {getTotalItems() === 1 ? 'item' : 'items'})</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Your Cart ({getTotalItems()} {getTotalItems() === 1 ? 'item' : 'items'})</h1>
           <button
             onClick={() => {
               clearCart();
