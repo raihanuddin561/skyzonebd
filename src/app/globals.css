@@ -89,6 +89,37 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Responsive Touch Improvements */
+.touch-manipulation {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Better touch targets for mobile */
+@media (max-width: 1023px) {
+  button, 
+  a[role="button"],
+  [type="button"],
+  [type="submit"],
+  select {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+}
+
+/* Prevent content shift when scrollbar appears/disappears */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+/* Smooth scrolling for better UX */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 /* Hero Carousel Animations */
 @keyframes fade-in {
   from {
@@ -177,4 +208,58 @@ body {
 * {
   transition-property: transform, box-shadow, background-color, border-color;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Better mobile table styling */
+@media (max-width: 1023px) {
+  table {
+    font-size: 0.875rem;
+  }
+  
+  th, td {
+    padding: 0.5rem;
+  }
+}
+
+/* Responsive container max-widths */
+.container-responsive {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container-responsive {
+    max-width: 640px;
+  }
+}
+
+@media (min-width: 768px) {
+  .container-responsive {
+    max-width: 768px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-responsive {
+    max-width: 1024px;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container-responsive {
+    max-width: 1280px;
+  }
+}
+
+/* Safe area for notched devices */
+@supports (padding: max(0px)) {
+  .safe-area-inset {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
 }

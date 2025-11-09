@@ -69,32 +69,32 @@ export default function ComparePage() {
     <main className="min-h-screen bg-gray-50">
       <Header />
       
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-4 text-gray-900">Compare Products</h1>
-          <p className="text-gray-600">Compare up to 3 products side by side</p>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4 text-gray-900">Compare Products</h1>
+          <p className="text-sm sm:text-base text-gray-600">Compare up to 3 products side by side</p>
         </div>
 
         {/* Add Product Section */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900">Add Products to Compare</h2>
-          <div className="flex gap-4">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6 sm:mb-8">
+          <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-gray-900">Add Products to Compare</h2>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <input
               type="number"
               placeholder="Enter Product ID"
               value={productId}
               onChange={(e) => setProductId(e.target.value)}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="flex-1 px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
             />
             <button
               onClick={handleAddProduct}
               disabled={!productId || selectedProducts.length >= 3}
-              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 sm:px-6 py-2.5 sm:py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap touch-manipulation font-medium text-sm sm:text-base"
             >
               Add Product
             </button>
           </div>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-xs sm:text-sm text-gray-500 mt-2 sm:mt-3">
             You can compare up to 3 products. ({selectedProducts.length}/3 selected)
           </p>
         </div>
@@ -102,13 +102,60 @@ export default function ComparePage() {
         {/* Comparison Table */}
         {selectedProducts.length > 0 ? (
           <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Mobile Card View */}
+            <div className="lg:hidden">
+              {selectedProducts.map((product, index) => (
+                <div key={product.id} className="p-4 border-b last:border-b-0">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start gap-3 flex-1">
+                      <Image
+                        src={product.imageUrl}
+                        alt={product.name}
+                        width={80}
+                        height={80}
+                        className="w-20 h-20 object-cover rounded flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm sm:text-base text-gray-900 line-clamp-2 mb-1">{product.name}</h3>
+                        <Link
+                          href={`/products/${product.id}`}
+                          className="text-blue-600 hover:text-blue-700 text-xs sm:text-sm"
+                        >
+                          View Details →
+                        </Link>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveProduct(product.id)}
+                      className="w-8 h-8 bg-red-500 text-white rounded-full text-sm hover:bg-red-600 flex items-center justify-center flex-shrink-0 ml-2 touch-manipulation"
+                      aria-label="Remove product"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {comparisonAttributes.map((attr) => (
+                      <div key={attr.key} className="flex justify-between text-xs sm:text-sm py-1.5 border-t">
+                        <span className="text-gray-600 font-medium">{attr.label}:</span>
+                        <span className="text-gray-900 font-semibold text-right">
+                          {attr.format((product as any)[attr.key])}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left p-4 font-semibold">Product</th>
                     {selectedProducts.map(product => (
-                      <th key={product.id} className="text-center p-4 min-w-[250px]">
+                      <th key={product.id} className="text-center p-4 w-[250px]">
                         <div className="relative">
                           <button
                             onClick={() => handleRemoveProduct(product.id)}

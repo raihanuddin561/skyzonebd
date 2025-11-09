@@ -369,7 +369,7 @@ export default function HomePage() {
       </section>
 
       <section className="py-16 bg-blue-600 text-white text-center">
-        <h3 className="text-3xl font-bold mb-4">Ready to scale?</h3>
+        <h3 className="text-3xl font-bold mb-4 text-white">Ready to scale?</h3>
         <p className="mb-6">Join SkyzoneBD today and reach thousands of verified B2B buyers.</p>
         <Link href="/auth/register" className="px-8 py-4 bg-white text-blue-700 font-semibold rounded-xl shadow hover:bg-gray-100">Become a Vendor</Link>
       </section>

@@ -108,12 +108,12 @@ function ProductsContent() {
       <Header />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+      <section className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-8 sm:py-12 lg:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4">
             Explore Our Products
           </h1>
-          <p className="text-xl opacity-90 mb-6">
+          <p className="text-base sm:text-lg lg:text-xl opacity-90 mb-4 sm:mb-6">
             Discover quality products from verified suppliers
           </p>
           
@@ -125,10 +125,10 @@ function ProductsContent() {
                 placeholder="Search products, categories, or companies..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-3 pl-12 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-text"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 pl-10 sm:pl-12 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-text text-sm sm:text-base"
                 suppressHydrationWarning
               />
-              <svg className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="absolute left-3 sm:left-4 top-2.5 sm:top-3.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
@@ -136,59 +136,80 @@ function ProductsContent() {
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8">
           {/* Filters Sidebar */}
           <div className="lg:w-1/4">
-            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 sticky top-4">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Filters</h2>
+            {/* Mobile Filter Toggle */}
+            <div className="lg:hidden mb-4">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="w-full flex items-center justify-between bg-white border border-gray-200 rounded-lg px-4 py-3 hover:bg-gray-50 transition-colors touch-manipulation"
+                suppressHydrationWarning
+              >
+                <span className="flex items-center gap-2 font-semibold text-gray-900">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                  Filters
+                </span>
+                <svg className={`w-5 h-5 transition-transform ${showFilters ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+
+            <div className={`bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-5 lg:p-6 lg:sticky lg:top-4 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Filters</h2>
                 <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="lg:hidden bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium cursor-pointer"
-                  suppressHydrationWarning
+                  onClick={() => {
+                    setSelectedCategory('all');
+                    setPriceRange([0, 50000]);
+                    setSearchQuery('');
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium touch-manipulation"
                 >
-                  {showFilters ? 'Hide' : 'Show'}
+                  Clear All
                 </button>
               </div>
 
-              <div className={`space-y-8 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+              <div className="space-y-6 sm:space-y-8">
                 {/* Category Filter */}
                 <div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">Categories</h3>
-                  <div className="space-y-3">
-                    <label className="flex items-center p-3 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors border border-transparent hover:border-blue-200">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 pb-2 border-b border-gray-200">Categories</h3>
+                  <div className="space-y-2 sm:space-y-3 max-h-[300px] overflow-y-auto">
+                    <label className="flex items-center p-2 sm:p-3 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors border border-transparent hover:border-blue-200 touch-manipulation">
                       <input
                         type="radio"
                         name="category"
                         value="all"
                         checked={selectedCategory === 'all'}
                         onChange={(e) => setSelectedCategory(e.target.value)}
-                        className="mr-3 w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                        className="mr-2 sm:mr-3 w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2 cursor-pointer flex-shrink-0"
                         suppressHydrationWarning
                       />
-                      <span className="text-base font-semibold text-gray-700 flex-1">All Categories</span>
-                      <span className="bg-blue-100 text-blue-800 text-sm font-medium px-2 py-1 rounded-full">
+                      <span className="text-sm sm:text-base font-semibold text-gray-700 flex-1 truncate">All Categories</span>
+                      <span className="bg-blue-100 text-blue-800 text-xs sm:text-sm font-medium px-2 py-1 rounded-full flex-shrink-0">
                         {allProducts?.length || 0}
                       </span>
                     </label>
                     {categories.map(category => {
-                      // Count by category name since API returns category as string name
                       const count = allProducts?.filter((p: Product) => p.category === category.name).length || 0;
                       return (
-                        <label key={category.id} className="flex items-center p-3 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors border border-transparent hover:border-blue-200">
+                        <label key={category.id} className="flex items-center p-2 sm:p-3 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors border border-transparent hover:border-blue-200 touch-manipulation">
                           <input
                             type="radio"
                             name="category"
                             value={category.id}
                             checked={selectedCategory === category.id}
                             onChange={(e) => setSelectedCategory(e.target.value)}
-                            className="mr-3 w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                            className="mr-2 sm:mr-3 w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2 cursor-pointer flex-shrink-0"
                             suppressHydrationWarning
                           />
-                          <span className="text-2xl mr-3">{category.icon || getCategoryIcon(category.name)}</span>
-                          <span className="text-base font-medium text-gray-700 flex-1">{category.name}</span>
-                          <span className="bg-gray-100 text-gray-600 text-sm font-medium px-2 py-1 rounded-full">
+                          <span className="text-xl sm:text-2xl mr-2 sm:mr-3 flex-shrink-0">{category.icon || getCategoryIcon(category.name)}</span>
+                          <span className="text-sm sm:text-base font-medium text-gray-700 flex-1 truncate">{category.name}</span>
+                          <span className="bg-gray-100 text-gray-600 text-xs sm:text-sm font-medium px-2 py-1 rounded-full flex-shrink-0">
                             {count}
                           </span>
                         </label>
@@ -199,28 +220,28 @@ function ProductsContent() {
 
                 {/* Price Range Filter */}
                 <div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">Price Range</h3>
-                  <div className="space-y-4">
-                    <div className="flex gap-3">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 pb-2 border-b border-gray-200">Price Range</h3>
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex gap-2 sm:gap-3">
                       <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Min Price</label>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Min Price</label>
                         <input
                           type="number"
                           placeholder="0"
                           value={priceRange[0]}
                           onChange={(e) => handlePriceRangeChange(Number(e.target.value), priceRange[1])}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 font-medium cursor-text"
+                          className="w-full px-3 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 font-medium cursor-text text-sm sm:text-base"
                           suppressHydrationWarning
                         />
                       </div>
                       <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Max Price</label>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Max Price</label>
                         <input
                           type="number"
                           placeholder="50000"
                           value={priceRange[1]}
                           onChange={(e) => handlePriceRangeChange(priceRange[0], Number(e.target.value))}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 font-medium cursor-text"
+                          className="w-full px-3 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 font-medium cursor-text text-sm sm:text-base"
                           suppressHydrationWarning
                         />
                       </div>
@@ -228,21 +249,21 @@ function ProductsContent() {
                     <div className="grid grid-cols-1 gap-2">
                       <button
                         onClick={() => setPriceRange([0, 1000])}
-                        className="px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all cursor-pointer"
+                        className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all cursor-pointer touch-manipulation"
                         suppressHydrationWarning
                       >
                         ৳0 - ৳1,000
                       </button>
                       <button
                         onClick={() => setPriceRange([1000, 5000])}
-                        className="px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all cursor-pointer"
+                        className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all cursor-pointer touch-manipulation"
                         suppressHydrationWarning
                       >
                         ৳1,000 - ৳5,000
                       </button>
                       <button
                         onClick={() => setPriceRange([5000, 50000])}
-                        className="px-4 py-3 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all cursor-pointer"
+                        className="px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all cursor-pointer touch-manipulation"
                         suppressHydrationWarning
                       >
                         ৳5,000+
