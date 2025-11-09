@@ -43,7 +43,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   // Close sidebar when clicking outside (mobile only)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (
         isMobile &&
         sidebarOpen &&
@@ -51,15 +51,20 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         !sidebarRef.current.contains(event.target as Node)
       ) {
         const target = event.target as HTMLElement;
-        // Don't close if clicking the toggle button
-        if (!target.closest('[data-sidebar-toggle]')) {
+        // Don't close if clicking the toggle button or backdrop
+        if (!target.closest('[data-sidebar-toggle]') && !target.closest('aside')) {
           setSidebarOpen(false);
         }
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    // Use 'click' instead of 'mousedown' to avoid interfering with scrolling
+    document.addEventListener('click', handleClickOutside);
+    document.addEventListener('touchend', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('touchend', handleClickOutside);
+    };
   }, [isMobile, sidebarOpen]);
 
   useEffect(() => {
@@ -191,6 +196,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           style={{
             // Ensure proper scrolling on iOS
             WebkitOverflowScrolling: 'touch',
+            // Prevent touch events from propagating during scroll
+            touchAction: 'pan-y',
+          }}
+          onTouchStart={(e) => {
+            // Stop propagation to prevent closing while scrolling
+            e.stopPropagation();
           }}
         >
           <nav className="p-3 sm:p-4 space-y-4 sm:space-y-6">

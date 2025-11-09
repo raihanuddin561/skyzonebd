@@ -182,7 +182,14 @@ export default function Header() {
 
         {/* Mobile Menu */}
         {showMobileMenu && (
-          <div className="absolute top-full left-0 right-0 bg-white border-b shadow-lg max-h-[calc(100vh-140px)] overflow-y-auto">
+          <div 
+            className="absolute top-full left-0 right-0 bg-white border-b shadow-lg max-h-[calc(100vh-140px)] overflow-y-auto"
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              touchAction: 'pan-y',
+            }}
+            onTouchStart={(e) => e.stopPropagation()}
+          >
             <nav className="py-2">
               <Link
                 href="/products"
