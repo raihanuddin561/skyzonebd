@@ -16,7 +16,7 @@ export default function CheckoutPage() {
 
 
   const [isProcessing, setIsProcessing] = useState(false);
-  const [checkoutType, setCheckoutType] = useState<'guest' | 'user'>(user ? 'user' : 'guest');
+  const [checkoutType, setCheckoutType] = useState<'guest' | 'user'>('guest');
   const [orderData, setOrderData] = useState({
     shippingAddress: '',
     billingAddress: '',
@@ -29,6 +29,15 @@ export default function CheckoutPage() {
     mobile: '',
     companyName: ''
   });
+
+  // Update checkout type when user changes
+  useEffect(() => {
+    if (user) {
+      setCheckoutType('user');
+    } else {
+      setCheckoutType('guest');
+    }
+  }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -53,11 +62,17 @@ export default function CheckoutPage() {
     }
 
     // For guest checkout, validate required fields
-    if (checkoutType === 'guest') {
+    if (checkoutType === 'guest' && !user) {
       if (!guestInfo.name || !guestInfo.mobile) {
         toast.error('Please fill in name and mobile number');
         return;
       }
+    }
+
+    // For logged-in users, validate they have required info
+    if (user && (!user.name || !user.phone)) {
+      toast.error('Please update your profile with name and phone number');
+      return;
     }
 
     setIsProcessing(true);
