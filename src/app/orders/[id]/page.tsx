@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/app/components/Header';
 import Link from 'next/link';
-import Image from 'next/image';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -278,12 +277,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                         href={`/products/${item.productId}`}
                         className="flex-shrink-0 group"
                       >
-                        <div className="relative overflow-hidden rounded-lg w-20 h-20">
-                          <Image
+                        <div className="relative overflow-hidden rounded-lg w-20 h-20 bg-gray-100">
+                          <img
                             src={item.imageUrl || '/images/placeholder.jpg'}
                             alt={item.name}
-                            width={80}
-                            height={80}
                             className="rounded-lg object-cover w-full h-full transition-transform group-hover:scale-110"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
