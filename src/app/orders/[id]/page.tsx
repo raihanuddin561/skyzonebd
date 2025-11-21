@@ -91,6 +91,46 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
+  const handleCancelOrder = async () => {
+    const reason = prompt('Please enter cancellation reason:');
+    if (!reason) return;
+
+    if (!confirm('Are you sure you want to cancel this order? Stock will be restored.')) {
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      const token = localStorage.getItem('token');
+
+      const response = await fetch('/api/orders/cancel', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          orderId: order?.id,
+          reason 
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success('Order cancelled successfully');
+        fetchOrderDetails(); // Refresh data
+      } else {
+        toast.error(result.error || 'Failed to cancel order');
+      }
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      toast.error('Failed to cancel order');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleStatusChange = async (newStatus: string) => {
     if (!user || user.role !== 'admin') {
       toast.error('Only admins can update order status');
@@ -238,13 +278,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                         href={`/products/${item.productId}`}
                         className="flex-shrink-0 group"
                       >
-                        <div className="relative overflow-hidden rounded-lg">
+                        <div className="relative overflow-hidden rounded-lg w-20 h-20">
                           <Image
                             src={item.imageUrl || '/images/placeholder.jpg'}
                             alt={item.name}
                             width={80}
                             height={80}
-                            className="rounded-lg object-cover transition-transform group-hover:scale-110"
+                            className="rounded-lg object-cover w-full h-full transition-transform group-hover:scale-110"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = '/images/placeholder.jpg';
+                            }}
                           />
                           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity rounded-lg flex items-center justify-center">
                             <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -411,6 +455,19 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                       {updating ? 'Updating...' : `Mark as ${status}`}
                     </button>
                   ))}
+                  
+                  {/* Cancel Order Button */}
+                  {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && (
+                    <div className="pt-3 border-t border-gray-200">
+                      <button
+                        onClick={handleCancelOrder}
+                        disabled={updating}
+                        className="w-full px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {updating ? 'Cancelling...' : '❌ Cancel Order'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
