@@ -25,55 +25,61 @@ function UsersManagement() {
   const [filterStatus, setFilterStatus] = useState("all");
 
   useEffect(() => {
-    // TODO: Fetch from API
-    const mockUsers: User[] = [
-      {
-        id: 1,
-        name: "Admin User",
-        email: "admin@skyzonebd.com",
-        role: "admin",
-        userType: "retail",
-        status: "active",
-        createdAt: "2024-01-01T00:00:00",
-        lastLogin: "2024-01-15T10:30:00",
-        ordersCount: 0
-      },
-      {
-        id: 2,
-        name: "Demo User",
-        email: "demo@skyzonebd.com",
-        role: "buyer",
-        userType: "retail",
-        status: "active",
-        createdAt: "2024-01-05T10:00:00",
-        lastLogin: "2024-01-14T15:20:00",
-        ordersCount: 5
-      },
-      {
-        id: 3,
-        name: "Wholesale Customer",
-        email: "wholesale@example.com",
-        role: "buyer",
-        userType: "wholesale",
-        status: "active",
-        createdAt: "2024-01-10T12:00:00",
-        lastLogin: "2024-01-13T09:15:00",
-        ordersCount: 12
-      },
-      {
-        id: 4,
-        name: "Inactive User",
-        email: "inactive@example.com",
-        role: "buyer",
-        userType: "retail",
-        status: "inactive",
-        createdAt: "2023-12-01T08:00:00",
-        ordersCount: 2
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          console.error('No token found');
+          setLoading(false);
+          return;
+        }
+
+        const params = new URLSearchParams();
+        if (filterRole !== 'all') params.append('role', filterRole);
+        if (filterStatus !== 'all') params.append('status', filterStatus);
+        if (searchTerm) params.append('search', searchTerm);
+
+        const response = await fetch(`/api/admin/users?${params}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch users');
+        }
+
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          // Transform API data to match component interface
+          const transformedUsers = result.data.users.map((user: any, index: number) => ({
+            id: parseInt(user.id) || index + 1,
+            name: user.name,
+            email: user.email,
+            role: user.role.toLowerCase() as 'admin' | 'buyer' | 'seller',
+            userType: user.userType?.toLowerCase() || 'retail' as 'retail' | 'wholesale',
+            status: user.isActive ? 'active' : 'inactive' as 'active' | 'inactive' | 'suspended',
+            createdAt: user.createdAt,
+            lastLogin: user.updatedAt,
+            ordersCount: user._count?.orders || 0
+          }));
+          
+          setUsers(transformedUsers);
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        setUsers([]);
+      } finally {
+        setLoading(false);
       }
-    ];
-    setUsers(mockUsers);
-    setLoading(false);
-  }, []);
+    };
+
+    fetchUsers();
+  }, [filterRole, filterStatus, searchTerm]);
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
