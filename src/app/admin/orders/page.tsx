@@ -175,6 +175,52 @@ export default function OrdersManagement() {
     }
   };
 
+  const handleCancelOrder = async (orderId: string, orderNumber: string) => {
+    const reason = prompt(`Cancel order ${orderNumber}?\n\nPlease provide a cancellation reason:`);
+    
+    if (reason === null) {
+      return; // User clicked cancel
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please login to cancel order');
+        return;
+      }
+
+      const response = await fetch('/api/orders/cancel', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          orderId: orderId,
+          reason: reason || 'No reason provided'
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update local state
+        setOrders(orders.map(order => 
+          order.id === orderId 
+            ? { ...order, status: 'cancelled' as any }
+            : order
+        ));
+        alert('Order cancelled successfully. Stock has been restored.');
+        handleRefresh(); // Refresh to get latest data
+      } else {
+        alert(result.error || 'Failed to cancel order');
+      }
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      alert('Failed to cancel order');
+    }
+  };
+
   const handleRefresh = () => {
     if (user && user.role === 'admin') {
       const fetchOrders = async () => {
@@ -473,6 +519,15 @@ export default function OrdersManagement() {
                       >
                         View
                       </Link>
+                      {order.status !== 'cancelled' && order.status !== 'delivered' && (
+                        <button 
+                          onClick={() => handleCancelOrder(order.id, order.orderNumber)}
+                          className="text-red-600 hover:text-red-700 text-sm font-medium"
+                          title="Cancel Order"
+                        >
+                          Cancel
+                        </button>
+                      )}
                       <button className="text-gray-600 hover:text-gray-700 text-sm font-medium">
                         Print
                       </button>

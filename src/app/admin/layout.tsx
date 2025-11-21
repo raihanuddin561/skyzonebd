@@ -122,6 +122,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     {
       category: 'Settings',
       items: [
+        { name: 'Activity Logs', icon: '📜', path: '/admin/activity-logs' },
         { name: 'Site Settings', icon: '⚙️', path: '/admin/settings' },
         { name: 'Payment Methods', icon: '💳', path: '/admin/payments' },
         { name: 'Shipping', icon: '🚚', path: '/admin/shipping' },

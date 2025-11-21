@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
+import { logActivity } from '@/lib/activityLogger';
 
 const prisma = new PrismaClient();
 
@@ -249,6 +250,48 @@ export async function PUT(
       }
     });
 
+    // Get admin user info for logging
+    const admin = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { name: true }
+    });
+
+    // Track what changed
+    const changes: string[] = [];
+    if (body.name && body.name !== existing.name) changes.push('name');
+    if (body.retailPrice !== undefined && body.retailPrice !== existing.retailPrice) changes.push('price');
+    if (body.stockQuantity !== undefined && body.stockQuantity !== existing.stockQuantity) changes.push('stock');
+    if (body.isActive !== undefined && body.isActive !== existing.isActive) changes.push('status');
+
+    // Log activity
+    await logActivity({
+      userId: auth.userId!,
+      userName: admin?.name || 'Admin',
+      action: 'UPDATE',
+      entityType: 'Product',
+      entityId: product.id,
+      entityName: product.name,
+      description: `Updated product "${product.name}"${changes.length > 0 ? `: ${changes.join(', ')}` : ''}`,
+      metadata: {
+        productId: product.id,
+        sku: product.sku,
+        changes: changes,
+        oldValues: {
+          name: existing.name,
+          price: existing.retailPrice,
+          stock: existing.stockQuantity,
+          isActive: existing.isActive
+        },
+        newValues: {
+          name: product.name,
+          price: product.retailPrice,
+          stock: product.stockQuantity,
+          isActive: product.isActive
+        }
+      },
+      request
+    });
+
     return NextResponse.json({
       success: true,
       data: product,
@@ -282,7 +325,8 @@ export async function DELETE(
 
     // Check if product exists
     const existing = await prisma.product.findUnique({
-      where: { id: productId }
+      where: { id: productId },
+      select: { id: true, name: true, sku: true }
     });
 
     if (!existing) {
@@ -295,6 +339,28 @@ export async function DELETE(
     // Delete product
     await prisma.product.delete({
       where: { id: productId }
+    });
+
+    // Get admin user info for logging
+    const admin = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { name: true }
+    });
+
+    // Log activity
+    await logActivity({
+      userId: auth.userId!,
+      userName: admin?.name || 'Admin',
+      action: 'DELETE',
+      entityType: 'Product',
+      entityId: existing.id,
+      entityName: existing.name,
+      description: `Deleted product "${existing.name}" (SKU: ${existing.sku || 'N/A'})`,
+      metadata: {
+        productId: existing.id,
+        sku: existing.sku
+      },
+      request
     });
 
     return NextResponse.json({

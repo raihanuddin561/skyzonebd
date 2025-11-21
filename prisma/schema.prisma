@@ -33,6 +33,7 @@ model User {
   addresses    Address[]
   rfqs         RFQ[]
   products     Product[]  // Products created/managed by this user (seller)
+  activityLogs ActivityLog[]  // Admin activity logs
   
   @@map("users")
 }
@@ -199,6 +200,11 @@ model Order {
   status          OrderStatus   @default(PENDING)
   paymentStatus   PaymentStatus @default(PENDING)
   paymentMethod   String
+  
+  // Cancellation
+  cancelledAt     DateTime?
+  cancelledBy     String?       // userId of who cancelled (admin or customer)
+  cancellationReason String?
   
   // Addresses
   shippingAddress String
@@ -373,4 +379,42 @@ model HeroSlide {
   @@map("hero_slides")
   @@index([position])
   @@index([isActive])
+}
+
+// Admin Activity Tracking
+model ActivityLog {
+  id            String         @id @default(cuid())
+  userId        String         // Admin who performed the action
+  userName      String         // Store name for quick reference
+  action        ActivityAction // Type of action performed
+  entityType    String         // Product, Order, Category, User, etc.
+  entityId      String?        // ID of the affected entity
+  entityName    String?        // Name/title of the affected entity
+  description   String         // Human-readable description
+  metadata      Json?          // Additional data (old values, new values, etc.)
+  ipAddress     String?        // IP address of the admin
+  userAgent     String?        // Browser/device info
+  createdAt     DateTime       @default(now())
+  
+  // Relations
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("activity_logs")
+  @@index([userId])
+  @@index([action])
+  @@index([entityType])
+  @@index([createdAt])
+}
+
+enum ActivityAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  CANCEL
+  RESTORE
+  EXPORT
+  IMPORT
+  LOGIN
+  LOGOUT
 }

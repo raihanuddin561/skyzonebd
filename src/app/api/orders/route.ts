@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verify, JwtPayload } from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import { logActivity } from '@/lib/activityLogger';
 
 const prisma = new PrismaClient();
 
@@ -429,6 +430,19 @@ export async function PATCH(request: NextRequest) {
     if (status) updateData.status = status.toUpperCase() as 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
     if (paymentStatus) updateData.paymentStatus = paymentStatus.toUpperCase() as 'PENDING' | 'PAID' | 'FAILED';
 
+    // Get current order state before update
+    const currentOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { orderNumber: true, status: true, paymentStatus: true }
+    });
+
+    if (!currentOrder) {
+      return NextResponse.json(
+        { success: false, error: 'Order not found' },
+        { status: 404 }
+      );
+    }
+
     // Update order
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
@@ -441,6 +455,42 @@ export async function PATCH(request: NextRequest) {
         }
       }
     });
+
+    // Get admin user info for logging
+    const admin = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { name: true }
+    });
+
+    // Log status change activity
+    const changes: string[] = [];
+    if (status && currentOrder.status !== updateData.status) {
+      changes.push(`Order status: ${currentOrder.status} → ${updateData.status}`);
+    }
+    if (paymentStatus && currentOrder.paymentStatus !== updateData.paymentStatus) {
+      changes.push(`Payment status: ${currentOrder.paymentStatus} → ${updateData.paymentStatus}`);
+    }
+
+    if (changes.length > 0) {
+      await logActivity({
+        userId: decoded.userId,
+        userName: admin?.name || 'Admin',
+        action: 'STATUS_CHANGE',
+        entityType: 'Order',
+        entityId: updatedOrder.id,
+        entityName: updatedOrder.orderNumber,
+        description: `Updated order ${updatedOrder.orderNumber}: ${changes.join(', ')}`,
+        metadata: {
+          orderId: updatedOrder.id,
+          orderNumber: updatedOrder.orderNumber,
+          oldStatus: currentOrder.status,
+          newStatus: updatedOrder.status,
+          oldPaymentStatus: currentOrder.paymentStatus,
+          newPaymentStatus: updatedOrder.paymentStatus
+        },
+        request
+      });
+    }
 
     console.log('✅ Order updated successfully:', {
       orderId: updatedOrder.id,

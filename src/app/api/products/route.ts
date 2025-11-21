@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient, Prisma } from '@prisma/client';
 import jwt from 'jsonwebtoken';
+import { logActivity } from '@/lib/activityLogger';
 
 const prisma = new PrismaClient();
 
@@ -271,6 +272,30 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Get admin user info for logging
+    const admin = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { name: true }
+    });
+
+    // Log activity
+    await logActivity({
+      userId: auth.userId!,
+      userName: admin?.name || 'Admin',
+      action: 'CREATE',
+      entityType: 'Product',
+      entityId: product.id,
+      entityName: product.name,
+      description: `Created product "${product.name}" (SKU: ${product.sku || 'N/A'})`,
+      metadata: {
+        productId: product.id,
+        sku: product.sku,
+        price: product.retailPrice,
+        category: product.category.name
+      },
+      request
+    });
+
     return NextResponse.json({
       success: true,
       data: product,
@@ -307,12 +332,42 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Get product details before deletion for logging
+    const productsToDelete = await prisma.product.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true, sku: true }
+    });
+
     // Delete products
     const result = await prisma.product.deleteMany({
       where: {
         id: { in: ids }
       }
     });
+
+    // Get admin user info for logging
+    const admin = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { name: true }
+    });
+
+    // Log activity for each deleted product
+    for (const product of productsToDelete) {
+      await logActivity({
+        userId: auth.userId!,
+        userName: admin?.name || 'Admin',
+        action: 'DELETE',
+        entityType: 'Product',
+        entityId: product.id,
+        entityName: product.name,
+        description: `Deleted product "${product.name}" (SKU: ${product.sku || 'N/A'})`,
+        metadata: {
+          productId: product.id,
+          sku: product.sku
+        },
+        request
+      });
+    }
 
     return NextResponse.json({
       success: true,
