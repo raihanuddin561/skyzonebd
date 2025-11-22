@@ -55,6 +55,9 @@ export default function OrdersManagement() {
 
         const result = await response.json();
         
+        console.log('Admin Orders Response:', result);
+        console.log('Orders data:', result.data);
+        
         if (result.success && result.data) {
           // Transform API data to match our interface
           const transformedOrders = result.data.map((order: any) => ({
@@ -74,11 +77,12 @@ export default function OrdersManagement() {
             items: order.items.length,
             total: order.total,
             status: order.status as any,
-            paymentStatus: 'pending' as const, // Default for now
+            paymentStatus: order.paymentStatus as any,
             paymentMethod: order.paymentMethod,
             createdAt: order.createdAt
           }));
           
+          console.log('Transformed orders:', transformedOrders);
           setOrders(transformedOrders);
         }
       } catch (error) {

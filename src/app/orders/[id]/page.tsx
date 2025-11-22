@@ -304,10 +304,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                             src={item.imageUrl || '/images/placeholder.jpg'}
                             alt={item.name}
                             className="rounded-lg object-cover w-full h-full transition-transform group-hover:scale-110"
+                            style={{ display: 'block' }}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               console.error('Image failed to load:', item.imageUrl);
                               target.src = '/images/placeholder.jpg';
+                            }}
+                            onLoad={(e) => {
+                              console.log('Image loaded successfully:', item.imageUrl);
                             }}
                           />
                           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity rounded-lg flex items-center justify-center">

@@ -329,6 +329,8 @@ export async function GET(request: NextRequest) {
       items: order.orderItems.map(item => ({
         productId: item.productId,
         name: item.product.name,
+        imageUrl: item.product.imageUrl,
+        sku: item.product.sku,
         price: item.price,
         quantity: item.quantity,
         total: item.total
