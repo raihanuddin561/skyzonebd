@@ -57,6 +57,16 @@ export default function OrdersManagement() {
 
         if (!response.ok) {
           console.error('Failed to fetch orders:', result);
+          
+          // Handle token expiration or unauthorized
+          if (response.status === 401) {
+            console.warn('⚠️ Unauthorized - Token expired or invalid. Logging out...');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+            return;
+          }
+          
           throw new Error(result.error || 'Failed to fetch orders');
         }
         

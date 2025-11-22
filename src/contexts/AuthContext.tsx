@@ -74,6 +74,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Check if both exist and userData is not empty/undefined
         if (userData && token && userData !== 'undefined' && userData !== 'null') {
           try {
+            // Validate token expiration
+            const tokenParts = token.split('.');
+            if (tokenParts.length === 3) {
+              const payload = JSON.parse(atob(tokenParts[1]));
+              const now = Date.now() / 1000;
+              
+              if (payload.exp && payload.exp < now) {
+                console.warn('⚠️ Token expired, logging out...');
+                safeLocalStorage.removeItem('user');
+                safeLocalStorage.removeItem('token');
+                dispatch({ type: 'SET_LOADING', payload: false });
+                return;
+              }
+            }
+            
             const user = JSON.parse(userData);
             dispatch({ type: 'SET_USER', payload: user });
           } catch (parseError) {
