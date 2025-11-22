@@ -49,18 +49,11 @@ export default function OrdersManagement() {
           }
         });
 
-        console.log('Response status:', response.status);
-        console.log('Response ok:', response.ok);
-
         const result = await response.json();
-        console.log('Response body:', result);
 
         if (!response.ok) {
-          console.error('Failed to fetch orders:', result);
-          
           // Handle token expiration or unauthorized
           if (response.status === 401) {
-            console.warn('⚠️ Unauthorized - Token expired or invalid. Logging out...');
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/login';
@@ -69,9 +62,6 @@ export default function OrdersManagement() {
           
           throw new Error(result.error || 'Failed to fetch orders');
         }
-        
-        console.log('Admin Orders Response:', result);
-        console.log('Orders data:', result.data);
         
         if (result.success && result.data) {
           // Transform API data to match our interface
@@ -97,7 +87,6 @@ export default function OrdersManagement() {
             createdAt: order.createdAt
           }));
           
-          console.log('Transformed orders:', transformedOrders);
           setOrders(transformedOrders);
         }
       } catch (error) {

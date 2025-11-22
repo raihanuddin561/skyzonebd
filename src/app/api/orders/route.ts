@@ -238,11 +238,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('📥 GET /api/orders - Request received');
-    
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('⚠️ No auth header found');
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }
@@ -253,11 +250,8 @@ export async function GET(request: NextRequest) {
     let decoded: DecodedToken;
     try {
       decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
-      console.log('✅ Token verified successfully');
-      console.log('👤 User ID:', decoded.userId);
-      console.log('🔑 User Role:', decoded.role);
     } catch (error) {
-      console.error('❌ Token verification failed:', error);
+      console.error('Token verification failed:', error);
       return NextResponse.json(
         { success: false, error: 'Invalid token' },
         { status: 401 }
@@ -270,7 +264,6 @@ export async function GET(request: NextRequest) {
     let dbOrders;
     // If admin, return all orders
     if (userRole === 'admin') {
-      console.log('👑 Admin access - fetching all orders from database');
       dbOrders = await prisma.order.findMany({
         include: {
           orderItems: {
@@ -290,14 +283,8 @@ export async function GET(request: NextRequest) {
           createdAt: 'desc'
         }
       });
-      console.log('📊 Admin fetching all orders:', {
-        totalOrders: dbOrders.length,
-        adminId: userId,
-        orderIds: dbOrders.map(o => o.orderNumber)
-      });
     } else {
       // Get user's orders only
-      console.log('👤 User access - fetching user orders for:', userId);
       dbOrders = await prisma.order.findMany({
         where: {
           userId: userId
@@ -312,10 +299,6 @@ export async function GET(request: NextRequest) {
         orderBy: {
           createdAt: 'desc'
         }
-      });
-      console.log('📦 User fetching their orders:', {
-        userId,
-        ordersFound: dbOrders.length
       });
     }
 

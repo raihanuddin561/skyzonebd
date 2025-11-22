@@ -78,12 +78,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       const result = await response.json();
 
       if (result.success) {
-        console.log('Order data received:', result.data);
-        console.log('Order items with images:', result.data.items?.map((item: OrderItem) => ({
-          name: item.name,
-          imageUrl: item.imageUrl,
-          productId: item.productId
-        })));
         setOrder(result.data);
       } else {
         toast.error('Order not found');
@@ -266,22 +260,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* DEBUG INFO - Remove after testing */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-          <h3 className="font-semibold text-yellow-800 mb-2">🔍 Debug Info (Remove after fixing)</h3>
-          <div className="text-sm text-yellow-700 space-y-1">
-            <p><strong>Total Items:</strong> {order.items?.length || 0}</p>
-            {order.items?.slice(0, 3).map((item, i) => (
-              <div key={i} className="ml-4 border-l-2 border-yellow-300 pl-2 mt-1">
-                <p><strong>Item {i + 1}:</strong> {item.name}</p>
-                <p><strong>imageUrl:</strong> {item.imageUrl || '<EMPTY>'}</p>
-                <p><strong>imageUrl type:</strong> {typeof item.imageUrl}</p>
-                <p><strong>imageUrl length:</strong> {item.imageUrl?.length || 0}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
@@ -297,33 +275,18 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     <div key={index} className="flex gap-4 pb-4 border-b border-gray-200 last:border-0 last:pb-0">
                       <Link 
                         href={`/products/${item.productId}`}
-                        className="flex-shrink-0 group"
+                        className="flex-shrink-0"
                       >
-                        <div className="relative overflow-hidden rounded-lg w-20 h-20 bg-gray-100">
+                        <div className="relative rounded-lg w-20 h-20 bg-gray-100 overflow-hidden">
                           <img
                             src={item.imageUrl || '/images/placeholder.jpg'}
                             alt={item.name}
-                            className="rounded-lg object-cover w-full h-full transition-transform group-hover:scale-110"
-                            style={{ display: 'block' }}
+                            className="w-full h-full object-cover"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
-                              console.error('Image failed to load:', item.imageUrl);
                               target.src = '/images/placeholder.jpg';
                             }}
-                            onLoad={(e) => {
-                              console.log('Image loaded successfully:', item.imageUrl);
-                            }}
                           />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity rounded-lg flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          </div>
-                        </div>
-                        {/* Debug: Show imageUrl */}
-                        <div className="text-xs text-red-600 mt-1 break-all max-w-[80px]">
-                          {item.imageUrl ? 'Has URL' : 'No URL'}
                         </div>
                       </Link>
                       
