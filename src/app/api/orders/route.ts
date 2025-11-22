@@ -253,7 +253,11 @@ export async function GET(request: NextRequest) {
     let decoded: DecodedToken;
     try {
       decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
-    } catch {
+      console.log('✅ Token verified successfully');
+      console.log('👤 User ID:', decoded.userId);
+      console.log('🔑 User Role:', decoded.role);
+    } catch (error) {
+      console.error('❌ Token verification failed:', error);
       return NextResponse.json(
         { success: false, error: 'Invalid token' },
         { status: 401 }
@@ -261,7 +265,7 @@ export async function GET(request: NextRequest) {
     }
     
     const userId = decoded.userId;
-    const userRole = decoded.role;
+    const userRole = decoded.role.toLowerCase(); // Case-insensitive role check
 
     let dbOrders;
     // If admin, return all orders

@@ -49,11 +49,16 @@ export default function OrdersManagement() {
           }
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch orders');
-        }
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
 
         const result = await response.json();
+        console.log('Response body:', result);
+
+        if (!response.ok) {
+          console.error('Failed to fetch orders:', result);
+          throw new Error(result.error || 'Failed to fetch orders');
+        }
         
         console.log('Admin Orders Response:', result);
         console.log('Orders data:', result.data);
