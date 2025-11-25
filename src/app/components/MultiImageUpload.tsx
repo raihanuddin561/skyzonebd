@@ -35,12 +35,19 @@ export default function MultiImageUpload({
 
   // Resize and compress image
   const resizeImage = async (file: File, customQuality?: number): Promise<File> => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const targetQuality = customQuality || quality;
       
-      // Check if file is already small enough, skip processing
-      const maxSize = 3 * 1024 * 1024; // 3MB
-      if (file.size <= maxSize && file.type === 'image/jpeg' && !customQuality) {
+      // For very large files (> 5MB), use more aggressive settings
+      const isVeryLarge = file.size > 5 * 1024 * 1024;
+      const targetMaxWidth = isVeryLarge ? 1280 : maxWidth;
+      const targetMaxHeight = isVeryLarge ? 1280 : maxHeight;
+      
+      console.log(`🔄 Resizing ${file.name}: ${Math.round(file.size / 1024)}KB, VeryLarge: ${isVeryLarge}`);
+      
+      // Check if file is already small enough AND not very large originally
+      const targetSize = 3 * 1024 * 1024; // 3MB
+      if (file.size <= targetSize && file.type === 'image/jpeg' && !customQuality && !isVeryLarge) {
         console.log(`✅ File ${file.name} already optimized, skipping resize`);
         resolve(file);
         return;
@@ -55,15 +62,18 @@ export default function MultiImageUpload({
             let width = img.width;
             let height = img.height;
 
-            if (width > maxWidth || height > maxHeight) {
+            console.log(`Original dimensions: ${width}x${height}`);
+
+            if (width > targetMaxWidth || height > targetMaxHeight) {
               const aspectRatio = width / height;
               if (width > height) {
-                width = maxWidth;
+                width = targetMaxWidth;
                 height = width / aspectRatio;
               } else {
-                height = maxHeight;
+                height = targetMaxHeight;
                 width = height * aspectRatio;
               }
+              console.log(`Resized dimensions: ${Math.floor(width)}x${Math.floor(height)}`);
             }
 
             // Create canvas and draw resized image
@@ -157,25 +167,8 @@ export default function MultiImageUpload({
       }
     }
 
-    // If skipProcessing is true, upload directly without processing
-    if (skipProcessing) {
-      console.log('⏭️ Skipping image processing, uploading directly...');
-      // On mobile, enforce stricter size limit due to Vercel's 4.5MB limit
-      const maxSize = 3.5 * 1024 * 1024; // 3.5MB to account for FormData overhead
-      
-      // Check file sizes
-      for (const file of files) {
-        if (file.size > maxSize) {
-          toast.error(`${file.name} is ${Math.round(file.size / 1024 / 1024)}MB. Max is 3.5MB for direct upload. Please compress the image first.`);
-          return;
-        }
-      }
-      
-      await uploadFiles(files);
-      return;
-    }
-
-    // Process and resize images
+    // Always process images to ensure they're under size limit
+    // This is especially important for mobile camera photos which can be 10-15MB
     setProcessing(true);
     try {
       const resizedFiles: File[] = [];
@@ -183,19 +176,31 @@ export default function MultiImageUpload({
       
       for (const file of files) {
         try {
-          console.log(`🔄 Processing ${file.name} (${Math.round(file.size / 1024)}KB)`);
-          setDebugInfo(`Processing ${file.name}...`);
+          console.log(`🔄 Processing ${file.name} (${Math.round(file.size / 1024)}KB, ${Math.round(file.size / 1024 / 1024)}MB)`);
+          setDebugInfo(`Processing ${file.name} (${Math.round(file.size / 1024 / 1024)}MB)...`);
           
           const resized = await resizeImage(file);
           
+          console.log(`After resize: ${Math.round(resized.size / 1024)}KB`);
+          
           // Check if resized file is within size limit
           if (resized.size > maxSize) {
-            toast.warning(`${file.name} is ${Math.round(resized.size / 1024 / 1024)}MB after processing. Max is 3MB. Trying higher compression...`);
+            toast.warning(`${file.name} still ${Math.round(resized.size / 1024 / 1024)}MB. Trying max compression...`);
+            setDebugInfo(`Compressing ${file.name} more...`);
             
             // Try with more aggressive compression
-            const recompressed = await resizeImage(file, 0.7); // Lower quality
+            const recompressed = await resizeImage(file, 0.6); // Much lower quality
+            console.log(`After recompression: ${Math.round(recompressed.size / 1024)}KB`);
+            
             if (recompressed.size > maxSize) {
-              toast.error(`${file.name} is too large even after compression. Please use a smaller image.`);
+              // One last try with smallest settings
+              const finalTry = await resizeImage(file, 0.5);
+              if (finalTry.size > maxSize) {
+                toast.error(`${file.name} is too large (${Math.round(finalTry.size / 1024 / 1024)}MB) even after max compression. Original was ${Math.round(file.size / 1024 / 1024)}MB.`);
+                setDebugInfo(`❌ ${file.name} too large after compression`);
+                continue;
+              }
+              resizedFiles.push(finalTry);
               continue;
             }
             resizedFiles.push(recompressed);

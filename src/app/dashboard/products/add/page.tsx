@@ -170,21 +170,19 @@ export default function AddProductPage() {
               {/* Product Images */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Product Images * {isMobile && <span className="text-xs text-blue-600">(Mobile Mode)</span>}
+                  Product Images *
                 </label>
                 <MultiImageUpload
                   onUploadComplete={handleImageUpload}
                   folder="products"
                   currentImages={productData.imageUrls}
                   maxImages={5}
-                  maxSizeMB={isMobile ? 3.5 : 3}
-                  skipProcessing={isMobile}
+                  maxSizeMB={3}
+                  skipProcessing={false}
                 />
-                {isMobile && (
-                  <p className="text-xs text-orange-600 mt-1">
-                    💡 Mobile Tip: Images must be under 3.5MB. Use a photo compression app first for best results.
-                  </p>
-                )}
+                <p className="text-xs text-gray-600 mt-1">
+                  📱 Images are automatically compressed. Large photos from phones are supported.
+                </p>
               </div>
 
               {/* Product Name */}
