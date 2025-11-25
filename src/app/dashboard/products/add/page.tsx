@@ -57,12 +57,14 @@ export default function AddProductPage() {
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please login to add products');
+        setLoading(false);
         return;
       }
 
       // Validate required fields
       if (!productData.name || !productData.retailPrice || !productData.categoryId || productData.imageUrls.length === 0) {
         toast.error('Please fill in all required fields and upload at least one image');
+        setLoading(false);
         return;
       }
 
@@ -75,35 +77,51 @@ export default function AddProductPage() {
       // Get the first image as primary imageUrl
       const imageUrl = productData.imageUrls[0];
 
+      const payload = {
+        name: productData.name,
+        slug: slug,
+        description: productData.description,
+        categoryId: productData.categoryId,
+        brand: productData.brand,
+        retailPrice: parseFloat(productData.retailPrice),
+        price: parseFloat(productData.retailPrice), // Required field
+        imageUrl: imageUrl, // Required field
+        baseWholesalePrice: productData.baseWholesalePrice ? parseFloat(productData.baseWholesalePrice) : null,
+        imageUrls: productData.imageUrls,
+        stockQuantity: productData.stock ? parseInt(productData.stock) : 0,
+        tags: productData.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        isFeatured: false,
+        isActive: true,
+      };
+
+      console.log('📤 Submitting product:', payload);
+
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          name: productData.name,
-          slug: slug,
-          description: productData.description,
-          categoryId: productData.categoryId,
-          brand: productData.brand,
-          retailPrice: parseFloat(productData.retailPrice),
-          price: parseFloat(productData.retailPrice), // Required field
-          imageUrl: imageUrl, // Required field
-          baseWholesalePrice: parseFloat(productData.baseWholesalePrice) || null,
-          imageUrls: productData.imageUrls,
-          stockQuantity: parseInt(productData.stock) || 0,
-          tags: productData.tags.split(',').map((t) => t.trim()).filter(Boolean),
-          isFeatured: false,
-          isActive: true,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create product');
+      console.log('📥 Response status:', response.status);
+      
+      let result;
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+        console.log('📥 Response data:', result);
+      } else {
+        const text = await response.text();
+        console.error('❌ Non-JSON response:', text);
+        throw new Error('Server returned invalid response');
       }
 
-      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.error || result?.details || 'Failed to create product');
+      }
 
       if (result.success) {
         toast.success('Product created successfully! 🎉');
@@ -120,11 +138,12 @@ export default function AddProductPage() {
           tags: '',
         });
       } else {
-        throw new Error(result.error || 'Failed to create product');
+        throw new Error(result.error || result.details || 'Failed to create product');
       }
     } catch (error) {
       console.error('Error creating product:', error);
-      toast.error('Failed to create product. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create product';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

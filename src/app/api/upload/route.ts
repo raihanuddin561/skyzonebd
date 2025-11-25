@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
     let decoded: DecodedToken;
     try {
       decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
-    } catch {
+    } catch (error) {
+      console.error('Token verification failed:', error);
       return NextResponse.json(
         { success: false, error: 'Invalid token' },
         { status: 401 }
@@ -37,14 +38,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse form data
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
+    // Parse form data with error handling
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch (error) {
+      console.error('Failed to parse form data:', error);
+      return NextResponse.json(
+        { success: false, error: 'Invalid form data', details: error instanceof Error ? error.message : 'Unknown error' },
+        { status: 400 }
+      );
+    }
+
+    const file = formData.get('file') as File | null;
     const folder = (formData.get('folder') as string) || 'images';
 
     if (!file) {
       return NextResponse.json(
         { success: false, error: 'No file provided' },
+        { status: 400 }
+      );
+    }
+
+    // Validate file is actually a file
+    if (!(file instanceof File)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid file object' },
+        { status: 400 }
+      );
+    }
+
+    // Check file has content
+    if (file.size === 0) {
+      return NextResponse.json(
+        { success: false, error: 'File is empty' },
         { status: 400 }
       );
     }
@@ -84,11 +111,31 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('📤 Uploading to Vercel Blob...');
-    const blob = await put(filename, file, {
-      access: 'public',
-      addRandomSuffix: true,
-      token: blobToken,
-    });
+    let blob;
+    try {
+      blob = await put(filename, file, {
+        access: 'public',
+        addRandomSuffix: true,
+        token: blobToken,
+      });
+    } catch (uploadError) {
+      console.error('Vercel Blob upload error:', uploadError);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Failed to upload to storage',
+          details: uploadError instanceof Error ? uploadError.message : 'Storage error'
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!blob || !blob.url) {
+      return NextResponse.json(
+        { success: false, error: 'Upload completed but no URL returned' },
+        { status: 500 }
+      );
+    }
 
     console.log('✅ Image uploaded successfully:', blob.url);
 
@@ -109,6 +156,7 @@ export async function POST(request: NextRequest) {
       name: error instanceof Error ? error.name : undefined,
     });
     
+    // Ensure we always return valid JSON
     return NextResponse.json(
       { 
         success: false, 

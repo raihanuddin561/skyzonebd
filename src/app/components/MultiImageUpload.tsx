@@ -33,66 +33,101 @@ export default function MultiImageUpload({
   // Resize and compress image
   const resizeImage = async (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
+      // Check if file is already small enough, skip processing
+      const maxSize = maxSizeMB * 1024 * 1024;
+      if (file.size <= maxSize && file.type === 'image/jpeg') {
+        console.log(`✅ File ${file.name} already optimized, skipping resize`);
+        resolve(file);
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-          // Calculate new dimensions
-          let width = img.width;
-          let height = img.height;
+          try {
+            // Calculate new dimensions
+            let width = img.width;
+            let height = img.height;
 
-          if (width > maxWidth || height > maxHeight) {
-            const aspectRatio = width / height;
-            if (width > height) {
-              width = maxWidth;
-              height = width / aspectRatio;
-            } else {
-              height = maxHeight;
-              width = height * aspectRatio;
-            }
-          }
-
-          // Create canvas and draw resized image
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          
-          if (!ctx) {
-            reject(new Error('Failed to get canvas context'));
-            return;
-          }
-
-          // Use better image smoothing
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // Convert to blob
-          canvas.toBlob(
-            (blob) => {
-              if (!blob) {
-                reject(new Error('Failed to create blob'));
-                return;
+            if (width > maxWidth || height > maxHeight) {
+              const aspectRatio = width / height;
+              if (width > height) {
+                width = maxWidth;
+                height = width / aspectRatio;
+              } else {
+                height = maxHeight;
+                width = height * aspectRatio;
               }
+            }
 
-              // Create new file with same name but optimized
-              const newFile = new File([blob], file.name, {
-                type: 'image/jpeg', // Convert all to JPEG for consistency
-                lastModified: Date.now(),
-              });
+            // Create canvas and draw resized image
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.floor(width);
+            canvas.height = Math.floor(height);
+            const ctx = canvas.getContext('2d', { alpha: false });
+            
+            if (!ctx) {
+              console.warn('Canvas context not available, using original file');
+              resolve(file);
+              return;
+            }
 
-              console.log(`📐 Resized ${file.name}: ${Math.round(file.size / 1024)}KB → ${Math.round(newFile.size / 1024)}KB`);
-              resolve(newFile);
-            },
-            'image/jpeg',
-            quality
-          );
+            // Use better image smoothing
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            
+            // Fill with white background for JPEG
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            // Convert to blob with timeout fallback
+            const blobTimeout = setTimeout(() => {
+              console.warn('Blob conversion timeout, using original file');
+              resolve(file);
+            }, 10000);
+
+            canvas.toBlob(
+              (blob) => {
+                clearTimeout(blobTimeout);
+                
+                if (!blob) {
+                  console.warn('Blob creation failed, using original file');
+                  resolve(file);
+                  return;
+                }
+
+                // Create new file with same name but optimized
+                const newFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+
+                console.log(`📐 Resized ${file.name}: ${Math.round(file.size / 1024)}KB → ${Math.round(newFile.size / 1024)}KB`);
+                resolve(newFile);
+              },
+              'image/jpeg',
+              quality
+            );
+          } catch (error) {
+            console.error('Error in image processing:', error);
+            console.warn('Using original file due to processing error');
+            resolve(file);
+          }
         };
-        img.onerror = () => reject(new Error('Failed to load image'));
+        img.onerror = () => {
+          console.warn('Failed to load image, using original file');
+          resolve(file);
+        };
+        img.crossOrigin = 'anonymous';
         img.src = e.target?.result as string;
       };
-      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.onerror = () => {
+        console.warn('Failed to read file, using original');
+        resolve(file);
+      };
       reader.readAsDataURL(file);
     });
   };
@@ -121,30 +156,42 @@ export default function MultiImageUpload({
     setProcessing(true);
     try {
       const resizedFiles: File[] = [];
+      const maxSize = maxSizeMB * 1024 * 1024;
+      
       for (const file of files) {
         try {
+          console.log(`🔄 Processing ${file.name} (${Math.round(file.size / 1024)}KB)`);
           const resized = await resizeImage(file);
           
           // Check if resized file is within size limit
-          const maxSize = maxSizeMB * 1024 * 1024;
           if (resized.size > maxSize) {
-            toast.warning(`${file.name} still too large after compression. Skipping.`);
+            toast.warning(`${file.name} is ${Math.round(resized.size / 1024 / 1024)}MB. Max is ${maxSizeMB}MB. Skipping.`);
+            continue;
+          }
+          
+          // Additional validation
+          if (resized.size === 0) {
+            console.error(`${file.name} resulted in empty file`);
+            toast.error(`Failed to process ${file.name}`);
             continue;
           }
           
           resizedFiles.push(resized);
+          console.log(`✅ Processed ${file.name} successfully`);
         } catch (error) {
           console.error('Error resizing image:', error);
-          toast.error(`Failed to process ${file.name}`);
+          toast.error(`Failed to process ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
 
       if (resizedFiles.length > 0) {
         await uploadFiles(resizedFiles);
+      } else {
+        toast.error('No images were successfully processed');
       }
     } catch (error) {
       console.error('Error processing images:', error);
-      toast.error('Failed to process images');
+      toast.error(`Processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setProcessing(false);
     }
