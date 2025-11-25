@@ -34,11 +34,13 @@ export default function MultiImageUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Resize and compress image
-  const resizeImage = async (file: File): Promise<File> => {
+  const resizeImage = async (file: File, customQuality?: number): Promise<File> => {
     return new Promise((resolve, reject) => {
+      const targetQuality = customQuality || quality;
+      
       // Check if file is already small enough, skip processing
-      const maxSize = maxSizeMB * 1024 * 1024;
-      if (file.size <= maxSize && file.type === 'image/jpeg') {
+      const maxSize = 3 * 1024 * 1024; // 3MB
+      if (file.size <= maxSize && file.type === 'image/jpeg' && !customQuality) {
         console.log(`✅ File ${file.name} already optimized, skipping resize`);
         resolve(file);
         return;
@@ -112,7 +114,7 @@ export default function MultiImageUpload({
                 resolve(newFile);
               },
               'image/jpeg',
-              quality
+              targetQuality
             );
           } catch (error) {
             console.error('Error in image processing:', error);
@@ -158,12 +160,13 @@ export default function MultiImageUpload({
     // If skipProcessing is true, upload directly without processing
     if (skipProcessing) {
       console.log('⏭️ Skipping image processing, uploading directly...');
-      const maxSize = maxSizeMB * 1024 * 1024;
+      // On mobile, enforce stricter size limit due to Vercel's 4.5MB limit
+      const maxSize = 3.5 * 1024 * 1024; // 3.5MB to account for FormData overhead
       
       // Check file sizes
       for (const file of files) {
         if (file.size > maxSize) {
-          toast.error(`${file.name} is ${Math.round(file.size / 1024 / 1024)}MB. Max is ${maxSizeMB}MB.`);
+          toast.error(`${file.name} is ${Math.round(file.size / 1024 / 1024)}MB. Max is 3.5MB for direct upload. Please compress the image first.`);
           return;
         }
       }
@@ -176,16 +179,26 @@ export default function MultiImageUpload({
     setProcessing(true);
     try {
       const resizedFiles: File[] = [];
-      const maxSize = maxSizeMB * 1024 * 1024;
+      const maxSize = 3 * 1024 * 1024; // 3MB target after compression to stay under Vercel's 4.5MB limit
       
       for (const file of files) {
         try {
           console.log(`🔄 Processing ${file.name} (${Math.round(file.size / 1024)}KB)`);
+          setDebugInfo(`Processing ${file.name}...`);
+          
           const resized = await resizeImage(file);
           
           // Check if resized file is within size limit
           if (resized.size > maxSize) {
-            toast.warning(`${file.name} is ${Math.round(resized.size / 1024 / 1024)}MB. Max is ${maxSizeMB}MB. Skipping.`);
+            toast.warning(`${file.name} is ${Math.round(resized.size / 1024 / 1024)}MB after processing. Max is 3MB. Trying higher compression...`);
+            
+            // Try with more aggressive compression
+            const recompressed = await resizeImage(file, 0.7); // Lower quality
+            if (recompressed.size > maxSize) {
+              toast.error(`${file.name} is too large even after compression. Please use a smaller image.`);
+              continue;
+            }
+            resizedFiles.push(recompressed);
             continue;
           }
           
@@ -208,10 +221,12 @@ export default function MultiImageUpload({
         await uploadFiles(resizedFiles);
       } else {
         toast.error('No images were successfully processed');
+        setDebugInfo('❌ No images processed');
       }
     } catch (error) {
       console.error('Error processing images:', error);
       toast.error(`Processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setDebugInfo(`❌ Processing error: ${error instanceof Error ? error.message : 'Unknown'}`);
     } finally {
       setProcessing(false);
     }
@@ -434,7 +449,7 @@ export default function MultiImageUpload({
       )}
 
       <p className="text-sm text-gray-600">
-        Max {maxImages} images. Images will be auto-resized to {maxWidth}x{maxHeight}px and compressed. Formats: JPG, PNG, WebP, GIF
+        Max {maxImages} images. Images auto-compressed to under 3MB for Vercel compatibility. Formats: JPG, PNG, WebP, GIF
       </p>
     </div>
   );

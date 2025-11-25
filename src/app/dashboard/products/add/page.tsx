@@ -177,12 +177,12 @@ export default function AddProductPage() {
                   folder="products"
                   currentImages={productData.imageUrls}
                   maxImages={5}
-                  maxSizeMB={isMobile ? 10 : 5}
+                  maxSizeMB={isMobile ? 3.5 : 3}
                   skipProcessing={isMobile}
                 />
                 {isMobile && (
                   <p className="text-xs text-orange-600 mt-1">
-                    💡 Tip: For best results on mobile, compress images before uploading (max 10MB each)
+                    💡 Mobile Tip: Images must be under 3.5MB. Use a photo compression app first for best results.
                   </p>
                 )}
               </div>

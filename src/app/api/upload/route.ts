@@ -102,11 +102,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 10MB - increased for better compatibility)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // Validate file size (max 4MB due to Vercel's 4.5MB request limit with FormData overhead)
+    const maxSize = 4 * 1024 * 1024; // 4MB
     if (file.size > maxSize) {
+      console.log('❌ File too large:', file.size);
       return NextResponse.json(
-        { success: false, error: 'File size exceeds 10MB limit. Please compress the image.' },
+        { success: false, error: `File size is ${Math.round(file.size / 1024 / 1024)}MB. Maximum is 4MB due to Vercel limits. Please compress the image first.` },
         { status: 400 }
       );
     }
