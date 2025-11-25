@@ -30,6 +30,7 @@ export default function MultiImageUpload({
   const [images, setImages] = useState<string[]>(currentImages);
   const [processing, setProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string>('');
+  const [debugInfo, setDebugInfo] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Resize and compress image
@@ -218,20 +219,25 @@ export default function MultiImageUpload({
 
   const uploadFiles = async (files: File[]) => {
     setUploading(true);
+    setDebugInfo('Starting upload...');
     const uploadedUrls: string[] = [];
 
     try {
       const token = localStorage.getItem('token');
       if (!token) {
+        setDebugInfo('❌ No token found');
         toast.error('Please login to upload images');
         setUploading(false);
         setUploadProgress('');
         return;
       }
 
+      setDebugInfo(`✅ Token found (${token.length} chars)`);
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         setUploadProgress(`Uploading ${i + 1} of ${files.length}...`);
+        setDebugInfo(`📤 Uploading: ${file.name} (${Math.round(file.size/1024)}KB)`);
         
         console.log('📤 Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
         
@@ -240,6 +246,9 @@ export default function MultiImageUpload({
           formData.append('file', file);
           formData.append('folder', folder);
 
+          console.log('🔄 Sending request to /api/upload...');
+          setDebugInfo('🔄 Sending to server...');
+          
           const response = await fetch('/api/upload', {
             method: 'POST',
             headers: {
@@ -248,32 +257,49 @@ export default function MultiImageUpload({
             body: formData,
           });
 
+          setDebugInfo(`📥 Response: ${response.status}`);
           console.log('📥 Upload response status:', response.status);
+          console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+          
+          // Get response text first
+          const responseText = await response.text();
+          setDebugInfo(`📥 Got response (${responseText.length} chars)`);
+          console.log('📥 Raw response:', responseText.substring(0, 500));
           
           // Check if response is JSON
-          const contentType = response.headers.get('content-type');
-          if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            console.error('❌ Non-JSON response:', text);
-            throw new Error('Server returned invalid response. Please try again.');
+          let result;
+          try {
+            result = JSON.parse(responseText);
+            console.log('📥 Parsed JSON:', result);
+            setDebugInfo('✅ JSON parsed successfully');
+          } catch (parseError) {
+            console.error('❌ JSON Parse Error:', parseError);
+            console.error('❌ Response was:', responseText.substring(0, 1000));
+            setDebugInfo(`❌ Invalid JSON: ${responseText.substring(0, 100)}`);
+            
+            // Show the actual error in an alert for mobile users
+            alert(`Server Error:\n\n${responseText.substring(0, 500)}`);
+            
+            throw new Error(`Server returned invalid response: ${responseText.substring(0, 100)}`);
           }
-
-          const result = await response.json();
-          console.log('📥 Upload response data:', result);
 
           if (!response.ok) {
             console.error('❌ Upload failed:', result);
+            setDebugInfo(`❌ Failed: ${result.error || 'Unknown'}`);
             throw new Error(result.error || result.details || `Failed to upload ${file.name}`);
           }
 
           if (result.success && result.data && result.data.url) {
             uploadedUrls.push(result.data.url);
+            setDebugInfo(`✅ Uploaded: ${result.data.url.substring(0, 50)}...`);
             console.log('✅ File uploaded successfully:', result.data.url);
           } else {
+            setDebugInfo('❌ No URL in response');
             throw new Error(result.error || result.details || 'Upload succeeded but no URL returned');
           }
         } catch (uploadError) {
           console.error(`Upload error for ${file.name}:`, uploadError);
+          setDebugInfo(`❌ Error: ${uploadError instanceof Error ? uploadError.message : 'Unknown'}`);
           throw uploadError; // Re-throw to be caught by outer try-catch
         }
       }
@@ -281,11 +307,16 @@ export default function MultiImageUpload({
       const newImages = [...images, ...uploadedUrls];
       setImages(newImages);
       onUploadComplete(newImages);
+      setDebugInfo(`✅ All done! ${uploadedUrls.length} images`);
       toast.success(`${uploadedUrls.length} image(s) uploaded successfully! 🎉`);
     } catch (error) {
       console.error('Upload error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload images';
+      setDebugInfo(`❌ Final error: ${errorMessage}`);
       toast.error(errorMessage);
+      
+      // Show error in alert for mobile debugging
+      alert(`Upload Error:\n\n${errorMessage}`);
     } finally {
       setUploading(false);
       setUploadProgress('');
@@ -362,6 +393,12 @@ export default function MultiImageUpload({
           {uploadProgress && <span className="ml-2 text-blue-600">{uploadProgress}</span>}
         </span>
       </div>
+
+      {debugInfo && (
+        <div className="bg-gray-100 border border-gray-300 rounded p-3 text-xs font-mono overflow-x-auto">
+          <strong>Debug:</strong> {debugInfo}
+        </div>
+      )}
 
       {images.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

@@ -7,11 +7,20 @@ interface DecodedToken extends JwtPayload {
   role: string;
 }
 
+// Increase body size limit for this route
+export const runtime = 'nodejs';
+export const maxDuration = 60; // 60 seconds timeout
+
 export async function POST(request: NextRequest) {
+  console.log('🔵 Upload API called');
+  
   try {
     // Verify admin authentication
     const authHeader = request.headers.get('authorization');
+    console.log('🔍 Auth header present:', !!authHeader);
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ No valid auth header');
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }
@@ -19,24 +28,32 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
+    console.log('🔍 Token length:', token.length);
+    
     let decoded: DecodedToken;
     try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+      const jwtSecret = process.env.JWT_SECRET || 'fallback-secret';
+      console.log('🔍 JWT Secret exists:', !!jwtSecret);
+      decoded = verify(token, jwtSecret) as DecodedToken;
+      console.log('✅ Token verified, role:', decoded.role);
     } catch (error) {
-      console.error('Token verification failed:', error);
+      console.error('❌ Token verification failed:', error);
       return NextResponse.json(
-        { success: false, error: 'Invalid token' },
+        { success: false, error: 'Invalid token', details: error instanceof Error ? error.message : 'Unknown' },
         { status: 401 }
       );
     }
 
     // Only admin can upload images (check both ADMIN and admin for case-insensitivity)
     if (decoded.role.toUpperCase() !== 'ADMIN') {
+      console.log('❌ Not admin, role:', decoded.role);
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
       );
     }
+
+    console.log('✅ Admin verified');
 
     // Parse form data with error handling
     let formData: FormData;
