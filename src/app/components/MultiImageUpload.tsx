@@ -12,6 +12,7 @@ interface MultiImageUploadProps {
   maxWidth?: number;
   maxHeight?: number;
   quality?: number;
+  skipProcessing?: boolean; // Option to skip image processing
 }
 
 export default function MultiImageUpload({
@@ -23,6 +24,7 @@ export default function MultiImageUpload({
   maxWidth = 1920,
   maxHeight = 1920,
   quality = 0.85,
+  skipProcessing = false,
 }: MultiImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState<string[]>(currentImages);
@@ -152,6 +154,23 @@ export default function MultiImageUpload({
       }
     }
 
+    // If skipProcessing is true, upload directly without processing
+    if (skipProcessing) {
+      console.log('⏭️ Skipping image processing, uploading directly...');
+      const maxSize = maxSizeMB * 1024 * 1024;
+      
+      // Check file sizes
+      for (const file of files) {
+        if (file.size > maxSize) {
+          toast.error(`${file.name} is ${Math.round(file.size / 1024 / 1024)}MB. Max is ${maxSizeMB}MB.`);
+          return;
+        }
+      }
+      
+      await uploadFiles(files);
+      return;
+    }
+
     // Process and resize images
     setProcessing(true);
     try {
@@ -205,6 +224,8 @@ export default function MultiImageUpload({
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please login to upload images');
+        setUploading(false);
+        setUploadProgress('');
         return;
       }
 
@@ -214,33 +235,46 @@ export default function MultiImageUpload({
         
         console.log('📤 Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
         
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('folder', folder);
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('folder', folder);
 
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        });
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          });
 
-        console.log('📥 Upload response status:', response.status);
-        
-        const result = await response.json();
-        console.log('📥 Upload response data:', result);
+          console.log('📥 Upload response status:', response.status);
+          
+          // Check if response is JSON
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('❌ Non-JSON response:', text);
+            throw new Error('Server returned invalid response. Please try again.');
+          }
 
-        if (!response.ok) {
-          console.error('❌ Upload failed:', result);
-          throw new Error(result.error || result.details || `Failed to upload ${file.name}`);
-        }
+          const result = await response.json();
+          console.log('📥 Upload response data:', result);
 
-        if (result.success) {
-          uploadedUrls.push(result.data.url);
-          console.log('✅ File uploaded successfully:', result.data.url);
-        } else {
-          throw new Error(result.error || result.details || `Failed to upload ${file.name}`);
+          if (!response.ok) {
+            console.error('❌ Upload failed:', result);
+            throw new Error(result.error || result.details || `Failed to upload ${file.name}`);
+          }
+
+          if (result.success && result.data && result.data.url) {
+            uploadedUrls.push(result.data.url);
+            console.log('✅ File uploaded successfully:', result.data.url);
+          } else {
+            throw new Error(result.error || result.details || 'Upload succeeded but no URL returned');
+          }
+        } catch (uploadError) {
+          console.error(`Upload error for ${file.name}:`, uploadError);
+          throw uploadError; // Re-throw to be caught by outer try-catch
         }
       }
 

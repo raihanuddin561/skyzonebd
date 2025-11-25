@@ -27,9 +27,17 @@ export default function AddProductPage() {
     tags: '',
   });
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     fetchCategories();
+    // Detect if mobile device
+    const checkMobile = () => {
+      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsMobile(mobile);
+      console.log('Device type:', mobile ? 'Mobile' : 'Desktop');
+    };
+    checkMobile();
   }, []);
 
   const fetchCategories = async () => {
@@ -162,15 +170,21 @@ export default function AddProductPage() {
               {/* Product Images */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Product Images *
+                  Product Images * {isMobile && <span className="text-xs text-blue-600">(Mobile Mode)</span>}
                 </label>
                 <MultiImageUpload
                   onUploadComplete={handleImageUpload}
                   folder="products"
                   currentImages={productData.imageUrls}
                   maxImages={5}
-                  maxSizeMB={5}
+                  maxSizeMB={isMobile ? 10 : 5}
+                  skipProcessing={isMobile}
                 />
+                {isMobile && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    💡 Tip: For best results on mobile, compress images before uploading (max 10MB each)
+                  </p>
+                )}
               </div>
 
               {/* Product Name */}
