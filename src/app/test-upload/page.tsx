@@ -1,12 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function TestUploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [hasToken, setHasToken] = useState(false);
+  const [userAgent, setUserAgent] = useState('');
+
+  useEffect(() => {
+    // Check token on client side only
+    setHasToken(!!localStorage.getItem('token'));
+    setUserAgent(navigator.userAgent);
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -176,8 +184,8 @@ export default function TestUploadPage() {
             <div className="bg-gray-50 p-4 rounded">
               <h3 className="font-medium mb-2">Debug Info:</h3>
               <ul className="text-xs space-y-1">
-                <li><strong>User Agent:</strong> {navigator.userAgent}</li>
-                <li><strong>Token exists:</strong> {localStorage.getItem('token') ? 'Yes' : 'No'}</li>
+                <li><strong>User Agent:</strong> {userAgent || 'Loading...'}</li>
+                <li><strong>Token exists:</strong> {hasToken ? 'Yes' : 'No'}</li>
               </ul>
             </div>
           </div>
