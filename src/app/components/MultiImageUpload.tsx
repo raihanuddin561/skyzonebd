@@ -9,6 +9,9 @@ interface MultiImageUploadProps {
   currentImages?: string[];
   maxImages?: number;
   maxSizeMB?: number;
+  maxWidth?: number;
+  maxHeight?: number;
+  quality?: number;
 }
 
 export default function MultiImageUpload({
@@ -17,10 +20,82 @@ export default function MultiImageUpload({
   currentImages = [],
   maxImages = 5,
   maxSizeMB = 5,
+  maxWidth = 1920,
+  maxHeight = 1920,
+  quality = 0.85,
 }: MultiImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState<string[]>(currentImages);
+  const [processing, setProcessing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Resize and compress image
+  const resizeImage = async (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          // Calculate new dimensions
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth || height > maxHeight) {
+            const aspectRatio = width / height;
+            if (width > height) {
+              width = maxWidth;
+              height = width / aspectRatio;
+            } else {
+              height = maxHeight;
+              width = height * aspectRatio;
+            }
+          }
+
+          // Create canvas and draw resized image
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          
+          if (!ctx) {
+            reject(new Error('Failed to get canvas context'));
+            return;
+          }
+
+          // Use better image smoothing
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convert to blob
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Failed to create blob'));
+                return;
+              }
+
+              // Create new file with same name but optimized
+              const newFile = new File([blob], file.name, {
+                type: 'image/jpeg', // Convert all to JPEG for consistency
+                lastModified: Date.now(),
+              });
+
+              console.log(`📐 Resized ${file.name}: ${Math.round(file.size / 1024)}KB → ${Math.round(newFile.size / 1024)}KB`);
+              resolve(newFile);
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -32,8 +107,7 @@ export default function MultiImageUpload({
       return;
     }
 
-    // Validate all files
-    const maxSize = maxSizeMB * 1024 * 1024;
+    // Validate file formats
     const acceptedFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
 
     for (const file of files) {
@@ -41,14 +115,39 @@ export default function MultiImageUpload({
         toast.error(`Invalid file type: ${file.name}`);
         return;
       }
-      if (file.size > maxSize) {
-        toast.error(`File ${file.name} exceeds ${maxSizeMB}MB limit`);
-        return;
-      }
     }
 
-    // Upload all files
-    await uploadFiles(files);
+    // Process and resize images
+    setProcessing(true);
+    try {
+      const resizedFiles: File[] = [];
+      for (const file of files) {
+        try {
+          const resized = await resizeImage(file);
+          
+          // Check if resized file is within size limit
+          const maxSize = maxSizeMB * 1024 * 1024;
+          if (resized.size > maxSize) {
+            toast.warning(`${file.name} still too large after compression. Skipping.`);
+            continue;
+          }
+          
+          resizedFiles.push(resized);
+        } catch (error) {
+          console.error('Error resizing image:', error);
+          toast.error(`Failed to process ${file.name}`);
+        }
+      }
+
+      if (resizedFiles.length > 0) {
+        await uploadFiles(resizedFiles);
+      }
+    } catch (error) {
+      console.error('Error processing images:', error);
+      toast.error('Failed to process images');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const uploadFiles = async (files: File[]) => {
@@ -62,7 +161,12 @@ export default function MultiImageUpload({
         return;
       }
 
-      for (const file of files) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setUploadProgress(`Uploading ${i + 1} of ${files.length}...`);
+        
+        console.log('📤 Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
+        
         const formData = new FormData();
         formData.append('file', file);
         formData.append('folder', folder);
@@ -75,16 +179,21 @@ export default function MultiImageUpload({
           body: formData,
         });
 
-        if (!response.ok) {
-          throw new Error(`Failed to upload ${file.name}`);
-        }
-
+        console.log('📥 Upload response status:', response.status);
+        
         const result = await response.json();
+        console.log('📥 Upload response data:', result);
+
+        if (!response.ok) {
+          console.error('❌ Upload failed:', result);
+          throw new Error(result.error || result.details || `Failed to upload ${file.name}`);
+        }
 
         if (result.success) {
           uploadedUrls.push(result.data.url);
+          console.log('✅ File uploaded successfully:', result.data.url);
         } else {
-          throw new Error(result.error || `Failed to upload ${file.name}`);
+          throw new Error(result.error || result.details || `Failed to upload ${file.name}`);
         }
       }
 
@@ -94,9 +203,11 @@ export default function MultiImageUpload({
       toast.success(`${uploadedUrls.length} image(s) uploaded successfully! 🎉`);
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Failed to upload images. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload images';
+      toast.error(errorMessage);
     } finally {
       setUploading(false);
+      setUploadProgress('');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -159,14 +270,15 @@ export default function MultiImageUpload({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={uploading || images.length >= maxImages}
+          disabled={uploading || processing || images.length >= maxImages}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
         >
-          {uploading ? 'Uploading...' : 'Add Images'}
+          {processing ? 'Processing...' : uploading ? 'Uploading...' : 'Add Images'}
         </button>
 
         <span className="text-sm text-gray-600">
           {images.length} / {maxImages} images
+          {uploadProgress && <span className="ml-2 text-blue-600">{uploadProgress}</span>}
         </span>
       </div>
 
@@ -204,7 +316,7 @@ export default function MultiImageUpload({
       )}
 
       <p className="text-sm text-gray-600">
-        Max {maxImages} images. Max file size: {maxSizeMB}MB per image. Formats: JPG, PNG, WebP, GIF
+        Max {maxImages} images. Images will be auto-resized to {maxWidth}x{maxHeight}px and compressed. Formats: JPG, PNG, WebP, GIF
       </p>
     </div>
   );

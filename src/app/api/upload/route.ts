@@ -58,11 +58,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    // Validate file size (max 10MB - increased for better compatibility)
+    const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       return NextResponse.json(
-        { success: false, error: 'File size exceeds 5MB limit' },
+        { success: false, error: 'File size exceeds 10MB limit. Please compress the image.' },
         { status: 400 }
       );
     }
@@ -71,14 +71,19 @@ export async function POST(request: NextRequest) {
     const filename = `${folder}/${Date.now()}-${file.name}`;
     const blobToken = process.env.BLOB_READ_WRITE_TOKEN || process.env.SKY_ZONE_BD_BLOB_READ_WRITE_TOKEN;
     
+    console.log('🔍 Upload attempt - Token exists:', !!blobToken);
+    console.log('🔍 File details:', { name: file.name, size: file.size, type: file.type });
+    
     if (!blobToken) {
       console.error('❌ No Blob token found in environment variables');
+      console.error('❌ Available env keys:', Object.keys(process.env).filter(k => k.includes('BLOB')));
       return NextResponse.json(
         { success: false, error: 'Storage configuration error. Please contact administrator.' },
         { status: 500 }
       );
     }
 
+    console.log('📤 Uploading to Vercel Blob...');
     const blob = await put(filename, file, {
       access: 'public',
       addRandomSuffix: true,
@@ -98,8 +103,18 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Upload Image API Error:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    });
+    
     return NextResponse.json(
-      { success: false, error: 'Failed to upload image' },
+      { 
+        success: false, 
+        error: 'Failed to upload image',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
