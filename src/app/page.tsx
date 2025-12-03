@@ -415,8 +415,99 @@ export default function HomePage() {
         <Link href="/auth/register" className="px-8 py-4 bg-white text-blue-700 font-semibold rounded-xl shadow hover:bg-gray-100">Become a Vendor</Link>
       </section>
 
-      <footer className="py-8 text-center text-sm text-gray-500 border-t mt-12">
-        © 2025 SkyzoneBD. All rights reserved.
+      <footer className="py-12 bg-gray-100 border-t mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            {/* Company Info */}
+            <div>
+              <h4 className="text-lg font-bold text-gray-900 mb-4">SkyzoneBD</h4>
+              <p className="text-sm text-gray-600 mb-4">
+                Bangladesh&apos;s leading B2B and B2C marketplace connecting buyers and sellers.
+              </p>
+              <p className="text-sm text-gray-600">
+                <strong>Email:</strong> support@skyzonebd.com<br />
+                <strong>Phone:</strong> +880-1700-000000
+              </p>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h4 className="text-lg font-bold text-gray-900 mb-4">Quick Links</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/products" className="text-gray-600 hover:text-blue-600">
+                    All Products
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/auth/register" className="text-gray-600 hover:text-blue-600">
+                    Register
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/auth/login" className="text-gray-600 hover:text-blue-600">
+                    Login
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/cart" className="text-gray-600 hover:text-blue-600">
+                    Shopping Cart
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Policies */}
+            <div>
+              <h4 className="text-lg font-bold text-gray-900 mb-4">Policies</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/privacy-policy" className="text-gray-600 hover:text-blue-600">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/terms-of-service" className="text-gray-600 hover:text-blue-600">
+                    Terms of Service
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/refund-policy" className="text-gray-600 hover:text-blue-600">
+                    Refund Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/shipping-policy" className="text-gray-600 hover:text-blue-600">
+                    Shipping Policy
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Download App */}
+            <div>
+              <h4 className="text-lg font-bold text-gray-900 mb-4">Mobile App</h4>
+              <p className="text-sm text-gray-600 mb-4">
+                Download our Android app for a better shopping experience
+              </p>
+              <a 
+                href="https://play.google.com/store" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm"
+              >
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.6 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.5,12.92 20.16,13.19L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z" />
+                </svg>
+                Google Play
+              </a>
+            </div>
+          </div>
+
+          <div className="border-t pt-8 text-center text-sm text-gray-500">
+            <p>© 2025 SkyzoneBD. All rights reserved.</p>
+          </div>
+        </div>
       </footer>
     </main>
   );
