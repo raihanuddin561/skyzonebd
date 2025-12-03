@@ -10,6 +10,8 @@ import { useFeaturedProducts } from "@/hooks/useProducts";
 import { useCategories } from "@/hooks/useCategories";
 import { getCategoryIcon, getCategoryColor } from "@/utils/categoryIcons";
 
+// Metadata is handled in layout.tsx
+
 interface HeroSlide {
   id: string;
   title: string;
@@ -40,6 +42,35 @@ export default function HomePage() {
 
   // Minimum swipe distance (in px)
   const minSwipeDistance = 50;
+
+  // JSON-LD Structured Data for SEO
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "SkyzoneBD",
+    "url": "https://skyzonebd.com",
+    "description": "Bangladesh's leading B2B and B2C marketplace",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://skyzonebd.com/search?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  };
+
+  const organizationData = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "SkyzoneBD",
+    "url": "https://skyzonebd.com",
+    "logo": "https://skyzonebd.com/logo.png",
+    "description": "Bangladesh's trusted B2B and B2C marketplace",
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "Customer Service",
+      "areaServed": "BD",
+      "availableLanguage": ["English", "Bengali"]
+    }
+  };
 
   // Fetch hero slides from API
   useEffect(() => {
@@ -107,6 +138,16 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-white text-gray-800">
+      {/* JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationData) }}
+      />
+      
       <Header />
       
       {/* Hero Carousel Section - Enhanced Responsive Design */}

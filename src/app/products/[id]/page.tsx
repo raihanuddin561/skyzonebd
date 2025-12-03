@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import Head from 'next/head';
 import Header from '../../components/Header';
 import { useProduct, useRelatedProducts } from '@/hooks/useProducts';
 import { Product } from '@/types/cart';
@@ -27,6 +28,35 @@ export default function ProductDetailPage() {
   const [activeTab, setActiveTab] = useState<string>('description');
   const [showImageModal, setShowImageModal] = useState<boolean>(false);
   const [modalImageIndex, setModalImageIndex] = useState<number>(0);
+
+  // Update page title and meta tags dynamically
+  useEffect(() => {
+    if (product) {
+      document.title = `${product.name} | SkyzoneBD`;
+      
+      // Update meta description
+      const metaDescription = document.querySelector('meta[name="description"]');
+      if (metaDescription) {
+        metaDescription.setAttribute('content', product.description || `Buy ${product.name} at best price in Bangladesh`);
+      }
+      
+      // Update Open Graph meta tags
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      if (ogTitle) {
+        ogTitle.setAttribute('content', `${product.name} | SkyzoneBD`);
+      }
+      
+      const ogDescription = document.querySelector('meta[property="og:description"]');
+      if (ogDescription) {
+        ogDescription.setAttribute('content', product.description || `Buy ${product.name} at best price`);
+      }
+      
+      const ogImage = document.querySelector('meta[property="og:image"]');
+      if (ogImage && product.imageUrl) {
+        ogImage.setAttribute('content', product.imageUrl);
+      }
+    }
+  }, [product]);
 
   useEffect(() => {
     if (product) {

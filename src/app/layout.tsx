@@ -19,8 +19,41 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SkyzoneBD - Your Trusted B2B & B2C Marketplace",
-  description: "SkyzoneBD - Connect with verified wholesalers and retailers. Shop quality products at competitive prices.",
+  metadataBase: new URL('https://skyzonebd.com'),
+  title: {
+    default: "SkyzoneBD - B2B & B2C Marketplace | Wholesale & Retail in Bangladesh",
+    template: "%s | SkyzoneBD"
+  },
+  description: "Bangladesh's leading B2B and B2C marketplace. Connect with verified wholesalers, manufacturers, and retailers. Shop quality products at wholesale and retail prices. Fast delivery across Bangladesh.",
+  keywords: "B2B marketplace Bangladesh, wholesale Bangladesh, B2C ecommerce, bulk buy, wholesale products, verified suppliers, manufacturer direct, retail products Bangladesh, online wholesale, business marketplace",
+  authors: [{ name: "SkyzoneBD" }],
+  creator: "SkyzoneBD",
+  publisher: "SkyzoneBD",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_BD',
+    url: 'https://skyzonebd.com',
+    siteName: 'SkyzoneBD',
+    title: 'SkyzoneBD - Your Trusted B2B & B2C Marketplace in Bangladesh',
+    description: 'Connect with verified wholesalers and retailers. Shop quality products at competitive prices.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'SkyzoneBD - B2B & B2C Marketplace',
+    description: 'Bangladesh\'s trusted marketplace for wholesale and retail',
+    creator: '@skyzonebd',
+  },
 };
 
 export default function RootLayout({

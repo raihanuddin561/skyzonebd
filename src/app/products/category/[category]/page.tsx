@@ -24,6 +24,18 @@ export default function CategoryPage() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const productsPerPage = 12;
 
+  // Update page title dynamically when category loads
+  useEffect(() => {
+    if (category) {
+      document.title = `${category.name} - Shop Online | SkyzoneBD`;
+      
+      const metaDescription = document.querySelector('meta[name="description"]');
+      if (metaDescription) {
+        metaDescription.setAttribute('content', `Browse ${category.name} products at best prices in Bangladesh. Quality products with wholesale and retail options.`);
+      }
+    }
+  }, [category]);
+
   useEffect(() => {
     if (!categoriesLoading && categories) {
       const foundCategory = categories.find(c => c.id === categoryId);
