@@ -1,7 +1,6 @@
 import { Metadata } from 'next';
 import Header from '../components/Header';
 import Link from 'next/link';
-import { useState } from 'react';
 
 export const metadata: Metadata = {
   title: 'Data Deletion Request | SkyzoneBD',
