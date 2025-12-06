@@ -28,7 +28,7 @@ function verifyAdmin(request: NextRequest) {
 // PATCH - Process deletion request (Approve/Reject)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = verifyAdmin(request);
@@ -36,7 +36,7 @@ export async function PATCH(
       return NextResponse.json({ error: auth.error }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { action, notes, rejectionReason } = body;
 
@@ -151,7 +151,7 @@ export async function PATCH(
 // GET - Get specific deletion request details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = verifyAdmin(request);
@@ -159,7 +159,7 @@ export async function GET(
       return NextResponse.json({ error: auth.error }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     const deletionRequest = await prisma.dataDeletionRequest.findUnique({
       where: { id },

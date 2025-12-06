@@ -74,21 +74,21 @@ export const api = {
   get: (url: string, options?: ApiRequestOptions) => 
     apiClient(url, { ...options, method: 'GET' }),
   
-  post: (url: string, data?: any, options?: ApiRequestOptions) => 
+  post: (url: string, data?: unknown, options?: ApiRequestOptions) => 
     apiClient(url, { 
       ...options, 
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined
     }),
   
-  patch: (url: string, data?: any, options?: ApiRequestOptions) => 
+  patch: (url: string, data?: unknown, options?: ApiRequestOptions) => 
     apiClient(url, { 
       ...options, 
       method: 'PATCH',
       body: data ? JSON.stringify(data) : undefined
     }),
   
-  put: (url: string, data?: any, options?: ApiRequestOptions) => 
+  put: (url: string, data?: unknown, options?: ApiRequestOptions) => 
     apiClient(url, { 
       ...options, 
       method: 'PUT',
