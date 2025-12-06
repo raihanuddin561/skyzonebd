@@ -79,6 +79,50 @@ Your SkyzoneBD platform now includes comprehensive policy pages that comply with
 
 **Required for:**
 - ✅ Customer satisfaction
+- ✅ Legal compliance
+- ✅ Dispute resolution
+
+---
+
+### 4. **Shipping & Delivery Policy** (`/shipping-policy`)
+**URL:** https://skyzonebd.com/shipping-policy
+
+**Covers:**
+- Delivery coverage areas (Bangladesh-wide)
+- Shipping timeline (1-7 business days)
+- Shipping costs (BDT 60-150 based on location)
+- Free shipping thresholds
+- Cash on Delivery (COD) availability
+- Order tracking
+- Special delivery instructions
+- International shipping (not available)
+- Holiday delays
+- Undeliverable packages
+- Lost shipment procedures
+
+**Required for:**
+- ✅ Clear delivery expectations
+- ✅ Reduced customer inquiries
+- ✅ Shipping transparency
+
+---
+
+### 5. **Data Deletion Policy** (`/data-deletion`)
+**URL:** https://skyzonebd.com/data-deletion
+
+**Covers:**
+- User right to request data deletion
+- Two request methods (online form, email)
+- What data gets deleted (personal info, addresses, payment info)
+- What data is retained (anonymized transactions for legal purposes)
+- Deletion timeline (30 days)
+- Verification process
+- Admin approval workflow
+- Request tracking system
+- GDPR compliance
+
+**Required for:**
+- ✅ Customer satisfaction
 - ✅ Clear expectations
 - ✅ Reduced disputes
 - ✅ Trust building
@@ -145,9 +189,15 @@ Your Privacy Policy explains:
 - ✅ Terms of Service page created (`/terms-of-service`)
 - ✅ Refund Policy page created (`/refund-policy`)
 - ✅ Shipping Policy page created (`/shipping-policy`)
+- ✅ Data Deletion page created (`/data-deletion`)
+- ✅ Data Deletion request form created (`/data-deletion/request`)
+- ✅ Data Deletion confirmation page created (`/data-deletion/confirmation`)
 - ✅ Footer updated with policy links
 - ✅ Sitemap updated to include policy pages
 - ✅ SEO metadata added to all policy pages
+- ✅ Database migration completed for DataDeletionRequest model
+- ✅ Admin dashboard created for managing deletion requests
+- ✅ API endpoints created for deletion request handling
 
 ### Android App Implementation
 For your Android app, you need to:
@@ -157,6 +207,7 @@ For your Android app, you need to:
 // In your app settings or about section
 val privacyPolicyUrl = "https://skyzonebd.com/privacy-policy"
 val termsOfServiceUrl = "https://skyzonebd.com/terms-of-service"
+val dataDeletionUrl = "https://skyzonebd.com/data-deletion"
 ```
 
 #### 2. **First-Time User Flow**
@@ -171,6 +222,8 @@ Add a "Legal" or "About" section with:
 - Terms of Service (opens web browser)
 - Refund Policy (opens web browser)
 - Shipping Policy (opens web browser)
+- Data Deletion (opens web browser)
+- Contact Support
 
 #### 4. **Permission Requests**
 When requesting permissions, explain why:
@@ -203,7 +256,8 @@ When requesting permissions, explain why:
    - **Photos:** Upload product images (optional)
    - **Device ID:** For analytics
 5. Explain data usage for each type
-6. Submit for review
+6. Add data deletion URL: `https://skyzonebd.com/data-deletion`
+7. Submit for review
 
 ### Step 3: Store Listing
 1. Navigate to: **Store presence → Main store listing**
@@ -211,6 +265,7 @@ When requesting permissions, explain why:
    ```
    Privacy Policy: https://skyzonebd.com/privacy-policy
    Terms of Service: https://skyzonebd.com/terms-of-service
+   Data Deletion: https://skyzonebd.com/data-deletion
    ```
 3. Save changes
 
