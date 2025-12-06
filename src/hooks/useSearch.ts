@@ -51,7 +51,7 @@ export const useSearchSuggestions = (query: string) => {
       try {
         setLoading(true);
         setError(null);
-        const data = await dataService.search.getSuggestions(query);
+        const data = await dataService.search.suggestions(query);
         setSuggestions(data as string[]);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch suggestions');
@@ -77,7 +77,7 @@ export const usePopularSearches = () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await dataService.search.getPopular();
+        const data = await dataService.search.popular();
         setSearches(data as string[]);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch popular searches');
