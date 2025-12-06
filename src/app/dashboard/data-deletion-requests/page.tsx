@@ -28,7 +28,7 @@ interface DeletionRequest {
 }
 
 export default function DataDeletionRequestsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [requests, setRequests] = useState<DeletionRequest[]>([]);
   const [loading, setLoading] = useState(true);

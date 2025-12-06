@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, DeletionRequestStatus } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 
-    const where = status && status !== 'ALL' ? { status } : {};
+    const where = status && status !== 'ALL' ? { status: status as DeletionRequestStatus } : {};
 
     const requests = await prisma.dataDeletionRequest.findMany({
       where,
