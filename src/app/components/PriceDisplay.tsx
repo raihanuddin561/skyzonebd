@@ -65,72 +65,149 @@ export default function PriceDisplay({
         )}
       </div>
 
-      {/* Wholesale Tiers Table */}
+      {/* Wholesale Tiers Table - Alibaba Style */}
       {showWholesaleTiers && wholesaleTiers.length > 0 && (
         <div className="wholesale-tiers mt-6">
           <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
             <span>📦</span>
-            <span>Wholesale Pricing</span>
+            <span>Bulk Pricing (Buy More, Save More)</span>
           </h3>
           
           {!isWholesale && (
             <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-              <strong>Want wholesale prices?</strong> Register as a business customer to unlock these deals!
+              <strong>💼 Want wholesale prices?</strong> Register as a business customer to unlock these bulk deals!
             </div>
           )}
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse bg-white rounded-lg overflow-hidden shadow-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    Quantity
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    Unit Price
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                    Discount
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {wholesaleTiers.map((tier, index) => {
-                  const isActive = 
-                    isWholesale && 
-                    quantity >= tier.minQuantity && 
-                    (tier.maxQuantity === null || quantity <= tier.maxQuantity);
+          {/* Alibaba-style Price Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            {wholesaleTiers.map((tier, index) => {
+              const isActive = 
+                isWholesale && 
+                quantity >= tier.minQuantity && 
+                (tier.maxQuantity === null || quantity <= tier.maxQuantity);
 
-                  return (
-                    <tr
-                      key={index}
-                      className={`border-t ${
-                        isActive ? 'bg-green-50 font-semibold' : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <td className="px-4 py-3 text-sm">
-                        {tier.minQuantity}
-                        {tier.maxQuantity ? ` - ${tier.maxQuantity}` : '+'} units
-                      </td>
-                      <td className="px-4 py-3 text-sm">
+              return (
+                <div
+                  key={index}
+                  className={`relative border-2 rounded-lg p-4 transition-all ${
+                    isActive 
+                      ? 'border-green-500 bg-green-50 shadow-lg scale-105' 
+                      : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
+                  }`}
+                >
+                  {isActive && (
+                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                      <span className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                        ✓ CURRENT PRICE
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className="text-center">
+                    {/* Quantity Range */}
+                    <div className="text-sm font-semibold text-gray-600 mb-2">
+                      {tier.minQuantity}
+                      {tier.maxQuantity ? ` - ${tier.maxQuantity}` : '+'} pieces
+                    </div>
+                    
+                    {/* Price per piece */}
+                    <div className="mb-2">
+                      <div className="text-2xl font-bold text-gray-900">
                         {formatPrice(tier.price)}
-                        {isActive && (
-                          <span className="ml-2 text-xs text-green-600">✓ Current</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-green-600">
+                      </div>
+                      <div className="text-xs text-gray-500">per piece</div>
+                    </div>
+                    
+                    {/* Discount Badge */}
+                    {tier.discount > 0 && (
+                      <div className="inline-block px-3 py-1 bg-red-500 text-white text-sm font-bold rounded">
                         {formatDiscount(tier.discount)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </div>
+                    )}
+                    
+                    {/* Total Price Example */}
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="text-xs text-gray-600">
+                        {tier.minQuantity} pcs = {formatPrice(tier.price * tier.minQuantity)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
+          {/* Classic Table View (Alternative) */}
+          <details className="mt-4">
+            <summary className="cursor-pointer text-sm text-blue-600 hover:text-blue-700 font-medium">
+              View as Table
+            </summary>
+            <div className="overflow-x-auto mt-3">
+              <table className="w-full border-collapse bg-white rounded-lg overflow-hidden shadow-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      Quantity Range
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      Price/Piece
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      Savings
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      Total Price (Min Qty)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wholesaleTiers.map((tier, index) => {
+                    const isActive = 
+                      isWholesale && 
+                      quantity >= tier.minQuantity && 
+                      (tier.maxQuantity === null || quantity <= tier.maxQuantity);
+
+                    return (
+                      <tr
+                        key={index}
+                        className={`border-t ${
+                          isActive ? 'bg-green-50 font-semibold' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <td className="px-4 py-3 text-sm">
+                          {tier.minQuantity}
+                          {tier.maxQuantity ? ` - ${tier.maxQuantity}` : '+'} pcs
+                        </td>
+                        <td className="px-4 py-3 text-sm font-bold">
+                          {formatPrice(tier.price)}/pc
+                          {isActive && (
+                            <span className="ml-2 text-xs text-green-600">✓ Applied</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-green-600 font-medium">
+                          {tier.discount > 0 ? formatDiscount(tier.discount) : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {formatPrice(tier.price * tier.minQuantity)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </details>
+
           {product.wholesaleMOQ && (
-            <div className="mt-3 text-sm text-gray-600">
-              <strong>Minimum Order:</strong> {product.wholesaleMOQ} units for wholesale pricing
+            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-amber-600 text-xl">⚠️</span>
+                <div>
+                  <strong className="text-amber-900">Minimum Order:</strong>
+                  <span className="text-amber-800 ml-2">{product.wholesaleMOQ} units required for wholesale pricing</span>
+                </div>
+              </div>
             </div>
           )}
         </div>

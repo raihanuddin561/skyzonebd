@@ -265,6 +265,19 @@ export async function POST(request: NextRequest) {
         reviewCount: body.reviewCount || 0,
         metaTitle: body.metaTitle,
         metaDescription: body.metaDescription,
+        // Create wholesale tiers if provided
+        ...(body.wholesaleTiers && body.wholesaleTiers.length > 0 && {
+          wholesaleTiers: {
+            create: body.wholesaleTiers
+              .filter((tier: any) => tier.minQuantity && tier.price) // Only valid tiers
+              .map((tier: any) => ({
+                minQuantity: parseInt(tier.minQuantity),
+                maxQuantity: tier.maxQuantity ? parseInt(tier.maxQuantity) : null,
+                price: parseFloat(tier.price),
+                discount: tier.discount ? parseFloat(tier.discount) : 0,
+              }))
+          }
+        })
       },
       include: {
         category: true,

@@ -229,6 +229,10 @@ export default function NewProduct() {
         tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
         isFeatured: formData.featured,
         minOrderQuantity: formData.wholesaleEnabled ? parseInt(formData.wholesaleMOQ || '5') : 1,
+        // Include wholesale tiers if wholesale is enabled
+        wholesaleTiers: formData.wholesaleEnabled ? formData.wholesaleTiers.filter(
+          tier => tier.minQuantity && tier.price
+        ) : [],
       };
 
       // Submit to API
@@ -485,18 +489,34 @@ export default function NewProduct() {
               </div>
 
               <div className="space-y-4">
-                <h3 className="font-medium text-gray-900">Pricing Tiers</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-medium text-gray-900">Pricing Tiers (Alibaba-style Bulk Pricing)</h3>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({
+                      ...formData,
+                      wholesaleTiers: [...formData.wholesaleTiers, { minQuantity: '', maxQuantity: '', price: '', discount: '' }]
+                    })}
+                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    + Add Tier
+                  </button>
+                </div>
+                <div className="text-sm text-gray-600 mb-3 p-3 bg-blue-50 rounded">
+                  <strong>💡 Tip:</strong> Like Alibaba, create multiple price tiers. Example: "1-5 pcs: ৳20/pc", "6-10 pcs: ৳18/pc", "11+ pcs: ৳15/pc"
+                </div>
                 {formData.wholesaleTiers.map((tier, index) => (
-                  <div key={index} className="grid grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+                  <div key={index} className="grid grid-cols-5 gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Min Qty
+                        Min Qty *
                       </label>
                       <input
                         type="number"
                         value={tier.minQuantity}
                         onChange={(e) => handleWholesaleTierChange(index, 'minQuantity', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                        placeholder="e.g., 1"
                       />
                     </div>
                     <div>
@@ -508,18 +528,20 @@ export default function NewProduct() {
                         value={tier.maxQuantity}
                         onChange={(e) => handleWholesaleTierChange(index, 'maxQuantity', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-                        placeholder="Leave empty for unlimited"
+                        placeholder="Leave empty for ∞"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Price (৳)
+                        Price/Piece (৳) *
                       </label>
                       <input
                         type="number"
+                        step="0.01"
                         value={tier.price}
                         onChange={(e) => handleWholesaleTierChange(index, 'price', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                        placeholder="e.g., 100"
                       />
                     </div>
                     <div>
@@ -528,13 +550,42 @@ export default function NewProduct() {
                       </label>
                       <input
                         type="number"
+                        step="0.01"
                         value={tier.discount}
                         onChange={(e) => handleWholesaleTierChange(index, 'discount', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                        placeholder="e.g., 10"
                       />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newTiers = formData.wholesaleTiers.filter((_, i) => i !== index);
+                          setFormData({ ...formData, wholesaleTiers: newTiers });
+                        }}
+                        className="w-full px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
                 ))}
+                {formData.wholesaleTiers.length === 0 && (
+                  <div className="text-center p-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <p className="text-gray-500 mb-2">No pricing tiers added yet</p>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({
+                        ...formData,
+                        wholesaleTiers: [{ minQuantity: '1', maxQuantity: '5', price: '', discount: '' }]
+                      })}
+                      className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      Add First Tier
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}
