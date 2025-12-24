@@ -24,10 +24,14 @@ export default function ProductsManagement() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const productsPerPage = 12;
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [currentPage]);
 
   const fetchProducts = async () => {
     try {
@@ -40,7 +44,7 @@ export default function ProductsManagement() {
         return;
       }
 
-      const response = await fetch('/api/products', {
+      const response = await fetch(`/api/products?page=${currentPage}&limit=${productsPerPage}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -64,6 +68,8 @@ export default function ProductsManagement() {
         }));
         
         setProducts(transformedProducts);
+        setTotalProducts(result.data.total || 0);
+        setTotalPages(Math.ceil((result.data.total || 0) / productsPerPage));
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -447,15 +453,44 @@ export default function ProductsManagement() {
           <div className="px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-200">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="text-xs sm:text-sm text-gray-600">
-                Showing 1 to {products.length} of {products.length} products
+                Showing {((currentPage - 1) * productsPerPage) + 1} to {Math.min(currentPage * productsPerPage, totalProducts)} of {totalProducts} products
               </div>
               <div className="flex gap-2">
-                <button className="px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-50 text-xs sm:text-sm font-medium touch-manipulation">
+                <button 
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-1.5 border rounded text-xs sm:text-sm font-medium touch-manipulation ${
+                    currentPage === 1 
+                      ? 'border-gray-200 text-gray-400 cursor-not-allowed' 
+                      : 'border-gray-300 hover:bg-gray-50 cursor-pointer'
+                  }`}
+                >
                   Previous
                 </button>
-                <button className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs sm:text-sm font-medium">1</button>
-                <button className="px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-50 text-xs sm:text-sm font-medium touch-manipulation">2</button>
-                <button className="px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-50 text-xs sm:text-sm font-medium touch-manipulation">
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button 
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-1.5 rounded text-xs sm:text-sm font-medium ${
+                      currentPage === page 
+                        ? 'bg-blue-600 text-white' 
+                        : 'border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                
+                <button 
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-1.5 border rounded text-xs sm:text-sm font-medium touch-manipulation ${
+                    currentPage === totalPages 
+                      ? 'border-gray-200 text-gray-400 cursor-not-allowed' 
+                      : 'border-gray-300 hover:bg-gray-50 cursor-pointer'
+                  }`}
+                >
                   Next
                 </button>
               </div>
