@@ -68,8 +68,10 @@ export default function ProductsManagement() {
         }));
         
         setProducts(transformedProducts);
-        setTotalProducts(result.data.total || 0);
-        setTotalPages(Math.ceil((result.data.total || 0) / productsPerPage));
+        // Get total from pagination object
+        const total = result.data.pagination?.total || result.data.total || 0;
+        setTotalProducts(total);
+        setTotalPages(result.data.pagination?.totalPages || Math.ceil(total / productsPerPage));
       }
     } catch (error) {
       console.error('Error fetching products:', error);
