@@ -82,6 +82,7 @@ model Address {
 }
 
 // Unit Management
+// Stores measurement units for products (kg, liter, piece, etc.)
 model Unit {
   id          String    @id @default(cuid())
   name        String    @unique // e.g., "Piece", "Kilogram", "Liter"
