@@ -14,7 +14,7 @@
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
     "db:push": "prisma db push",
-    "vercel-build": "prisma migrate deploy && prisma generate && node scripts/seed-units.js && next build",
+    "vercel-build": "prisma db push --accept-data-loss --skip-generate && prisma generate && node scripts/seed-units.js && next build",
     "postinstall": "prisma generate"
   },
   "prisma": {
