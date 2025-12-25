@@ -117,6 +117,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           description: product.description || '',
           categoryId: product.categoryId || '',
           brand: product.brand || '',
+          unit: product.unit || 'piece',
           sku: product.sku || '',
           retailPrice: product.retailPrice || 0,
           salePrice: product.salePrice || null,
