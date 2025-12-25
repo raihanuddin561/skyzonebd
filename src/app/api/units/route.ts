@@ -114,8 +114,17 @@ export async function POST(request: NextRequest) {
       data: unit,
       message: 'Unit created successfully',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create Unit Error:', error);
+    
+    // If table doesn't exist, return specific error
+    if (error.code === 'P2021') {
+      return NextResponse.json(
+        { success: false, error: 'Units table does not exist. Please run database migration first.' },
+        { status: 503 }
+      );
+    }
+    
     return NextResponse.json(
       { success: false, error: 'Failed to create unit' },
       { status: 500 }
@@ -161,8 +170,17 @@ export async function PUT(request: NextRequest) {
       data: unit,
       message: 'Unit updated successfully',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Update Unit Error:', error);
+    
+    // If table doesn't exist, return specific error
+    if (error.code === 'P2021') {
+      return NextResponse.json(
+        { success: false, error: 'Units table does not exist. Please run database migration first.' },
+        { status: 503 }
+      );
+    }
+    
     return NextResponse.json(
       { success: false, error: 'Failed to update unit' },
       { status: 500 }
@@ -216,8 +234,17 @@ export async function DELETE(request: NextRequest) {
       success: true,
       message: 'Unit deleted successfully',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Delete Unit Error:', error);
+    
+    // If table doesn't exist, return specific error
+    if (error.code === 'P2021') {
+      return NextResponse.json(
+        { success: false, error: 'Units table does not exist. Please run database migration first.' },
+        { status: 503 }
+      );
+    }
+    
     return NextResponse.json(
       { success: false, error: 'Failed to delete unit' },
       { status: 500 }
