@@ -170,22 +170,22 @@ export default function NewProduct() {
         } else {
           // If units table doesn't exist, use default units
           setUnits([
-            { id: '1', name: 'Piece', symbol: 'piece', isActive: true },
-            { id: '2', name: 'Kilogram', symbol: 'kg', isActive: true },
-            { id: '3', name: 'Liter', symbol: 'liter', isActive: true },
-            { id: '4', name: 'Meter', symbol: 'meter', isActive: true },
-            { id: '5', name: 'Box', symbol: 'box', isActive: true },
+            { id: '1', name: 'Piece', symbol: 'piece', description: null, isActive: true },
+            { id: '2', name: 'Kilogram', symbol: 'kg', description: null, isActive: true },
+            { id: '3', name: 'Liter', symbol: 'liter', description: null, isActive: true },
+            { id: '4', name: 'Meter', symbol: 'meter', description: null, isActive: true },
+            { id: '5', name: 'Box', symbol: 'box', description: null, isActive: true },
           ]);
         }
       } catch (error) {
         console.error('Failed to fetch units:', error);
         // Use default units if API fails
         setUnits([
-          { id: '1', name: 'Piece', symbol: 'piece', isActive: true },
-          { id: '2', name: 'Kilogram', symbol: 'kg', isActive: true },
-          { id: '3', name: 'Liter', symbol: 'liter', isActive: true },
-          { id: '4', name: 'Meter', symbol: 'meter', isActive: true },
-          { id: '5', name: 'Box', symbol: 'box', isActive: true },
+          { id: '1', name: 'Piece', symbol: 'piece', description: null, isActive: true },
+          { id: '2', name: 'Kilogram', symbol: 'kg', description: null, isActive: true },
+          { id: '3', name: 'Liter', symbol: 'liter', description: null, isActive: true },
+          { id: '4', name: 'Meter', symbol: 'meter', description: null, isActive: true },
+          { id: '5', name: 'Box', symbol: 'box', description: null, isActive: true },
         ]);
       } finally {
         setLoadingUnits(false);
