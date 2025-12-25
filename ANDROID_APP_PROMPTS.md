@@ -741,7 +741,7 @@ data class Product(
     val name: String,
     val price: Double,
     val unit: String,  // IMPORTANT: "kg", "piece", "liter", etc.
-    val imageUrl: String,
+    val imageUrl: String, 
     val imageUrls: List<String>,
     val description: String?,
     val category: String,

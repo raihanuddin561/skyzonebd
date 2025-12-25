@@ -198,8 +198,11 @@ export async function PUT(
 
     // If slug is being updated, check for conflicts
     if (body.slug && body.slug !== existing.slug) {
-      const slugConflict = await prisma.product.findUnique({
-        where: { slug: body.slug }
+      const slugConflict = await prisma.product.findFirst({
+        where: { 
+          slug: body.slug,
+          NOT: { id: productId }
+        }
       });
 
       if (slugConflict) {
@@ -211,8 +214,11 @@ export async function PUT(
     }
     // Check for SKU conflict (if SKU is being changed)
     if (body.sku && body.sku !== existing.sku) {
-      const skuConflict = await prisma.product.findUnique({
-        where: { sku: body.sku }
+      const skuConflict = await prisma.product.findFirst({
+        where: { 
+          sku: body.sku,
+          NOT: { id: productId }
+        }
       });
 
       if (skuConflict) {
@@ -222,41 +228,45 @@ export async function PUT(
         );
       }
     }
+    
+    // Build update data object
+    const updateData: any = {};
+    
+    if (body.name) updateData.name = body.name;
+    if (body.slug && body.slug !== existing.slug) updateData.slug = body.slug;
+    if (body.description !== undefined) updateData.description = body.description;
+    if (body.imageUrl) updateData.imageUrl = body.imageUrl;
+    if (body.imageUrls) updateData.imageUrls = body.imageUrls;
+    if (body.thumbnailUrl !== undefined) updateData.thumbnailUrl = body.thumbnailUrl;
+    if (body.brand !== undefined) updateData.brand = body.brand;
+    if (body.unit !== undefined) updateData.unit = body.unit;
+    if (body.tags) updateData.tags = body.tags;
+    if (body.specifications !== undefined) updateData.specifications = body.specifications;
+    if (body.retailPrice !== undefined) updateData.retailPrice = body.retailPrice;
+    if (body.salePrice !== undefined) updateData.salePrice = body.salePrice;
+    if (body.retailMOQ !== undefined) updateData.retailMOQ = body.retailMOQ;
+    if (body.comparePrice !== undefined) updateData.comparePrice = body.comparePrice;
+    if (body.wholesaleEnabled !== undefined) updateData.wholesaleEnabled = body.wholesaleEnabled;
+    if (body.wholesaleMOQ !== undefined) updateData.wholesaleMOQ = body.wholesaleMOQ;
+    if (body.baseWholesalePrice !== undefined) updateData.baseWholesalePrice = body.baseWholesalePrice;
+    if (body.price !== undefined) updateData.price = body.price;
+    if (body.wholesalePrice !== undefined) updateData.wholesalePrice = body.wholesalePrice;
+    if (body.minOrderQuantity !== undefined) updateData.minOrderQuantity = body.minOrderQuantity;
+    if (body.stockQuantity !== undefined) updateData.stockQuantity = body.stockQuantity;
+    if (body.availability) updateData.availability = body.availability;
+    if (body.sku !== undefined && body.sku !== existing.sku) updateData.sku = body.sku;
+    if (body.categoryId) updateData.categoryId = body.categoryId;
+    if (body.isActive !== undefined) updateData.isActive = body.isActive;
+    if (body.isFeatured !== undefined) updateData.isFeatured = body.isFeatured;
+    if (body.rating !== undefined) updateData.rating = body.rating;
+    if (body.reviewCount !== undefined) updateData.reviewCount = body.reviewCount;
+    if (body.metaTitle !== undefined) updateData.metaTitle = body.metaTitle;
+    if (body.metaDescription !== undefined) updateData.metaDescription = body.metaDescription;
+    
     // Update product
     const product = await prisma.product.update({
       where: { id: productId },
-      data: {
-        ...(body.name && { name: body.name }),
-        ...(body.slug && body.slug !== existing.slug && { slug: body.slug }),
-        ...(body.description !== undefined && { description: body.description }),
-        ...(body.imageUrl && { imageUrl: body.imageUrl }),
-        ...(body.imageUrls && { imageUrls: body.imageUrls }),
-        ...(body.thumbnailUrl !== undefined && { thumbnailUrl: body.thumbnailUrl }),
-        ...(body.brand !== undefined && { brand: body.brand }),
-        ...(body.tags && { tags: body.tags }),
-        ...(body.specifications !== undefined && { specifications: body.specifications }),
-        ...(body.retailPrice !== undefined && { retailPrice: body.retailPrice }),
-        ...(body.salePrice !== undefined && { salePrice: body.salePrice }),
-        ...(body.retailMOQ !== undefined && { retailMOQ: body.retailMOQ }),
-        ...(body.comparePrice !== undefined && { comparePrice: body.comparePrice }),
-        ...(body.wholesaleEnabled !== undefined && { wholesaleEnabled: body.wholesaleEnabled }),
-        ...(body.wholesaleMOQ !== undefined && { wholesaleMOQ: body.wholesaleMOQ }),
-        ...(body.baseWholesalePrice !== undefined && { baseWholesalePrice: body.baseWholesalePrice }),
-        ...(body.price !== undefined && { price: body.price }),
-        ...(body.wholesalePrice !== undefined && { wholesalePrice: body.wholesalePrice }),
-        ...(body.minOrderQuantity !== undefined && { minOrderQuantity: body.minOrderQuantity }),
-        ...(body.stockQuantity !== undefined && { stockQuantity: body.stockQuantity }),
-        ...(body.availability && { availability: body.availability }),
-        ...(body.sku !== undefined && body.sku !== existing.sku && { sku: body.sku }),
-        ...(body.unit !== undefined && { unit: body.unit }),
-        ...(body.categoryId && { categoryId: body.categoryId }),
-        ...(body.isActive !== undefined && { isActive: body.isActive }),
-        ...(body.isFeatured !== undefined && { isFeatured: body.isFeatured }),
-        ...(body.rating !== undefined && { rating: body.rating }),
-        ...(body.reviewCount !== undefined && { reviewCount: body.reviewCount }),
-        ...(body.metaTitle !== undefined && { metaTitle: body.metaTitle }),
-        ...(body.metaDescription !== undefined && { metaDescription: body.metaDescription }),
-      },
+      data: updateData,
       include: {
         category: true,
         wholesaleTiers: true,
