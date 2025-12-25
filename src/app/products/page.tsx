@@ -13,7 +13,7 @@ import { getCategoryIcon } from '@/utils/categoryIcons';
 
 function ProductsContent() {
   const searchParams = useSearchParams();
-  const { products: allProducts, loading: productsLoading } = useProducts();
+  const { products: allProducts, loading: productsLoading } = useProducts({ limit: 100 }); // Fetch up to 100 products
   const { categories, loading: categoriesLoading } = useCategories();
   
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
