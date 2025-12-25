@@ -209,7 +209,19 @@ export async function PUT(
         );
       }
     }
+    // Check for SKU conflict (if SKU is being changed)
+    if (body.sku && body.sku !== existing.sku) {
+      const skuConflict = await prisma.product.findUnique({
+        where: { sku: body.sku }
+      });
 
+      if (skuConflict) {
+        return NextResponse.json(
+          { error: 'Product with this SKU already exists' },
+          { status: 409 }
+        );
+      }
+    }
     // Update product
     const product = await prisma.product.update({
       where: { id: productId },
@@ -236,6 +248,7 @@ export async function PUT(
         ...(body.stockQuantity !== undefined && { stockQuantity: body.stockQuantity }),
         ...(body.availability && { availability: body.availability }),
         ...(body.sku !== undefined && { sku: body.sku }),
+        ...(body.unit !== undefined && { unit: body.unit }),
         ...(body.categoryId && { categoryId: body.categoryId }),
         ...(body.isActive !== undefined && { isActive: body.isActive }),
         ...(body.isFeatured !== undefined && { isFeatured: body.isFeatured }),
