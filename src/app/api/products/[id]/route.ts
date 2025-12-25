@@ -227,7 +227,7 @@ export async function PUT(
       where: { id: productId },
       data: {
         ...(body.name && { name: body.name }),
-        ...(body.slug && { slug: body.slug }),
+        ...(body.slug && body.slug !== existing.slug && { slug: body.slug }),
         ...(body.description !== undefined && { description: body.description }),
         ...(body.imageUrl && { imageUrl: body.imageUrl }),
         ...(body.imageUrls && { imageUrls: body.imageUrls }),
@@ -247,7 +247,7 @@ export async function PUT(
         ...(body.minOrderQuantity !== undefined && { minOrderQuantity: body.minOrderQuantity }),
         ...(body.stockQuantity !== undefined && { stockQuantity: body.stockQuantity }),
         ...(body.availability && { availability: body.availability }),
-        ...(body.sku !== undefined && { sku: body.sku }),
+        ...(body.sku !== undefined && body.sku !== existing.sku && { sku: body.sku }),
         ...(body.unit !== undefined && { unit: body.unit }),
         ...(body.categoryId && { categoryId: body.categoryId }),
         ...(body.isActive !== undefined && { isActive: body.isActive }),
