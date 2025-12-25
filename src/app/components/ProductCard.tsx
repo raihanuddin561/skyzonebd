@@ -119,7 +119,10 @@ export default function ProductCard({ product }: ProductCardProps) {
       </div>
       
       <div className="flex items-center justify-between mb-1 sm:mb-2">
-        <p className="text-base sm:text-lg lg:text-xl text-blue-700 font-bold">৳{product.price.toLocaleString()}</p>
+        <p className="text-base sm:text-lg lg:text-xl text-blue-700 font-bold">
+          ৳{product.price.toLocaleString()}
+          {product.unit && <span className="text-sm text-gray-600 font-normal">/{product.unit}</span>}
+        </p>
         {product.rating && (
           <div className="flex items-center">
             <span className="text-yellow-400 text-sm">★</span>

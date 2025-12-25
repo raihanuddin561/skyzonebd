@@ -98,6 +98,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       items: [
         { name: 'Products', icon: '📦', path: '/admin/products' },
         { name: 'Categories', icon: '🏷️', path: '/admin/categories' },
+        { name: 'Units', icon: '⚖️', path: '/admin/units' },
         { name: 'Orders', icon: '🛒', path: '/admin/orders' },
         { name: 'Inventory', icon: '📋', path: '/admin/inventory' },
       ]

@@ -10,6 +10,14 @@ interface Category {
   slug: string;
 }
 
+interface Unit {
+  id: string;
+  name: string;
+  symbol: string;
+  description: string | null;
+  isActive: boolean;
+}
+
 export default function NewProduct() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,6 +27,8 @@ export default function NewProduct() {
   const [additionalImagePreviews, setAdditionalImagePreviews] = useState<string[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(true);
   
   const [formData, setFormData] = useState({
     // Basic Information
@@ -27,6 +37,7 @@ export default function NewProduct() {
     description: '',
     category: '',
     brand: '',
+    unit: 'piece',
     
     // Pricing
     retailPrice: '',
@@ -148,7 +159,25 @@ export default function NewProduct() {
       }
     };
 
+    const fetchUnits = async () => {
+      try {
+        setLoadingUnits(true);
+        const response = await fetch('/api/units?active=true');
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+          setUnits(data.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch units:', error);
+        toast.error('Failed to load units');
+      } finally {
+        setLoadingUnits(false);
+      }
+    };
+
     fetchCategories();
+    fetchUnits();
   }, []);
 
   const uploadImage = async (file: File, folder: string = 'products'): Promise<string> => {
@@ -210,6 +239,7 @@ export default function NewProduct() {
         description: formData.description,
         categoryId: formData.category,
         brand: formData.brand,
+        unit: formData.unit || 'piece',
         retailPrice: parseFloat(formData.retailPrice),
         salePrice: formData.salePrice ? parseFloat(formData.salePrice) : null,
         retailMOQ: parseInt(formData.retailMOQ),
@@ -388,6 +418,35 @@ export default function NewProduct() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g., Samsung"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Unit *
+              </label>
+              <select
+                name="unit"
+                value={formData.unit}
+                onChange={handleInputChange}
+                required
+                disabled={loadingUnits}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">
+                  {loadingUnits ? 'Loading units...' : 'Select Unit'}
+                </option>
+                {units.map((unit) => (
+                  <option key={unit.id} value={unit.symbol}>
+                    {unit.name} ({unit.symbol})
+                  </option>
+                ))}
+              </select>
+              {units.length === 0 && !loadingUnits && (
+                <p className="text-xs text-red-500 mt-1">
+                  No units found. Please create units first from Units Management.
+                </p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">Unit of measurement for pricing</p>
             </div>
 
             <div className="md:col-span-2">

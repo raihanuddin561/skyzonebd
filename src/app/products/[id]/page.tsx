@@ -383,7 +383,10 @@ export default function ProductDetailPage() {
             {/* Price Section */}
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-sm border border-blue-200 p-6">
               <div className="flex items-baseline gap-3 mb-3">
-                <span className="text-4xl font-bold text-blue-600">৳{product.price.toLocaleString()}</span>
+                <span className="text-4xl font-bold text-blue-600">
+                  ৳{product.price.toLocaleString()}
+                  {product.unit && <span className="text-xl text-gray-600 font-normal ml-2">/ {product.unit}</span>}
+                </span>
                 {product.discount && (
                   <>
                     <span className="text-xl text-gray-400 line-through">৳{(product.price / (1 - product.discount / 100)).toFixed(0)}</span>

@@ -7,6 +7,7 @@ export interface Product {
   minOrderQuantity: number;
   companyName: string;
   imageUrl: string;
+  unit?: string; // Unit of measurement (piece, kg, liter, box, etc.)
   // Enhanced fields for product pages
   description?: string;
   category?: string;

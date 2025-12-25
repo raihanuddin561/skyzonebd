@@ -136,6 +136,7 @@ export async function GET(request: NextRequest) {
       id: product.id, // Keep cuid string for database compatibility
       name: product.name,
       price: product.retailPrice,
+      unit: product.unit,
       retailPrice: product.retailPrice,
       salePrice: product.salePrice,
       comparePrice: product.comparePrice,

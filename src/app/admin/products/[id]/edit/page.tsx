@@ -17,6 +17,7 @@ interface ProductFormData {
   description: string;
   categoryId: string;
   brand: string;
+  unit: string;
   sku: string;
   retailPrice: number;
   salePrice: number | null;
@@ -48,6 +49,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
     description: '',
     categoryId: '',
     brand: '',
+    unit: 'piece',
     sku: '',
     retailPrice: 0,
     salePrice: null,

@@ -81,6 +81,19 @@ model Address {
   @@map("addresses")
 }
 
+// Unit Management
+model Unit {
+  id          String    @id @default(cuid())
+  name        String    @unique // e.g., "Piece", "Kilogram", "Liter"
+  symbol      String    @unique // e.g., "pcs", "kg", "L"
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@map("units")
+}
+
 // Product Management
 model Category {
   id          String    @id @default(cuid())
@@ -113,6 +126,7 @@ model Product {
   brand            String?
   tags             String[]      @default([])
   specifications   Json?         // Flexible specifications as JSON
+  unit             String        @default("piece") // Unit of measurement (stores unit symbol)
   
   // B2C Pricing
   retailPrice      Float         // Standard retail price for individual customers
