@@ -42,8 +42,17 @@ export async function GET(request: NextRequest) {
       success: true,
       data: units,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Units API Error:', error);
+    
+    // If table doesn't exist, return empty array instead of error
+    if (error.code === 'P2021') {
+      return NextResponse.json({
+        success: true,
+        data: [],
+      });
+    }
+    
     return NextResponse.json(
       { success: false, error: 'Failed to fetch units' },
       { status: 500 }
