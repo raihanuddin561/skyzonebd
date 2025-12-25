@@ -11,6 +11,14 @@ interface Category {
   slug: string;
 }
 
+interface Unit {
+  id: string;
+  name: string;
+  symbol: string;
+  description: string | null;
+  isActive: boolean;
+}
+
 interface ProductFormData {
   name: string;
   slug: string;
@@ -39,6 +47,10 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
   const router = useRouter();
   const [productId, setProductId] = useState<string>('');
   const [categories, setCategories] = useState<Category[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(true);
+  const [showNewUnitModal, setShowNewUnitModal] = useState(false);
+  const [newUnitData, setNewUnitData] = useState({ name: '', symbol: '', description: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -93,6 +105,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
     if (productId) {
       fetchProduct();
       fetchCategories();
+      fetchUnits();
     }
   }, [productId]);
 
@@ -189,6 +202,39 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
+    }
+  };
+
+  const fetchUnits = async () => {
+    try {
+      setLoadingUnits(true);
+      const response = await fetch('/api/units?active=true');
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        setUnits(data.data);
+      } else {
+        // If units table doesn't exist, use default units
+        setUnits([
+          { id: '1', name: 'Piece', symbol: 'piece', description: null, isActive: true },
+          { id: '2', name: 'Kilogram', symbol: 'kg', description: null, isActive: true },
+          { id: '3', name: 'Liter', symbol: 'liter', description: null, isActive: true },
+          { id: '4', name: 'Meter', symbol: 'meter', description: null, isActive: true },
+          { id: '5', name: 'Box', symbol: 'box', description: null, isActive: true },
+        ]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch units:', error);
+      // Use default units if API fails
+      setUnits([
+        { id: '1', name: 'Piece', symbol: 'piece', description: null, isActive: true },
+        { id: '2', name: 'Kilogram', symbol: 'kg', description: null, isActive: true },
+        { id: '3', name: 'Liter', symbol: 'liter', description: null, isActive: true },
+        { id: '4', name: 'Meter', symbol: 'meter', description: null, isActive: true },
+        { id: '5', name: 'Box', symbol: 'box', description: null, isActive: true },
+      ]);
+    } finally {
+      setLoadingUnits(false);
     }
   };
 
@@ -509,6 +555,43 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                 onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Unit *
+              </label>
+              <div className="flex gap-2">
+                <select
+                  value={formData.unit}
+                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  required
+                  disabled={loadingUnits}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  <option value="">
+                    {loadingUnits ? 'Loading units...' : 'Select Unit'}
+                  </option>
+                  {units.map((unit) => (
+                    <option key={unit.id} value={unit.symbol}>
+                      {unit.name} ({unit.symbol})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowNewUnitModal(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 whitespace-nowrap"
+                >
+                  + New
+                </button>
+              </div>
+              {units.length === 0 && !loadingUnits && (
+                <p className="text-xs text-red-500 mt-1">
+                  No units found. Please create a unit first.
+                </p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">Unit of measurement for pricing</p>
             </div>
 
             <div className="md:col-span-2">
@@ -892,6 +975,114 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           </div>
         </div>
       </form>
+
+      {/* New Unit Modal */}
+      {showNewUnitModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Create New Unit</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Unit Name *
+                </label>
+                <input
+                  type="text"
+                  value={newUnitData.name}
+                  onChange={(e) => setNewUnitData({ ...newUnitData, name: e.target.value })}
+                  placeholder="e.g., Kilogram"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Symbol *
+                </label>
+                <input
+                  type="text"
+                  value={newUnitData.symbol}
+                  onChange={(e) => setNewUnitData({ ...newUnitData, symbol: e.target.value })}
+                  placeholder="e.g., kg"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
+                <input
+                  type="text"
+                  value={newUnitData.description}
+                  onChange={(e) => setNewUnitData({ ...newUnitData, description: e.target.value })}
+                  placeholder="e.g., Weight measurement"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNewUnitModal(false);
+                  setNewUnitData({ name: '', symbol: '', description: '' });
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newUnitData.name || !newUnitData.symbol) {
+                    toast.error('Please fill in required fields');
+                    return;
+                  }
+
+                  try {
+                    const token = localStorage.getItem('token');
+                    const response = await fetch('/api/units', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({
+                        name: newUnitData.name,
+                        symbol: newUnitData.symbol,
+                        description: newUnitData.description || null,
+                        isActive: true,
+                      }),
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                      toast.success('Unit created successfully');
+                      await fetchUnits(); // Refresh units list
+                      setFormData({ ...formData, unit: newUnitData.symbol }); // Set new unit as selected
+                      setShowNewUnitModal(false);
+                      setNewUnitData({ name: '', symbol: '', description: '' });
+                    } else {
+                      toast.error(result.error || 'Failed to create unit');
+                    }
+                  } catch (error) {
+                    console.error('Error creating unit:', error);
+                    toast.error('Failed to create unit');
+                  }
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              >
+                Create Unit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
