@@ -385,6 +385,7 @@ export default function ProductDetailPage() {
               <div className="flex items-baseline gap-3 mb-3">
                 <span className="text-4xl font-bold text-blue-600">
                   ৳{product.price.toLocaleString()}
+                  {product.unit && <span className="text-lg text-gray-600">/{product.unit}</span>}
                   {product.unit && <span className="text-xl text-gray-600 font-normal ml-2">/ {product.unit}</span>}
                 </span>
                 {product.discount && (
@@ -745,7 +746,10 @@ export default function ProductDetailPage() {
                     <h4 className="font-medium group-hover:text-blue-600 truncate">
                       {relatedProduct.name}
                     </h4>
-                    <p className="text-blue-600 font-bold">৳{relatedProduct.price.toLocaleString()}</p>
+                    <p className="text-blue-600 font-bold">
+                      ৳{relatedProduct.price.toLocaleString()}
+                      {relatedProduct.unit && <span className="text-sm text-gray-600">/{relatedProduct.unit}</span>}
+                    </p>
                     <p className="text-sm text-gray-500">{relatedProduct.companyName}</p>
                   </div>
                 </Link>

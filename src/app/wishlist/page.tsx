@@ -108,6 +108,7 @@ export default function WishlistPage() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xl font-bold text-blue-600">
                     ৳{product.price.toLocaleString()}
+                    {product.unit && <span className="text-sm text-gray-600">/{product.unit}</span>}
                   </span>
                   {product.rating && (
                     <div className="flex items-center">
