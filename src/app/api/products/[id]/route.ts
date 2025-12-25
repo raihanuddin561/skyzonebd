@@ -254,7 +254,7 @@ export async function PUT(
     if (body.minOrderQuantity !== undefined) updateData.minOrderQuantity = body.minOrderQuantity;
     if (body.stockQuantity !== undefined) updateData.stockQuantity = body.stockQuantity;
     if (body.availability) updateData.availability = body.availability;
-    if (body.sku !== undefined && body.sku !== existing.sku) updateData.sku = body.sku;
+    // Don't update SKU to avoid unique constraint issues - SKU should not be changed after creation
     if (body.categoryId) updateData.categoryId = body.categoryId;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
     if (body.isFeatured !== undefined) updateData.isFeatured = body.isFeatured;
