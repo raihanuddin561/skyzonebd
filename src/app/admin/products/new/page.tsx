@@ -167,10 +167,26 @@ export default function NewProduct() {
         
         if (data.success && data.data) {
           setUnits(data.data);
+        } else {
+          // If units table doesn't exist, use default units
+          setUnits([
+            { id: '1', name: 'Piece', symbol: 'piece', isActive: true },
+            { id: '2', name: 'Kilogram', symbol: 'kg', isActive: true },
+            { id: '3', name: 'Liter', symbol: 'liter', isActive: true },
+            { id: '4', name: 'Meter', symbol: 'meter', isActive: true },
+            { id: '5', name: 'Box', symbol: 'box', isActive: true },
+          ]);
         }
       } catch (error) {
         console.error('Failed to fetch units:', error);
-        toast.error('Failed to load units');
+        // Use default units if API fails
+        setUnits([
+          { id: '1', name: 'Piece', symbol: 'piece', isActive: true },
+          { id: '2', name: 'Kilogram', symbol: 'kg', isActive: true },
+          { id: '3', name: 'Liter', symbol: 'liter', isActive: true },
+          { id: '4', name: 'Meter', symbol: 'meter', isActive: true },
+          { id: '5', name: 'Box', symbol: 'box', isActive: true },
+        ]);
       } finally {
         setLoadingUnits(false);
       }
