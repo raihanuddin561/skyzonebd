@@ -20,7 +20,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   
   // Determine minimum order quantity based on user type
   // ONLY wholesale users have MOQ requirement, guests and retail customers start at 1
-  const effectiveMinQty = (user && user.userType === 'WHOLESALE') ? product.minOrderQuantity : 1;
+  const effectiveMinQty = (user && user.userType === 'WHOLESALE') ? (product.minOrderQuantity || 1) : 1;
   const [quantity, setQuantity] = useState(effectiveMinQty);
   const [isAdding, setIsAdding] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -35,7 +35,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     
     // Ensure quantity meets minimum order requirement based on user type
     // Wholesale users must meet MOQ, guests/retail can order from 1
-    const finalQuantity = Math.max(quantity, effectiveMinQty);
+    const finalQuantity = Math.max(quantity || 1, effectiveMinQty);
     
     try {
       console.log('ProductCard - Adding to cart:', product.name, 'quantity:', finalQuantity);
@@ -179,7 +179,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           
           {/* Total Price Preview */}
           <p className="text-xs sm:text-sm text-gray-600 mt-2 text-center font-medium">
-            Total: <span className="text-blue-600 font-semibold">৳{isClient ? (product.price * quantity).toLocaleString() : (product.price * effectiveMinQty).toLocaleString()}</span>
+            Total: <span className="text-blue-600 font-semibold">৳{isClient ? (product.price * (quantity || 1)).toLocaleString() : (product.price * effectiveMinQty).toLocaleString()}</span>
           </p>
         </>
       ) : (
