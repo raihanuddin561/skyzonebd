@@ -295,7 +295,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         productId: product.id,
         sku: product.sku,
-        price: product.retailPrice,
+        price: product.wholesalePrice,
         category: product.category.name
       },
       request

@@ -9,7 +9,7 @@ interface RegistrationFormProps {
 }
 
 export default function RegistrationForm({ onSubmit, isLoading = false }: RegistrationFormProps) {
-  const [userType, setUserType] = useState<'retail' | 'wholesale'>('retail');
+  const [userType, setUserType] = useState<'RETAIL' | 'WHOLESALE'>('RETAIL');
   const [formData, setFormData] = useState<RegisterData>({
     name: '',
     email: '',
@@ -17,7 +17,7 @@ export default function RegistrationForm({ onSubmit, isLoading = false }: Regist
     confirmPassword: '',
     phone: '',
     role: 'buyer',
-    userType: 'retail',
+    userType: 'RETAIL',
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -40,7 +40,7 @@ export default function RegistrationForm({ onSubmit, isLoading = false }: Regist
     }
   };
 
-  const handleUserTypeChange = (type: 'retail' | 'wholesale') => {
+  const handleUserTypeChange = (type: 'RETAIL' | 'WHOLESALE') => {
     setUserType(type);
     setFormData({
       ...formData,

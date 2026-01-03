@@ -46,7 +46,7 @@ export default function RegisterPage() {
     try {
       await register({
         ...formData,
-        userType: 'retail' // Default to retail, can be changed based on form selection
+        userType: 'RETAIL' // Default to retail, can be changed based on form selection
       });
       router.push('/'); // Redirect to home after successful registration
     } catch (error) {

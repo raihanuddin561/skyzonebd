@@ -137,13 +137,13 @@ export async function GET(
       id: p.id, // Keep as string (cuid)
       name: p.name,
       slug: p.slug,
-      price: p.retailPrice,
+      price: p.wholesalePrice,
       imageUrl: p.imageUrl,
       category: p.category.name,
       categorySlug: p.category.slug,
       rating: p.rating,
       reviewCount: p.reviewCount,
-      minOrderQuantity: p.minOrderQuantity,
+      moq: p.moq,
       availability: p.availability,
     }));
 
@@ -271,7 +271,7 @@ export async function PUT(
     // Track what changed
     const changes: string[] = [];
     if (body.name && body.name !== existing.name) changes.push('name');
-    if (body.retailPrice !== undefined && body.retailPrice !== existing.retailPrice) changes.push('price');
+    if (body.wholesalePrice !== undefined && body.wholesalePrice !== existing.wholesalePrice) changes.push('price');
     if (body.stockQuantity !== undefined && body.stockQuantity !== existing.stockQuantity) changes.push('stock');
     if (body.isActive !== undefined && body.isActive !== existing.isActive) changes.push('status');
 
@@ -290,13 +290,13 @@ export async function PUT(
         changes: changes,
         oldValues: {
           name: existing.name,
-          price: existing.retailPrice,
+          price: existing.wholesalePrice,
           stock: existing.stockQuantity,
           isActive: existing.isActive
         },
         newValues: {
           name: product.name,
-          price: product.retailPrice,
+          price: product.wholesalePrice,
           stock: product.stockQuantity,
           isActive: product.isActive
         }

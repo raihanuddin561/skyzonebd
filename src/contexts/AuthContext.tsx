@@ -198,8 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: state.user,
     isLoading: state.isLoading,
     isAuthenticated: state.isAuthenticated,
-    isRetailCustomer: state.user?.userType === 'retail',
-    isWholesaleCustomer: state.user?.userType === 'wholesale',
+    isWholesaleCustomer: state.user?.userType === 'WHOLESALE',
     login,
     register,
     logout
