@@ -167,7 +167,7 @@ export default function WishlistPage() {
             {user?.userType === 'WHOLESALE' && (
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600">
-                  {items.reduce((total, item) => total + item.minOrderQuantity, 0)}
+                  {items.reduce((total, item) => total + (item.minOrderQuantity || 0), 0)}
                 </div>
                 <div className="text-gray-600">Min Order Units</div>
               </div>
