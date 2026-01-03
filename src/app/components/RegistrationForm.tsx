@@ -63,7 +63,7 @@ export default function RegistrationForm({ onSubmit, isLoading = false }: Regist
         <div className="grid grid-cols-2 gap-4">
           <button
             type="button"
-            onClick={() => handleUserTypeChange('retail')}
+            onClick={() => handleUserTypeChange('RETAIL')}
             className={`p-4 border-2 rounded-lg text-left transition-all ${
               userType === 'RETAIL'
                 ? 'border-blue-500 bg-blue-50'
@@ -81,7 +81,7 @@ export default function RegistrationForm({ onSubmit, isLoading = false }: Regist
 
           <button
             type="button"
-            onClick={() => handleUserTypeChange('wholesale')}
+            onClick={() => handleUserTypeChange('WHOLESALE')}
             className={`p-4 border-2 rounded-lg text-left transition-all ${
               userType === 'WHOLESALE'
                 ? 'border-blue-500 bg-blue-50'
