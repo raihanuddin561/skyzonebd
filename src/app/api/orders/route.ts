@@ -135,7 +135,6 @@ export async function POST(request: NextRequest) {
         guestName: guestData?.name,
         guestEmail: guestData?.email,
         guestPhone: guestData?.mobile,
-        guestCompany: guestData?.companyName,
         subtotal,
         tax,
         shipping,
