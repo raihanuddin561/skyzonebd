@@ -59,7 +59,7 @@ export default function ProductsManagement() {
           name: product.name,
           sku: product.sku || 'N/A',
           category: product.category?.name || 'Uncategorized',
-          price: product.retailPrice || product.price || 0,
+          price: product.wholesalePrice || product.price || 0,
           stock: product.stockQuantity || 0,
           availability: product.stockQuantity > 20 ? 'in_stock' : product.stockQuantity > 0 ? 'limited' : 'out_of_stock',
           image: product.imageUrl || '/images/placeholder.jpg',

@@ -26,7 +26,7 @@ interface HeroSlide {
     name: string;
     slug: string;
     imageUrl: string;
-    retailPrice: number;
+    wholesalePrice: number;
   };
 }
 
@@ -260,7 +260,7 @@ export default function HomePage() {
                               </h3>
                               <div className="flex items-center justify-center gap-2">
                                 <p className="text-blue-600 font-bold text-xl lg:text-2xl xl:text-3xl">
-                                  ৳{slide.product.retailPrice.toLocaleString()}
+                                  ৳{slide.product.wholesalePrice.toLocaleString()}
                                 </p>
                                 <span className="text-green-600 text-xs font-semibold bg-green-50 px-2 py-1 rounded-full">
                                   In Stock
