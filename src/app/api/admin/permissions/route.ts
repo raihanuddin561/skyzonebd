@@ -93,16 +93,16 @@ export async function POST(request: NextRequest) {
     const permission = await grantPermission(
       userId,
       module,
-      granterId,
       {
         canView,
         canCreate,
         canEdit,
         canDelete,
         canApprove,
-        canExport,
-        expiresAt: expiresAt ? new Date(expiresAt) : undefined
-      }
+        canExport
+      },
+      granterId,
+      expiresAt ? new Date(expiresAt) : undefined
     );
 
     return NextResponse.json({
