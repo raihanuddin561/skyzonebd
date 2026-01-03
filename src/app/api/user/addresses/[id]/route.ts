@@ -10,16 +10,17 @@ import { requireAuth } from '@/lib/auth';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate user from JWT token
     const user = await requireAuth(request);
     const userId = user.id;
 
+    const { id } = await params;
     const address = await prisma.address.findFirst({
       where: {
-        id: params.id,
+        id,
         userId // Ensure user can only access their own addresses
       }
     });
@@ -51,17 +52,18 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate user from JWT token
     const user = await requireAuth(request);
     const userId = user.id;
 
+    const { id } = await params;
     // Verify address belongs to user
     const existingAddress = await prisma.address.findFirst({
       where: {
-        id: params.id,
+        id,
         userId
       }
     });
@@ -90,7 +92,7 @@ export async function PUT(
         where: {
           userId,
           isDefault: true,
-          NOT: { id: params.id }
+          NOT: { id }
         },
         data: { isDefault: false }
       });
@@ -98,7 +100,7 @@ export async function PUT(
 
     // Update address
     const updatedAddress = await prisma.address.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         type,
         street,
@@ -131,17 +133,18 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate user from JWT token
     const user = await requireAuth(request);
     const userId = user.id;
 
+    const { id } = await params;
     // Verify address belongs to user
     const address = await prisma.address.findFirst({
       where: {
-        id: params.id,
+        id,
         userId
       }
     });
@@ -155,7 +158,7 @@ export async function DELETE(
 
     // Delete address
     await prisma.address.delete({
-      where: { id: params.id }
+      where: { id }
     });
 
     // If deleted address was default, set another address as default
@@ -193,17 +196,18 @@ export async function DELETE(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate user from JWT token
     const user = await requireAuth(request);
     const userId = user.id;
 
+    const { id } = await params;
     // Verify address belongs to user
     const address = await prisma.address.findFirst({
       where: {
-        id: params.id,
+        id,
         userId
       }
     });
@@ -226,7 +230,7 @@ export async function PATCH(
 
     // Set this address as default
     const updatedAddress = await prisma.address.update({
-      where: { id: params.id },
+      where: { id },
       data: { isDefault: true }
     });
 
