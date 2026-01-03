@@ -1,6 +1,6 @@
 // types/auth.ts - Simplified Registration
 
-export type UserType = 'wholesale' | 'seller' | 'admin' | 'guest';
+export type UserType = 'RETAIL' | 'WHOLESALE' | 'SELLER' | 'ADMIN' | 'GUEST';
 export type UserRole = 'buyer' | 'seller' | 'admin';
 export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'resubmit';
 
@@ -60,7 +60,7 @@ export interface RegisterData {
   
   // Optional fields - can add later from profile
   role?: 'buyer' | 'seller';
-  userType?: 'wholesale' | 'guest';
+  userType?: 'RETAIL' | 'WHOLESALE' | 'GUEST';
   companyName?: string;
   
   // Business info optional - can complete from profile later
