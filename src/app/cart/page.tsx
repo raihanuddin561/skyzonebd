@@ -108,7 +108,7 @@ export default function CartPage() {
                       <p className="text-xs sm:text-sm text-gray-600 mt-1">{item.product.companyName}</p>
                       
                       {/* Show MOQ only for wholesale users and if MOQ is set */}
-                      {user && user.userType === 'wholesale' && item.product.minOrderQuantity && item.product.minOrderQuantity > 0 && (
+                      {user && user.userType === 'WHOLESALE' && item.product.minOrderQuantity && item.product.minOrderQuantity > 0 && (
                         <p className="text-xs sm:text-sm text-gray-500 mt-1">MOQ: {item.product.minOrderQuantity}</p>
                       )}
                       
@@ -127,12 +127,12 @@ export default function CartPage() {
                             {/* Decrease Button */}
                             <button
                               onClick={() => {
-                                const minQty = (user && user.userType === 'wholesale') ? item.product.minOrderQuantity : 1;
+                                const minQty = (user && user.userType === 'WHOLESALE') ? item.product.minOrderQuantity : 1;
                                 const newQty = Math.max(item.quantity - 1, minQty);
                                 handleQuantityChange(item.product.id, newQty, item.product.minOrderQuantity);
                               }}
                               className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-gray-50 hover:bg-blue-50 active:bg-blue-100 text-gray-700 hover:text-blue-600 transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:text-gray-700 group"
-                              disabled={item.quantity <= ((user && user.userType === 'wholesale') ? item.product.minOrderQuantity : 1)}
+                              disabled={item.quantity <= ((user && user.userType === 'WHOLESALE') ? item.product.minOrderQuantity : 1)}
                               aria-label="Decrease quantity"
                             >
                               <svg 
