@@ -142,7 +142,7 @@ export async function PATCH(request: NextRequest) {
         updateData = { isActive: false };
         break;
       case 'activate':
-        updateData = { isActive: true };
+        updateData = { isActive: true, isVerified: true };
         break;
       case 'verify':
         updateData = { isVerified: true };

@@ -142,13 +142,22 @@ export default function UsersManagement() {
       const result = await response.json();
 
       if (result.success) {
-        // Update the local state
-        setUsers(users.map(user => 
-          user.id === userId 
-            ? { ...user, status: newStatus as 'active' | 'suspended' | 'pending' } 
-            : user
-        ));
-        alert(`User status updated to ${newStatus} successfully!`);
+        // Refetch users to get accurate status based on server calculation
+        const refetchResponse = await fetch(`/api/admin/users?${new URLSearchParams({
+          role: filterRole,
+          userType: filterType,
+          status: filterStatus,
+          ...(searchTerm && { search: searchTerm }),
+        })}`);
+        
+        if (refetchResponse.ok) {
+          const refetchResult = await refetchResponse.json();
+          if (refetchResult.success) {
+            setUsers(refetchResult.data.users);
+          }
+        }
+        
+        alert(`User status updated successfully!`);
       } else {
         throw new Error(result.error || 'Failed to update user status');
       }
@@ -181,12 +190,21 @@ export default function UsersManagement() {
 
       await Promise.all(promises);
 
-      // Update the local state
-      setUsers(users.map(user =>
-        selectedUsers.includes(user.id)
-          ? { ...user, status: 'active' as const }
-          : user
-      ));
+      // Refetch users to get accurate status
+      const refetchResponse = await fetch(`/api/admin/users?${new URLSearchParams({
+        role: filterRole,
+        userType: filterType,
+        status: filterStatus,
+        ...(searchTerm && { search: searchTerm }),
+      })}`);
+      
+      if (refetchResponse.ok) {
+        const refetchResult = await refetchResponse.json();
+        if (refetchResult.success) {
+          setUsers(refetchResult.data.users);
+        }
+      }
+      
       setSelectedUsers([]);
       alert(`${selectedUsers.length} user(s) activated successfully!`);
     } catch (error) {
@@ -218,12 +236,21 @@ export default function UsersManagement() {
 
       await Promise.all(promises);
 
-      // Update the local state
-      setUsers(users.map(user =>
-        selectedUsers.includes(user.id)
-          ? { ...user, status: 'suspended' as const }
-          : user
-      ));
+      // Refetch users to get accurate status
+      const refetchResponse = await fetch(`/api/admin/users?${new URLSearchParams({
+        role: filterRole,
+        userType: filterType,
+        status: filterStatus,
+        ...(searchTerm && { search: searchTerm }),
+      })}`);
+      
+      if (refetchResponse.ok) {
+        const refetchResult = await refetchResponse.json();
+        if (refetchResult.success) {
+          setUsers(refetchResult.data.users);
+        }
+      }
+      
       setSelectedUsers([]);
       alert(`${selectedUsers.length} user(s) suspended successfully!`);
     } catch (error) {
