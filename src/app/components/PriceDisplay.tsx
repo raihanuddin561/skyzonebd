@@ -198,23 +198,11 @@ export default function PriceDisplay({
               </table>
             </div>
           </details>
-
-          {product.wholesaleMOQ && (
-            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="flex items-center gap-2">
-                <span className="text-amber-600 text-xl">⚠️</span>
-                <div>
-                  <strong className="text-amber-900">Minimum Order:</strong>
-                  <span className="text-amber-800 ml-2">{product.wholesaleMOQ} units required for wholesale pricing</span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Upgrade Notice for Retail Customers */}
-      {!isWholesale && product.wholesaleEnabled && !showWholesaleTiers && (
+      {/* Upgrade Notice for Business Customers */}
+      {!isWholesale && !showWholesaleTiers && (
         <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 text-2xl">💼</div>
