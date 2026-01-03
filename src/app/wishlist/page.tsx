@@ -19,8 +19,8 @@ export default function WishlistPage() {
     setAddingToCart(product.id);
     
     try {
-      // Use MOQ for wholesale, 1 for guests/retail
-      const quantity = user?.userType === 'wholesale' ? product.minOrderQuantity : 1;
+      // Use MOQ for wholesale (if set), otherwise 1
+      const quantity = (user?.userType === 'wholesale' && product.minOrderQuantity) ? product.minOrderQuantity : 1;
       addToCart(product, quantity);
       toast.success(`Added ${product.name} to cart`);
     } catch (error) {
@@ -117,8 +117,8 @@ export default function WishlistPage() {
                     </div>
                   )}
                 </div>
-                {/* Show MOQ only for wholesale users */}
-                {user?.userType === 'wholesale' && (
+                {/* Show MOQ only for wholesale users and if MOQ is set */}
+                {user && user.userType === 'wholesale' && product.minOrderQuantity && product.minOrderQuantity > 0 && (
                   <p className="text-sm text-gray-500 mb-4">
                     MOQ: {product.minOrderQuantity} units
                   </p>

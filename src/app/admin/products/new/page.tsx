@@ -37,7 +37,7 @@ export default function NewProduct() {
     description: '',
     category: '',
     brand: '',
-    unit: 'piece',
+    unit: '',
     
     // Pricing
     retailPrice: '',
@@ -255,13 +255,13 @@ export default function NewProduct() {
         description: formData.description,
         categoryId: formData.category,
         brand: formData.brand,
-        unit: formData.unit || 'piece',
+        unit: formData.unit || null,
         retailPrice: parseFloat(formData.retailPrice),
         salePrice: formData.salePrice ? parseFloat(formData.salePrice) : null,
         retailMOQ: parseInt(formData.retailMOQ),
         price: parseFloat(formData.retailPrice), // For backward compatibility
         wholesaleEnabled: formData.wholesaleEnabled,
-        wholesaleMOQ: formData.wholesaleMOQ ? parseInt(formData.wholesaleMOQ) : 5,
+        wholesaleMOQ: formData.wholesaleMOQ ? parseInt(formData.wholesaleMOQ) : null,
         stockQuantity: parseInt(formData.stock),
         availability: formData.availability,
         imageUrl: mainImageUrl,
@@ -274,7 +274,7 @@ export default function NewProduct() {
         }, {} as Record<string, string>),
         tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
         isFeatured: formData.featured,
-        minOrderQuantity: formData.wholesaleEnabled ? parseInt(formData.wholesaleMOQ || '5') : 1,
+        minOrderQuantity: formData.wholesaleMOQ ? parseInt(formData.wholesaleMOQ) : null,
         // Include wholesale tiers if wholesale is enabled
         wholesaleTiers: formData.wholesaleEnabled ? formData.wholesaleTiers.filter(
           tier => tier.minQuantity && tier.price

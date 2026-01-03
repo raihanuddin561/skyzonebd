@@ -136,7 +136,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       {(product.availability === 'in_stock' || product.availability === 'limited') && (
         <div className="mb-3">
           <label htmlFor={`quantity-${product.id}`} className="block text-xs sm:text-sm text-gray-600 mb-1.5 font-medium">
-            Quantity {(user && user.userType === 'wholesale') ? `(Min: ${product.minOrderQuantity})` : ''}
+            Quantity {(user && user.userType === 'wholesale' && product.minOrderQuantity && product.minOrderQuantity > 0) ? `(Min: ${product.minOrderQuantity})` : ''}
           </label>
           <input
             id={`quantity-${product.id}`}

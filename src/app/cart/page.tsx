@@ -107,8 +107,8 @@ export default function CartPage() {
                       </Link>
                       <p className="text-xs sm:text-sm text-gray-600 mt-1">{item.product.companyName}</p>
                       
-                      {/* Show MOQ only for wholesale users */}
-                      {user && user.userType === 'wholesale' && (
+                      {/* Show MOQ only for wholesale users and if MOQ is set */}
+                      {user && user.userType === 'wholesale' && item.product.minOrderQuantity && item.product.minOrderQuantity > 0 && (
                         <p className="text-xs sm:text-sm text-gray-500 mt-1">MOQ: {item.product.minOrderQuantity}</p>
                       )}
                       

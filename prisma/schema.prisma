@@ -10,22 +10,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User Management
+// User Management - Simple Registration
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
-  name         String
-  phone        String?
-  companyName  String?
+  name         String   // Required
+  phone        String   // Required (mobile)
+  companyName  String?  // Optional - can add later
   password     String
   role         UserRole @default(BUYER)
-  userType     UserType @default(RETAIL)  // B2C or B2B customer type
+  userType     UserType @default(WHOLESALE)
   isActive     Boolean  @default(true)
-  isVerified   Boolean  @default(false)   // For B2B verification
+  isVerified   Boolean  @default(false)   // Optional business verification
+  
+  // Profit Sharing Configuration (for sellers/partners)
+  profitSharePercentage Float?  // Percentage of profit this seller/partner receives
+  isProfitPartner       Boolean @default(false)  // Is this user a profit-sharing partner?
+  
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   
-  // B2B Specific Fields
+  // Business Information (Optional - can complete from profile later)
   businessInfo BusinessInfo?
   
   // Relations
@@ -35,24 +40,120 @@ model User {
   products     Product[]  // Products created/managed by this user (seller)
   activityLogs ActivityLog[]  // Admin activity logs
   dataDeletionRequests DataDeletionRequest[]  // GDPR data deletion requests
+  permissions  UserPermission[]  // Granular permissions for this user
   
   @@map("users")
 }
 
-// Business Information for B2B Users
+// User Permissions - Granular Access Control
+model UserPermission {
+  id          String   @id @default(cuid())
+  userId      String
+  module      PermissionModule  // Which module/feature
+  canView     Boolean  @default(false)
+  canCreate   Boolean  @default(false)
+  canEdit     Boolean  @default(false)
+  canDelete   Boolean  @default(false)
+  canApprove  Boolean  @default(false)  // For approval workflows
+  canExport   Boolean  @default(false)  // Export data
+  
+  grantedBy   String?  // Admin who granted this permission
+  grantedAt   DateTime @default(now())
+  expiresAt   DateTime?  // Optional expiration
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, module])
+  @@map("user_permissions")
+  @@index([userId])
+  @@index([module])
+}
+
+enum PermissionModule {
+  // Inventory Management
+  INVENTORY_VIEW
+  INVENTORY_MANAGE
+  INVENTORY_REPORTS
+  
+  // Employee Management
+  EMPLOYEES_VIEW
+  EMPLOYEES_MANAGE
+  EMPLOYEES_REPORTS
+  
+  // Salary Management
+  SALARIES_VIEW
+  SALARIES_MANAGE
+  SALARIES_PROCESS
+  SALARIES_APPROVE
+  
+  // Operational Costs
+  COSTS_VIEW
+  COSTS_MANAGE
+  COSTS_APPROVE
+  
+  // Profit & Loss
+  PROFIT_LOSS_VIEW
+  PROFIT_LOSS_REPORTS
+  
+  // Products
+  PRODUCTS_VIEW
+  PRODUCTS_MANAGE
+  
+  // Orders
+  ORDERS_VIEW
+  ORDERS_MANAGE
+  ORDERS_PROCESS
+  
+  // Customers
+  CUSTOMERS_VIEW
+  CUSTOMERS_MANAGE
+  
+  // Categories
+  CATEGORIES_VIEW
+  CATEGORIES_MANAGE
+  
+  // Users & Permissions
+  USERS_VIEW
+  USERS_MANAGE
+  PERMISSIONS_MANAGE
+  
+  // System Settings
+  SETTINGS_VIEW
+  SETTINGS_MANAGE
+  
+  // Reports & Analytics
+  REPORTS_VIEW
+  REPORTS_EXPORT
+  ANALYTICS_VIEW
+}
+
+// Business Information (Optional - can complete from profile)
 model BusinessInfo {
   id                    String   @id @default(cuid())
   userId                String   @unique
-  companyType           String?  // Retailer, Distributor, Manufacturer
-  registrationNumber    String?
-  taxId                 String?
+  companyType           String?  // Optional: Retailer, Distributor, Manufacturer, Reseller
+  registrationNumber    String?  // Optional
+  taxId                 String?  // Optional
   website               String?
   employeeCount         String?
   annualPurchaseVolume  String?
-  tradeLicenseUrl       String?
-  taxCertificateUrl     String?
+  tradeLicenseUrl       String?  // Optional: Trade license document
+  taxCertificateUrl     String?  // Optional: Tax certificate/TIN certificate
   verificationStatus    VerificationStatus @default(PENDING)
   verifiedAt            DateTime?
+  
+  // Additional Business Information (Optional)
+  businessAddress       String?
+  businessCity          String?
+  businessCountry       String   @default("Bangladesh")
+  shippingPreferences   String?  // Bulk/Pallet/Container shipping
+  paymentTerms          String?  // Payment terms preference
+  creditLimit           Float?   // Maximum credit allowed
+  
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   
@@ -127,31 +228,35 @@ model Product {
   brand            String?
   tags             String[]      @default([])
   specifications   Json?         // Flexible specifications as JSON
-  unit             String        @default("piece") // Unit of measurement (stores unit symbol)
+  unit             String?       // Unit of measurement (stores unit symbol) - optional
   
-  // B2C Pricing
-  retailPrice      Float         // Standard retail price for individual customers
-  salePrice        Float?        // Promotional/sale price for retail
-  retailMOQ        Int           @default(1) // Minimum order for retail (usually 1)
-  comparePrice     Float?        // Original price for showing discounts
+  // WHOLESALE PRICING ONLY
+  basePrice        Float         // Base cost price (what platform pays)
+  wholesalePrice   Float         // Selling price to wholesale customers
+  moq              Int?          // Minimum Order Quantity (optional)
   
-  // B2B Pricing
-  wholesaleEnabled Boolean       @default(false) // Is wholesale available?
-  wholesaleMOQ     Int           @default(5) // Minimum order quantity for wholesale
-  baseWholesalePrice Float?      // Base wholesale price
+  // Profit Calculation
+  platformProfitPercentage Float @default(15) // Admin-controlled profit %
+  calculatedProfit         Float?             // Auto-calculated: (wholesalePrice - basePrice) * platformProfitPercentage/100
+  sellerProfit             Float?             // Profit allocated to seller/partner
   
-  // Legacy fields for backward compatibility
-  price            Float         // Maps to retailPrice
-  wholesalePrice   Float?        // Deprecated, use wholesaleTiers
-  minOrderQuantity Int           @default(1)
-  
-  // Inventory
+  // Inventory Management
   stockQuantity    Int           @default(0)
-  availability     String        @default("in_stock") // in_stock, limited, out_of_stock
+  reorderLevel     Int           @default(20)      // Alert when stock reaches this level
+  reorderQuantity  Int           @default(100)     // Suggested reorder quantity
+  availability     String        @default("in_stock") // in_stock, limited, out_of_stock, pre_order
   sku              String?       @unique
+  batchNumber      String?       // For batch tracking
+  expiryDate       DateTime?     // For perishable goods
   
-  // Seller Information (Optional - for multi-vendor support)
-  sellerId         String?       // References User who added this product
+  // Cost Tracking
+  costPerUnit      Float?        // Actual cost per unit (for profit calculation)
+  shippingCost     Float?        // Shipping cost per unit
+  handlingCost     Float?        // Handling/storage cost per unit
+  
+  // Seller Information (For multi-vendor/partner model)
+  sellerId         String?       // Partner who supplies this product
+  sellerCommissionPercentage Float? // Partner's commission percentage
   
   // Metadata
   categoryId       String
@@ -159,6 +264,12 @@ model Product {
   isFeatured       Boolean       @default(false)
   rating           Float?
   reviewCount      Int           @default(0)
+  
+  // Wholesale Preferences
+  allowSamples     Boolean       @default(false) // Allow sample orders
+  sampleMOQ        Int           @default(1)     // MOQ for samples
+  samplePrice      Float?        // Price per sample unit
+  customizationAvailable Boolean  @default(false) // Can be customized
   
   // SEO
   metaTitle        String?
@@ -171,21 +282,27 @@ model Product {
   category         Category      @relation(fields: [categoryId], references: [id])
   seller           User?         @relation(fields: [sellerId], references: [id], onDelete: SetNull)
   orderItems       OrderItem[]
-  wholesaleTiers   WholesaleTier[]
+  wholesaleTiers   WholesaleTier[] // Volume-based pricing
   rfqItems         RFQItem[]
   heroSlides       HeroSlide[]
+  inventoryLogs    InventoryLog[] // Track inventory changes
+  profitReports    ProfitReport[] // Profit analysis per product
   
   @@map("products")
 }
 
-// Wholesale Pricing Tiers for B2B
+// Wholesale Pricing Tiers for Volume-based Discounts
 model WholesaleTier {
   id          String   @id @default(cuid())
   productId   String
-  minQuantity Int
-  maxQuantity Int?     // null means unlimited
-  price       Float
-  discount    Float    // Percentage discount from retail
+  minQuantity Int      // Minimum quantity for this tier
+  maxQuantity Int?     // null means unlimited/highest tier
+  price       Float    // Price per unit at this tier
+  discount    Float    // Percentage discount from base wholesale price
+  
+  // Profit calculation for this tier
+  profitMargin Float?  // Profit margin % at this tier
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -200,17 +317,25 @@ model WholesaleTier {
 model Order {
   id              String        @id @default(cuid())
   orderNumber     String        @unique
-  userId          String?       // Nullable for guest orders
-  guestEmail      String?
+  userId          String?       // Optional - nullable for guest orders
+  
+  // Guest Order Information
   guestName       String?
-  guestPhone      String?
-  guestCompany    String?
+  guestPhone      String?       // Required for guest
+  guestEmail      String?
   
   // Order Details
   subtotal        Float
   tax             Float         @default(0)
   shipping        Float         @default(0)
   total           Float
+  
+  // Profit Tracking
+  totalCost       Float?        // Total cost of goods
+  grossProfit     Float?        // Total revenue - total cost
+  platformProfit  Float?        // Platform's share of profit
+  sellerProfit    Float?        // Seller's/Partner's share
+  profitMargin    Float?        // Profit margin percentage
   
   // Status
   status          OrderStatus   @default(PENDING)
@@ -226,8 +351,15 @@ model Order {
   shippingAddress String
   billingAddress  String
   
+  // Wholesale Specific
+  purchaseOrderNumber String?   // Customer's PO number
+  deliveryDate        DateTime? // Requested delivery date
+  paymentTerms        String?   // NET30, NET60, etc.
+  invoiceUrl          String?   // Generated invoice PDF URL
+  
   // Notes
   notes           String?
+  internalNotes   String?       // Admin/seller notes (not visible to customer)
   
   // Timestamps
   createdAt       DateTime      @default(now())
@@ -237,6 +369,7 @@ model Order {
   user            User?         @relation(fields: [userId], references: [id])
   orderItems      OrderItem[]
   payments        Payment[]
+  profitReports   ProfitReport[]
   
   @@map("orders")
 }
@@ -246,8 +379,15 @@ model OrderItem {
   orderId   String
   productId String
   quantity  Int
-  price     Float    // Price at time of order
+  price     Float    // Price per unit at time of order
   total     Float    // quantity * price
+  
+  // Profit Tracking per Item
+  costPerUnit     Float?   // Cost per unit at time of order
+  profitPerUnit   Float?   // Profit per unit
+  totalProfit     Float?   // Total profit for this line item
+  profitMargin    Float?   // Profit margin % for this item
+  
   createdAt DateTime @default(now())
   
   // Relations
@@ -320,9 +460,10 @@ enum UserRole {
 }
 
 enum UserType {
-  RETAIL      // B2C - Individual/retail customers
-  WHOLESALE   // B2B - Business/wholesale customers
-  GUEST       // Not logged in
+  WHOLESALE   // Wholesale/Business customers
+  SELLER      // Sellers/Suppliers
+  ADMIN       // Platform administrators
+  GUEST       // Guest checkout with mobile + address only
 }
 
 enum VerificationStatus {
@@ -349,28 +490,44 @@ enum OrderStatus {
   PENDING
   CONFIRMED
   PROCESSING
+  PACKED
   SHIPPED
+  IN_TRANSIT
   DELIVERED
   CANCELLED
   RETURNED
+  REFUNDED
 }
 
 enum PaymentStatus {
   PENDING
   PAID
+  PARTIAL
   FAILED
   REFUNDED
 }
 
 enum PaymentMethod {
   BANK_TRANSFER
-  CASH_ON_DELIVERY
   BKASH
   NAGAD
   ROCKET
   CREDIT_CARD
-  INVOICE_NET30  // B2B payment terms
+  INVOICE_NET30  // Wholesale payment terms
   INVOICE_NET60
+  INVOICE_NET90
+  LC             // Letter of Credit for large orders
+}
+
+enum InventoryAction {
+  PURCHASE       // Stock added from supplier
+  SALE           // Stock reduced from order
+  RETURN         // Stock returned from customer
+  ADJUSTMENT     // Manual adjustment by admin
+  DAMAGE         // Damaged stock write-off
+  EXPIRED        // Expired stock write-off
+  TRANSFER       // Stock transfer between warehouses
+  RECOUNT        // Physical inventory recount
 }
 
 // Hero Slider for Homepage
@@ -441,6 +598,385 @@ enum DeletionRequestStatus {
   COMPLETED
   REJECTED
   CANCELLED
+}
+
+// Inventory Management System
+model InventoryLog {
+  id              String          @id @default(cuid())
+  productId       String
+  action          InventoryAction
+  quantity        Int             // Positive for additions, negative for reductions
+  previousStock   Int             // Stock before action
+  newStock        Int             // Stock after action
+  reference       String?         // Order ID, PO number, etc.
+  notes           String?
+  performedBy     String?         // User ID who performed the action
+  createdAt       DateTime        @default(now())
+  
+  // Relations
+  product         Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@map("inventory_logs")
+  @@index([productId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// Profit Sharing & Reporting
+model ProfitReport {
+  id                    String   @id @default(cuid())
+  orderId               String
+  productId             String?  // Null for order-level report
+  
+  // Revenue & Cost
+  revenue               Float    // Total sales revenue
+  costOfGoods           Float    // Total cost of goods sold
+  grossProfit           Float    // Revenue - Cost
+  
+  // Expenses
+  shippingExpense       Float    @default(0)
+  handlingExpense       Float    @default(0)
+  platformExpense       Float    @default(0) // Platform operational costs
+  marketingExpense      Float    @default(0)
+  otherExpenses         Float    @default(0)
+  totalExpenses         Float    // Sum of all expenses
+  
+  // Net Profit
+  netProfit             Float    // Gross profit - Total expenses
+  profitMargin          Float    // (Net profit / Revenue) * 100
+  
+  // Profit Distribution
+  platformProfit        Float    // Platform's share
+  platformProfitPercent Float    // Platform profit percentage (set by admin)
+  sellerProfit          Float    // Seller/Partner's share
+  sellerProfitPercent   Float    // Seller profit percentage
+  sellerId              String?  // Partner/Seller who gets the share
+  
+  // Period
+  reportPeriod          String?  // Daily, Weekly, Monthly, etc.
+  reportDate            DateTime @default(now())
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // Relations
+  order                 Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product               Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  
+  @@map("profit_reports")
+  @@index([orderId])
+  @@index([productId])
+  @@index([reportDate])
+}
+
+// Platform Configuration for Profit Sharing
+model PlatformConfig {
+  id                        String   @id @default(cuid())
+  key                       String   @unique  // Configuration key
+  value                     String   // Configuration value (JSON string for complex values)
+  description               String?
+  category                  String   @default("general") // general, profit, inventory, etc.
+  
+  // Common profit sharing configs:
+  // - default_platform_profit_percentage
+  // - default_seller_profit_percentage
+  // - minimum_order_value
+  // - maximum_credit_limit
+  // - reorder_notification_enabled
+  
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  
+  @@map("platform_config")
+}
+
+// Warehouse/Location Management (for multi-location inventory)
+model Warehouse {
+  id              String   @id @default(cuid())
+  name            String
+  code            String   @unique  // Warehouse code (e.g., WH-DHK-01)
+  address         String
+  city            String
+  country         String   @default("Bangladesh")
+  contactPerson   String?
+  contactPhone    String?
+  isActive        Boolean  @default(true)
+  isPrimary       Boolean  @default(false)  // Primary warehouse
+  capacity        Int?     // Storage capacity
+  currentLoad     Int?     // Current storage utilization
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("warehouses")
+}
+
+// Employee Management
+model Employee {
+  id              String           @id @default(cuid())
+  employeeId      String           @unique // Custom employee ID (e.g., EMP-001)
+  firstName       String
+  lastName        String
+  email           String           @unique
+  phone           String
+  dateOfBirth     DateTime?
+  gender          String?
+  address         String?
+  city            String?
+  country         String           @default("Bangladesh")
+  
+  // Employment Details
+  department      String           // Sales, Operations, IT, HR, Finance, etc.
+  designation     String           // Manager, Associate, Executive, etc.
+  employmentType  EmploymentType   @default(FULL_TIME)
+  joiningDate     DateTime
+  resignationDate DateTime?
+  isActive        Boolean          @default(true)
+  
+  // Salary Information
+  baseSalary      Float            // Monthly base salary
+  allowances      Float            @default(0) // Housing, transport, etc.
+  bonuses         Float            @default(0) // Performance bonuses
+  
+  // Emergency Contact
+  emergencyContact String?
+  emergencyPhone   String?
+  
+  // Documents
+  nidNumber       String?          // National ID
+  tinNumber       String?          // Tax Identification Number
+  bankAccount     String?
+  bankName        String?
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  // Relations
+  salaries        Salary[]
+  attendances     Attendance[]
+  
+  @@map("employees")
+  @@index([employeeId])
+  @@index([department])
+  @@index([isActive])
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+  FREELANCE
+}
+
+// Salary Records
+model Salary {
+  id              String        @id @default(cuid())
+  employeeId      String
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Salary Period
+  month           Int           // 1-12
+  year            Int
+  
+  // Salary Components
+  baseSalary      Float
+  allowances      Float         @default(0)
+  bonuses         Float         @default(0)
+  overtime        Float         @default(0)
+  grossSalary     Float         // baseSalary + allowances + bonuses + overtime
+  
+  // Deductions
+  tax             Float         @default(0)
+  providentFund   Float         @default(0)
+  insurance       Float         @default(0)
+  loan            Float         @default(0)
+  otherDeductions Float         @default(0)
+  totalDeductions Float         // Sum of all deductions
+  
+  // Net Salary
+  netSalary       Float         // grossSalary - totalDeductions
+  
+  // Payment Details
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentDate     DateTime?
+  paymentMethod   String?       // Bank Transfer, Cash, Cheque
+  paymentReference String?      // Transaction ID or Cheque number
+  
+  // Attendance
+  workingDays     Int           @default(0)
+  presentDays     Int           @default(0)
+  absentDays      Int           @default(0)
+  leaveDays       Int           @default(0)
+  
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@unique([employeeId, month, year])
+  @@map("salaries")
+  @@index([employeeId])
+  @@index([month, year])
+  @@index([paymentStatus])
+}
+
+// Attendance Tracking
+model Attendance {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  date        DateTime
+  checkIn     DateTime?
+  checkOut    DateTime?
+  status      AttendanceStatus @default(PRESENT)
+  workHours   Float?   // Calculated work hours
+  overtime    Float?   // Overtime hours
+  
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([employeeId, date])
+  @@map("attendances")
+  @@index([employeeId])
+  @@index([date])
+  @@index([status])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LEAVE
+  HOLIDAY
+  SICK_LEAVE
+  CASUAL_LEAVE
+  WORK_FROM_HOME
+}
+
+// Operational Costs/Expenses
+model OperationalCost {
+  id              String        @id @default(cuid())
+  category        CostCategory
+  subCategory     String?       // More specific categorization
+  description     String
+  amount          Float
+  
+  // Period
+  date            DateTime      @default(now())
+  month           Int           // 1-12
+  year            Int
+  
+  // Payment Details
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentDate     DateTime?
+  paymentMethod   String?
+  paymentReference String?      // Invoice number, receipt number
+  
+  // Vendor/Supplier
+  vendor          String?
+  vendorContact   String?
+  
+  // Approval
+  isApproved      Boolean       @default(false)
+  approvedBy      String?       // Admin user ID
+  approvedAt      DateTime?
+  
+  // Recurring
+  isRecurring     Boolean       @default(false)
+  recurringPeriod String?       // Monthly, Quarterly, Yearly
+  
+  notes           String?
+  attachmentUrl   String?       // Receipt/invoice attachment
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@map("operational_costs")
+  @@index([category])
+  @@index([month, year])
+  @@index([paymentStatus])
+  @@index([date])
+}
+
+enum CostCategory {
+  RENT              // Office/warehouse rent
+  UTILITIES         // Electricity, water, internet
+  SALARIES          // Employee salaries
+  MARKETING         // Advertising, promotions
+  SHIPPING          // Delivery and logistics
+  PACKAGING         // Packaging materials
+  OFFICE_SUPPLIES   // Stationery, equipment
+  MAINTENANCE       // Repairs, servicing
+  INSURANCE         // Business insurance
+  TAXES             // Business taxes
+  LEGAL             // Legal fees
+  SOFTWARE          // Software subscriptions
+  INVENTORY         // Inventory purchase costs
+  TRANSPORTATION    // Vehicle fuel, maintenance
+  COMMUNICATION     // Phone, internet bills
+  TRAINING          // Employee training
+  ENTERTAINMENT     // Client entertainment
+  BANK_CHARGES      // Banking fees
+  DEPRECIATION      // Asset depreciation
+  MISCELLANEOUS     // Other expenses
+}
+
+// Comprehensive Profit & Loss Report
+model ProfitLossReport {
+  id              String   @id @default(cuid())
+  
+  // Period
+  month           Int      // 1-12
+  year            Int
+  startDate       DateTime
+  endDate         DateTime
+  
+  // Revenue
+  totalRevenue    Float    // Total sales revenue
+  returnRevenue   Float    @default(0) // Revenue from returns
+  netRevenue      Float    // Total - Returns
+  
+  // Cost of Goods Sold (COGS)
+  openingStock    Float    @default(0)
+  purchases       Float    @default(0) // Inventory purchases
+  closingStock    Float    @default(0)
+  cogs            Float    // Opening + Purchases - Closing
+  
+  // Gross Profit
+  grossProfit     Float    // Net Revenue - COGS
+  grossMargin     Float    // (Gross Profit / Net Revenue) * 100
+  
+  // Operating Expenses
+  salaryExpense   Float    @default(0)
+  rentExpense     Float    @default(0)
+  utilitiesExpense Float   @default(0)
+  marketingExpense Float   @default(0)
+  shippingExpense Float    @default(0)
+  otherExpenses   Float    @default(0)
+  totalOperatingExpenses Float
+  
+  // Operating Profit
+  operatingProfit Float    // Gross Profit - Operating Expenses
+  operatingMargin Float    // (Operating Profit / Net Revenue) * 100
+  
+  // Net Profit
+  netProfit       Float    // Operating Profit - Other Expenses
+  netMargin       Float    // (Net Profit / Net Revenue) * 100
+  
+  // Additional Metrics
+  orderCount      Int      @default(0)
+  customerCount   Int      @default(0)
+  averageOrderValue Float  @default(0)
+  
+  generatedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([month, year])
+  @@map("profit_loss_reports")
+  @@index([month, year])
 }
 
 // Data Deletion Request Model (for GDPR/Google Play compliance)

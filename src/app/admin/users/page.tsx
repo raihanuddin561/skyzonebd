@@ -108,9 +108,128 @@ export default function UsersManagement() {
     }
   };
 
-  const handleStatusChange = (userId: string, newStatus: string) => {
-    console.log(`Changing user ${userId} status to ${newStatus}`);
-    // TODO: Implement status change API call
+  const handleStatusChange = async (userId: string, newStatus: string) => {
+    try {
+      // Determine the action based on the new status
+      let action = '';
+      if (newStatus === 'active') {
+        action = 'activate';
+      } else if (newStatus === 'suspended') {
+        action = 'suspend';
+      } else if (newStatus === 'pending') {
+        // For pending, we need to handle it differently
+        // We'll deactivate and unverify the user
+        action = 'update';
+      }
+
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          action,
+          ...(action === 'update' && {
+            data: {
+              isActive: false,
+              isVerified: false,
+            },
+          }),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update the local state
+        setUsers(users.map(user => 
+          user.id === userId 
+            ? { ...user, status: newStatus as 'active' | 'suspended' | 'pending' } 
+            : user
+        ));
+        alert(`User status updated to ${newStatus} successfully!`);
+      } else {
+        throw new Error(result.error || 'Failed to update user status');
+      }
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      alert(`Failed to update user status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleBulkActivate = async () => {
+    if (selectedUsers.length === 0) return;
+    
+    if (!confirm(`Are you sure you want to activate ${selectedUsers.length} user(s)?`)) {
+      return;
+    }
+
+    try {
+      const promises = selectedUsers.map(userId =>
+        fetch('/api/admin/users', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId,
+            action: 'activate',
+          }),
+        })
+      );
+
+      await Promise.all(promises);
+
+      // Update the local state
+      setUsers(users.map(user =>
+        selectedUsers.includes(user.id)
+          ? { ...user, status: 'active' as const }
+          : user
+      ));
+      setSelectedUsers([]);
+      alert(`${selectedUsers.length} user(s) activated successfully!`);
+    } catch (error) {
+      console.error('Error activating users:', error);
+      alert(`Failed to activate users: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleBulkSuspend = async () => {
+    if (selectedUsers.length === 0) return;
+    
+    if (!confirm(`Are you sure you want to suspend ${selectedUsers.length} user(s)?`)) {
+      return;
+    }
+
+    try {
+      const promises = selectedUsers.map(userId =>
+        fetch('/api/admin/users', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId,
+            action: 'suspend',
+          }),
+        })
+      );
+
+      await Promise.all(promises);
+
+      // Update the local state
+      setUsers(users.map(user =>
+        selectedUsers.includes(user.id)
+          ? { ...user, status: 'suspended' as const }
+          : user
+      ));
+      setSelectedUsers([]);
+      alert(`${selectedUsers.length} user(s) suspended successfully!`);
+    } catch (error) {
+      console.error('Error suspending users:', error);
+      alert(`Failed to suspend users: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   return (
@@ -269,10 +388,16 @@ export default function UsersManagement() {
               {selectedUsers.length} user(s) selected
             </span>
             <div className="grid grid-cols-2 sm:flex gap-2">
-              <button className="px-3 py-1.5 sm:py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-xs sm:text-sm">
+              <button 
+                onClick={handleBulkActivate}
+                className="px-3 py-1.5 sm:py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-xs sm:text-sm"
+              >
                 Activate
               </button>
-              <button className="px-3 py-1.5 sm:py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-xs sm:text-sm">
+              <button 
+                onClick={handleBulkSuspend}
+                className="px-3 py-1.5 sm:py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-xs sm:text-sm"
+              >
                 Suspend
               </button>
               <button className="px-3 py-1.5 sm:py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-xs sm:text-sm hidden sm:block">

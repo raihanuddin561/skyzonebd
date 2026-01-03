@@ -1,103 +1,91 @@
-# Android App - Recent Changes Update Guide
-## Changes Made: December 24-25, 2025
+# Android App Update - December 24-25, 2025
+
+## What Changed?
+Added **Unit Management System** - Products now show prices with measurement units (e.g., "৳500/kg" instead of just "৳500")
 
 ---
 
-## CRITICAL CHANGES TO IMPLEMENT
+## Implementation Steps
 
-### 1. Product Model - Add Unit Field (REQUIRED)
+### 1. Update Product Model
+Add `unit` field to your Product data class:
 
-**CHANGE**: Products now have a `unit` field for pricing display
-
-**UPDATE YOUR Product DATA CLASS:**
 ```kotlin
 data class Product(
-    val id: String,
-    val name: String,
-    val price: Double,
-    val unit: String,  // 🆕 NEW FIELD - "piece", "kg", "liter", "box", etc.
-    val imageUrl: String,
-    val description: String?,
-    val category: String,
-    val brand: String?,
-    val stockQuantity: Int,
-    val availability: String,
-    val rating: Double?,
-    val minOrderQuantity: Int,
-    val isFeatured: Boolean,
-    // ... other fields
+    // ... existing fields
+    val unit: String = "piece"  // NEW: kg, liter, piece, box, etc.
 )
 ```
 
-**WHY**: All prices must now display with their unit (e.g., "৳500/kg")
+**When parsing JSON:**
+```kotlin
+unit = jsonObject.optString("unit", "piece")
+```
 
 ---
 
-### 2. API Changes - Products Endpoint
+### 2. Update API Call
+Products API now returns more items:
 
-**CHANGE**: Products API now returns `unit` field and increased default limit
-
-**UPDATED RESPONSE FORMAT:**
-```json
-{
-  "success": true,
-  "data": {
-    "products": [
-      {
-        "id": "clxxx",
-        "name": "Product Name",
-        "price": 500,
-        "unit": "kg",  // 🆕 NEW
-        "imageUrl": "...",
-        "category": "Electronics",
-        // ... other fields
-      }
-    ],
-    "pagination": { ... }
-  }
-}
-```
-
-**UPDATE YOUR API CALLS:**
 ```kotlin
-// Old:
-GET /api/products?page=1&limit=12
-
-// New: Fetch more products per page
+// Change limit from 12 to 100
 GET /api/products?page=1&limit=100
 ```
 
-**WHY**: Backend now returns 100 products by default to show all active items
-
 ---
 
-### 3. Price Display - Show Unit Everywhere (CRITICAL)
+### 3. Update Price Display (CRITICAL)
+Change ALL price displays to include unit:
 
-**CHANGE**: All price displays MUST include the unit
-
-**UPDATE ALL THESE SCREENS:**
-
-#### Product List/Grid Items:
+**Product Cards:**
 ```kotlin
-// Old:
-textView.text = "৳${product.price}"
-
-// New:
-textView.text = "৳${product.price}/${product.unit}"
-// Example: "৳500/kg"
+// Old: "৳500"
+priceText.text = "৳${product.price}/${product.unit}"
+// New: "৳500/kg"
 ```
 
-#### Product Detail Screen:
+**Product Detail:**
 ```kotlin
-// Old:
-priceText.text = "৳${product.price.formatWithComma()}"
-
-// New:
 priceText.text = "৳${product.price.formatWithComma()}/${product.unit}"
 // Example: "৳2,500/kg"
 ```
 
-#### Cart Items:
+**Cart Items:**
+```kotlin
+itemPriceText.text = "৳${item.price}/${item.unit}"
+```
+
+**Wishlist:**
+```kotlin
+priceText.text = "৳${product.price}/${product.unit}"
+```
+
+**Search Results:**
+```kotlin
+priceText.text = "৳${product.price}/${product.unit}"
+```
+
+---
+
+## Testing
+1. Fetch products - verify `unit` field exists
+2. Check all screens show prices with units
+3. Verify default "piece" is used if unit is missing
+
+---
+
+## API Response Example
+```json
+{
+  "id": "123",
+  "name": "Rice",
+  "price": 120,
+  "unit": "kg",  // NEW FIELD
+  "imageUrl": "..."
+}
+```
+
+That's it! Just add the unit field and update price displays everywhere.
 ```kotlin
 // Old:
 unitPrice.text = "৳${item.product.price}"
@@ -909,7 +897,7 @@ Support both B2C (retail) and B2B (wholesale) users with tiered pricing."
    - Out of stock items
 
 5. **PERFORMANCE**:
-   - Lazy load images
+   - Lazy load images 
    - Paginate product lists
    - Cache frequently accessed data
    - Optimize API calls

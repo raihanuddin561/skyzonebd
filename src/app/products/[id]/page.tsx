@@ -61,7 +61,7 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (product) {
       // Set quantity based on user type: ONLY wholesale uses MOQ, guests/retail always start at 1
-      const initialQty = (user && user.userType === 'wholesale') ? product.minOrderQuantity : 1;
+      const initialQty = (user && user.userType === 'wholesale' && product.minOrderQuantity) ? product.minOrderQuantity : 1;
       setQuantity(initialQty);
       
       // Automatically set the first available image
@@ -99,7 +99,7 @@ export default function ProductDetailPage() {
   const handleQuantityChange = (newQuantity: number) => {
     if (product) {
       // Enforce MOQ ONLY for wholesale users, guests/retail can order from 1
-      const minQty = (user && user.userType === 'wholesale') ? product.minOrderQuantity : 1;
+      const minQty = (user && user.userType === 'wholesale' && product.minOrderQuantity) ? product.minOrderQuantity : 1;
       setQuantity(Math.max(newQuantity, minQty));
     }
   };
@@ -397,8 +397,8 @@ export default function ProductDetailPage() {
                   </>
                 )}
               </div>
-              {/* Show MOQ ONLY for wholesale users, NOT for guests or retail */}
-              {(user && user.userType === 'wholesale') && (
+              {/* Show MOQ ONLY for wholesale users and if MOQ is set */}
+              {user && user.userType === 'wholesale' && product.minOrderQuantity && product.minOrderQuantity > 0 && (
                 <p className="text-sm text-gray-600">
                   Minimum Order Quantity: {product.minOrderQuantity} units
                 </p>
@@ -427,17 +427,17 @@ export default function ProductDetailPage() {
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">
-                        Quantity {(user && user.userType === 'wholesale') ? `(Min: ${product.minOrderQuantity})` : ''}
+                        Quantity {(user && user.userType === 'wholesale' && product.minOrderQuantity && product.minOrderQuantity > 0) ? `(Min: ${product.minOrderQuantity})` : ''}
                       </label>
                       <div className="flex items-center border-2 border-gray-300 rounded-lg overflow-hidden shadow-sm">
                         {/* Decrease Button */}
                         <button
                           onClick={() => {
-                            const minQty = (user && user.userType === 'wholesale') ? product.minOrderQuantity : 1;
+                            const minQty = (user && user.userType === 'wholesale' && product.minOrderQuantity) ? product.minOrderQuantity : 1;
                             const newQty = Math.max(quantity - 1, minQty);
                             handleQuantityChange(newQty);
                           }}
-                          disabled={quantity <= ((user && user.userType === 'wholesale') ? product.minOrderQuantity : 1)}
+                          disabled={quantity <= ((user && user.userType === 'wholesale' && product.minOrderQuantity) ? product.minOrderQuantity : 1)}
                           className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-gray-50 hover:bg-blue-50 active:bg-blue-100 text-gray-700 hover:text-blue-600 transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:text-gray-700"
                           aria-label="Decrease quantity"
                         >

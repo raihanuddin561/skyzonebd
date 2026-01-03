@@ -4,7 +4,7 @@ export interface Product {
   id: string | number; // Support both string (cuid) and number for compatibility
   name: string;
   price: number;
-  minOrderQuantity: number;
+  minOrderQuantity?: number; // Optional - admin can choose not to set MOQ
   companyName: string;
   imageUrl: string;
   unit?: string; // Unit of measurement (piece, kg, liter, box, etc.)

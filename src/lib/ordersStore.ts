@@ -3,12 +3,26 @@
 // WARNING: In production, this will reset when the server restarts
 // Use a real database (Prisma + PostgreSQL) for production
 
+interface GuestInfo {
+  name: string;
+  email: string;
+  phone: string;
+}
+
+interface OrderItem {
+  productId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  imageUrl?: string;
+}
+
 interface Order {
   id: number;
   orderId: string;
   userId: string | null;
-  guestInfo: any | null;
-  items: any[];
+  guestInfo: GuestInfo | null;
+  items: OrderItem[];
   shippingAddress: string;
   billingAddress: string;
   paymentMethod: string;

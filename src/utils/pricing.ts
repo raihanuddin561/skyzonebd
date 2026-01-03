@@ -1,7 +1,6 @@
-// utils/pricing.ts - Price calculation utilities for B2C/B2B
+// utils/pricing.ts - WHOLESALE-ONLY Price calculation utilities
 
 import { Product, WholesaleTier } from '@/types/product';
-import { UserType } from '@/types/auth';
 
 export interface PriceInfo {
   price: number;
@@ -9,66 +8,49 @@ export interface PriceInfo {
   discount?: number;
   tier?: WholesaleTier;
   savings?: number;
-  priceType: 'retail' | 'sale' | 'wholesale';
+  priceType: 'wholesale' | 'tier';
 }
 
 /**
- * Calculate the effective price for a product based on user type and quantity
+ * Calculate the wholesale price for a product based on quantity
+ * WHOLESALE ONLY - No retail pricing
  */
 export function calculatePrice(
   product: Product,
-  quantity: number,
-  userType: UserType = 'guest'
+  quantity: number
 ): PriceInfo {
-  // Guest and retail customers get retail pricing
-  if (userType === 'guest' || userType === 'retail') {
-    const retailPrice = product.salePrice || product.retailPrice || product.price;
-    const originalPrice = product.salePrice ? product.retailPrice : undefined;
-    const discount = originalPrice 
-      ? Math.round(((originalPrice - retailPrice) / originalPrice) * 100)
-      : 0;
+  const { wholesalePrice, wholesaleTiers = [], moq = 10 } = product;
 
+  // Check if quantity meets MOQ
+  if (quantity < moq) {
     return {
-      price: retailPrice,
-      originalPrice,
-      discount,
-      priceType: product.salePrice ? 'sale' : 'retail',
+      price: 0,
+      discount: 0,
+      priceType: 'wholesale',
     };
   }
 
-  // Wholesale customers get tiered pricing
-  if (userType === 'wholesale' && product.wholesaleEnabled) {
-    // Check if quantity meets wholesale MOQ
-    if (product.wholesaleMOQ && quantity >= product.wholesaleMOQ) {
-      const tier = findApplicableTier(product.wholesaleTiers || [], quantity);
-      
-      if (tier) {
-        const retailPrice = product.retailPrice || product.price;
-        const savings = (retailPrice - tier.price) * quantity;
-        
-        return {
-          price: tier.price,
-          originalPrice: retailPrice,
-          discount: tier.discount,
-          tier,
-          savings,
-          priceType: 'wholesale',
-        };
-      }
+  // Check for tiered pricing
+  if (wholesaleTiers && wholesaleTiers.length > 0) {
+    const tier = findApplicableTier(wholesaleTiers, quantity);
+    
+    if (tier) {
+      return {
+        price: tier.price,
+        originalPrice: wholesalePrice,
+        discount: tier.discount,
+        tier,
+        savings: (wholesalePrice - tier.price) * quantity,
+        priceType: 'tier',
+      };
     }
-
-    // If wholesale enabled but quantity below MOQ, show retail with note
-    const retailPrice = product.retailPrice || product.price;
-    return {
-      price: retailPrice,
-      priceType: 'retail',
-    };
   }
 
-  // Fallback to retail price
+  // Base wholesale price (no tier applied)
   return {
-    price: product.retailPrice || product.price,
-    priceType: 'retail',
+    price: wholesalePrice || 0,
+    discount: 0,
+    priceType: 'wholesale',
   };
 }
 
@@ -96,64 +78,52 @@ export function findApplicableTier(
 }
 
 /**
- * Get all applicable tiers for display
+ * Get all wholesale tiers for display
  */
 export function getWholesaleTiers(product: Product): WholesaleTier[] {
-  if (!product.wholesaleEnabled || !product.wholesaleTiers) {
-    return [];
-  }
-
-  return [...product.wholesaleTiers].sort((a, b) => a.minQuantity - b.minQuantity);
+  return product.wholesaleTiers || [];
 }
 
 /**
- * Calculate total price for cart items
+ * Calculate total price for cart items (wholesale only)
  */
 export function calculateCartTotal(
-  items: Array<{ product: Product; quantity: number }>,
-  userType: UserType = 'guest'
+  items: Array<{ product: Product; quantity: number }>
 ): number {
   return items.reduce((total, item) => {
-    const priceInfo = calculatePrice(item.product, item.quantity, userType);
+    const priceInfo = calculatePrice(item.product, item.quantity);
     return total + (priceInfo.price * item.quantity);
   }, 0);
 }
 
 /**
- * Calculate potential savings if customer upgrades to wholesale
+ * Calculate bulk order savings
  */
-export function calculateWholesaleSavings(
+export function calculateBulkSavings(
   product: Product,
   quantity: number
 ): number {
-  if (!product.wholesaleEnabled || !product.wholesaleTiers) {
+  if (!product.wholesaleTiers || product.wholesaleTiers.length === 0) {
     return 0;
   }
 
-  const retailPrice = product.retailPrice || product.price;
-  const tier = findApplicableTier(product.wholesaleTiers, quantity);
+  const basePrice = product.wholesalePrice || 0;
+  const priceInfo = calculatePrice(product, quantity);
 
-  if (tier) {
-    const retailTotal = retailPrice * quantity;
-    const wholesaleTotal = tier.price * quantity;
-    return retailTotal - wholesaleTotal;
+  if (priceInfo.tier) {
+    return (basePrice - priceInfo.price) * quantity;
   }
 
   return 0;
 }
 
 /**
- * Get minimum order quantity based on user type
+ * Get minimum order quantity (MOQ)
  */
 export function getMinimumOrderQuantity(
-  product: Product,
-  userType: UserType = 'guest'
+  product: Product
 ): number {
-  if (userType === 'wholesale' && product.wholesaleEnabled) {
-    return product.wholesaleMOQ || product.minOrderQuantity || 1;
-  }
-  
-  return product.retailMOQ || product.minOrderQuantity || 1;
+  return product.moq || product.minOrderQuantity || 10;
 }
 
 /**

@@ -27,6 +27,16 @@ export interface LogActivityParams {
   request?: NextRequest;
 }
 
+interface ActivityLogFilter {
+  userId?: string;
+  action?: ActivityAction;
+  entityType?: string;
+  createdAt?: {
+    gte?: Date;
+    lte?: Date;
+  };
+}
+
 /**
  * Log admin activity to database
  */
@@ -103,7 +113,7 @@ export async function getActivityLogs(params: {
     endDate
   } = params;
 
-  const where: any = {};
+  const where: ActivityLogFilter = {};
 
   if (userId) where.userId = userId;
   if (action) where.action = action;
@@ -159,7 +169,7 @@ export async function getActivityStats(params: {
 }) {
   const { userId, startDate, endDate } = params;
   
-  const where: any = {};
+  const where: ActivityLogFilter = {};
   if (userId) where.userId = userId;
   if (startDate || endDate) {
     where.createdAt = {};

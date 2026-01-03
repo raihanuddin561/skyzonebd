@@ -1,68 +1,91 @@
-// types/product.ts
+// types/product.ts - WHOLESALE ONLY
 
 export interface Product {
-  id: string | number; // Support both string (cuid) and number for compatibility
+  id: string | number;
   name: string;
   description: string;
   
-  // B2C Pricing
-  price: number;                    // Same as retailPrice (for backward compatibility)
-  retailPrice: number;              // Standard retail price
-  salePrice?: number;               // Sale/promotional price for retail
-  retailMOQ: number;                // Minimum order quantity for retail (usually 1)
+  // WHOLESALE PRICING ONLY
+  basePrice: number;                // Cost price
+  wholesalePrice: number;           // Selling price to wholesale customers
+  moq: number;                      // Minimum order quantity (default 10+)
+  wholesaleTiers?: WholesaleTier[]; // Volume-based tiered pricing
   
-  // B2B Pricing
-  wholesaleEnabled: boolean;        // Is wholesale purchasing available?
-  wholesaleMOQ?: number;            // Minimum order quantity for wholesale
-  baseWholesalePrice?: number;      // Base wholesale price
-  wholesaleTiers?: WholesaleTier[]; // Tiered pricing for bulk orders
+  // Profit Configuration
+  platformProfitPercentage: number; // Admin-set platform profit %
+  calculatedProfit?: number;        // Auto-calculated profit
+  sellerProfit?: number;            // Seller/partner profit share
   
-  // Legacy field
-  originalPrice?: number;
-  bulkPricing?: BulkPricing[];      // Deprecated, use wholesaleTiers
+  // Inventory Management
+  stockQuantity: number;
+  reorderLevel: number;             // Alert when stock reaches this level
+  reorderQuantity: number;          // Suggested reorder quantity
+  availability: string;             // in_stock, limited, out_of_stock, pre_order
+  sku: string;
+  batchNumber?: string;             // For batch tracking
+  expiryDate?: Date;                // For perishable goods
   
+  // Cost Tracking
+  costPerUnit?: number;             // Actual cost per unit
+  shippingCost?: number;            // Shipping cost per unit
+  handlingCost?: number;            // Handling/storage cost per unit
+  
+  // Seller Information
+  sellerId?: string;                // Partner/supplier
+  sellerCommissionPercentage?: number; // Partner's commission %
+  
+  // Product Details
   category: string;
   image: string;
   images: string[];
-  inStock: boolean;
-  stockQuantity: number;
-  minOrderQuantity: number;         // Default MOQ
-  maxOrderQuantity: number;
-  unit: string;
-  sku: string;
+  unit: string;                     // piece, kg, liter, etc.
   brand: string;
   rating: number;
   reviewCount: number;
   featured: boolean;
   specifications: { [key: string]: string };
   tags: string[];
+  
+  // Wholesale Features
+  allowSamples: boolean;            // Allow sample orders
+  sampleMOQ: number;                // MOQ for samples
+  samplePrice?: number;             // Price per sample unit
+  customizationAvailable: boolean;  // Can be customized
+  
+  // Shipping & Logistics
   shippingInfo: ShippingInfo;
-  returnPolicy: string;
-  warranty: string;
-  certifications: string[];
-  countryOfOrigin: string;
   weight: number;
   dimensions: {
     length: number;
     width: number;
     height: number;
   };
+  
+  // Policies
+  returnPolicy: string;
+  warranty: string;
+  certifications: string[];
+  countryOfOrigin: string;
+  
+  // Metadata
+  isActive: boolean;
+  isFeatured: boolean;
   createdAt: string;
   updatedAt: string;
+  
+  // Legacy fields for backward compatibility
+  price?: number;                   // Maps to wholesalePrice
+  minOrderQuantity?: number;        // Maps to moq
+  maxOrderQuantity?: number;
+  inStock?: boolean;
 }
 
 export interface WholesaleTier {
   minQuantity: number;
-  maxQuantity: number | null;       // null means unlimited
+  maxQuantity: number | null;       // null means unlimited/highest tier
   price: number;
-  discount: number;                 // Percentage discount from retail
-}
-
-export interface BulkPricing {
-  minQuantity: number;
-  maxQuantity: number;
-  price: number;
-  discount: number;
+  discount: number;                 // Percentage discount from base wholesale price
+  profitMargin?: number;            // Profit margin % at this tier
 }
 
 export interface ShippingInfo {
@@ -70,6 +93,7 @@ export interface ShippingInfo {
   shippingCost: number;
   estimatedDelivery: string;
   availableRegions: string[];
+  bulkShippingDiscount?: boolean;   // Discount for bulk orders
 }
 
 export interface Category {

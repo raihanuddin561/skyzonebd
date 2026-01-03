@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { emailService } from '@/lib/email';
+import { logInfo, logError } from '@/lib/logger';
 
 const prisma = new PrismaClient();
 
@@ -72,15 +74,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // TODO: Send email notification to user (implement later)
-    // TODO: Send notification to admin (implement later)
+    // Send email notification to user
+    await emailService.sendDataDeletionConfirmation(user.email, user.name);
 
-    console.log('✅ Data deletion request created:', {
-      requestId: deletionRequest.id,
-      userId: user.id,
-      email: user.email,
-      status: 'PENDING',
-    });
+    // Log for admin notification
+    logInfo(`Data deletion request received from ${user.email}`, 'DataDeletion');
 
     return NextResponse.json({
       success: true,
