@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
             name: true,
             slug: true,
             imageUrl: true,
-            retailPrice: true,
+            wholesalePrice: true,
           }
         }
       },

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
                 id: true,
                 name: true,
                 imageUrl: true,
-                retailPrice: true,
+                wholesalePrice: true,
               },
             },
           },
@@ -62,14 +62,14 @@ export async function GET(request: NextRequest) {
         productName: item.product.name,
         quantity: item.quantity,
         notes: item.notes,
-        unitPrice: item.product.retailPrice,
-        totalPrice: item.quantity * item.product.retailPrice,
+        unitPrice: item.product.wholesalePrice,
+        totalPrice: item.quantity * item.product.wholesalePrice,
         imageUrl: item.product.imageUrl,
       })),
       totalItems: rfq.items.length,
       totalQuantity: rfq.items.reduce((sum, item) => sum + item.quantity, 0),
       estimatedValue: rfq.items.reduce((sum, item) => 
-        sum + (item.quantity * item.product.retailPrice), 0
+        sum + (item.quantity * item.product.wholesalePrice), 0
       ),
       createdAt: rfq.createdAt,
       expiresAt: rfq.expiresAt,
