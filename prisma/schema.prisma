@@ -460,6 +460,7 @@ enum UserRole {
 }
 
 enum UserType {
+  RETAIL      // Retail customers (individual buyers)
   WHOLESALE   // Wholesale/Business customers
   SELLER      // Sellers/Suppliers
   ADMIN       // Platform administrators
