@@ -27,7 +27,7 @@ export default function PriceDisplay({
 }: PriceDisplayProps) {
   const priceInfo = calculatePrice(product, quantity, userType);
   const wholesaleTiers = getWholesaleTiers(product);
-  const isWholesale = userType === 'wholesale';
+  const isWholesale = userType === 'WHOLESALE';
 
   return (
     <div className={`price-display ${className}`}>

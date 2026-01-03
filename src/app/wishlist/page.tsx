@@ -20,7 +20,7 @@ export default function WishlistPage() {
     
     try {
       // Use MOQ for wholesale (if set), otherwise 1
-      const quantity = (user?.userType === 'wholesale' && product.minOrderQuantity) ? product.minOrderQuantity : 1;
+      const quantity = (user?.userType === 'WHOLESALE' && product.minOrderQuantity) ? product.minOrderQuantity : 1;
       addToCart(product, quantity);
       toast.success(`Added ${product.name} to cart`);
     } catch (error) {
@@ -118,7 +118,7 @@ export default function WishlistPage() {
                   )}
                 </div>
                 {/* Show MOQ only for wholesale users and if MOQ is set */}
-                {user && user.userType === 'wholesale' && product.minOrderQuantity && product.minOrderQuantity > 0 && (
+                {user && user.userType === 'WHOLESALE' && product.minOrderQuantity && product.minOrderQuantity > 0 && (
                   <p className="text-sm text-gray-500 mb-4">
                     MOQ: {product.minOrderQuantity} units
                   </p>
@@ -164,7 +164,7 @@ export default function WishlistPage() {
               <div className="text-gray-600">Total Value</div>
             </div>
             {/* Show min order units only for wholesale users */}
-            {user?.userType === 'wholesale' && (
+            {user?.userType === 'WHOLESALE' && (
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600">
                   {items.reduce((total, item) => total + item.minOrderQuantity, 0)}

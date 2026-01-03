@@ -65,7 +65,7 @@ export default function RegistrationForm({ onSubmit, isLoading = false }: Regist
             type="button"
             onClick={() => handleUserTypeChange('retail')}
             className={`p-4 border-2 rounded-lg text-left transition-all ${
-              userType === 'retail'
+              userType === 'RETAIL'
                 ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-200 hover:border-gray-300'
             }`}
@@ -83,7 +83,7 @@ export default function RegistrationForm({ onSubmit, isLoading = false }: Regist
             type="button"
             onClick={() => handleUserTypeChange('wholesale')}
             className={`p-4 border-2 rounded-lg text-left transition-all ${
-              userType === 'wholesale'
+              userType === 'WHOLESALE'
                 ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-200 hover:border-gray-300'
             }`}
@@ -180,7 +180,7 @@ export default function RegistrationForm({ onSubmit, isLoading = false }: Regist
       </div>
 
       {/* Business Information (only for wholesale) */}
-      {userType === 'wholesale' && (
+      {userType === 'WHOLESALE' && (
         <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <h3 className="font-semibold text-lg flex items-center gap-2">
             <span>🏢</span>
@@ -195,7 +195,7 @@ export default function RegistrationForm({ onSubmit, isLoading = false }: Regist
               type="text"
               id="companyName"
               name="companyName"
-              required={userType === 'wholesale'}
+              required={userType === 'WHOLESALE'}
               value={formData.companyName || ''}
               onChange={handleInputChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"

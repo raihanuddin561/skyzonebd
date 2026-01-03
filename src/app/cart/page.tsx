@@ -18,7 +18,7 @@ export default function CartPage() {
 
   const handleQuantityChange = (productId: string | number, newQuantity: number, minOrderQuantity: number) => {
     // Only enforce MOQ for wholesale users, guests and retail can order any quantity >= 1
-    const minQty = (user && user.userType === 'wholesale') ? minOrderQuantity : 1;
+    const minQty = (user && user.userType === 'WHOLESALE') ? minOrderQuantity : 1;
     const finalQuantity = Math.max(newQuantity, minQty);
     updateQuantity(productId, finalQuantity);
     toast.info('Cart updated');
