@@ -24,28 +24,21 @@ try {
     console.log('🔧 Running development migrations...');
     execSync('prisma migrate dev --skip-seed', { stdio: 'inherit' });
   } else {
-    // Production/Staging: Use migrate deploy (applies existing migrations)
-    console.log('🚀 Deploying production migrations...');
-    execSync('prisma migrate deploy', { stdio: 'inherit' });
+    // Production/Staging: Use db push to avoid advisory lock issues
+    console.log('🚀 Pushing schema to production database...');
+    try {
+      execSync('prisma db push --skip-generate', { stdio: 'inherit', timeout: 30000 });
+      console.log('✅ Schema push completed successfully!');
+    } catch (pushError) {
+      console.log('⚠️  DB push failed, trying migrate deploy...');
+      execSync('prisma migrate deploy', { stdio: 'inherit', timeout: 30000 });
+    }
   }
   
   console.log('✅ Database migrations completed successfully!');
   process.exit(0);
 } catch (error) {
   console.error('❌ Migration failed:', error.message);
-  
-  // In production, try db push as fallback
-  if (isProduction) {
-    console.log('⚠️  Attempting fallback: prisma db push...');
-    try {
-      execSync('prisma db push --accept-data-loss --skip-generate', { stdio: 'inherit' });
-      console.log('✅ Fallback migration successful!');
-      process.exit(0);
-    } catch (fallbackError) {
-      console.error('❌ Fallback migration failed:', fallbackError.message);
-      process.exit(1);
-    }
-  } else {
-    process.exit(1);
-  }
+  process.exit(1);
+}
 }
