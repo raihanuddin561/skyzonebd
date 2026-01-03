@@ -9,7 +9,7 @@ interface User {
   email: string;
   phone: string;
   role: 'admin' | 'seller' | 'buyer';
-  userType: 'retail' | 'wholesale';
+  userType: 'RETAIL' | 'WHOLESALE';
   status: 'active' | 'suspended' | 'pending';
   businessVerified: boolean;
   businessName?: string;

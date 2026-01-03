@@ -10,7 +10,7 @@ interface User {
   name: string;
   email: string;
   role: 'admin' | 'buyer' | 'seller';
-  userType: 'retail' | 'wholesale';
+  userType: 'RETAIL' | 'WHOLESALE';
   status: 'active' | 'inactive' | 'suspended';
   createdAt: string;
   lastLogin?: string;
@@ -61,7 +61,7 @@ function UsersManagement() {
             name: user.name,
             email: user.email,
             role: user.role.toLowerCase() as 'admin' | 'buyer' | 'seller',
-            userType: user.userType?.toLowerCase() || 'retail' as 'retail' | 'wholesale',
+            userType: (user.userType || 'RETAIL') as 'RETAIL' | 'WHOLESALE',
             status: user.isActive ? 'active' : 'inactive' as 'active' | 'inactive' | 'suspended',
             createdAt: user.createdAt,
             lastLogin: user.updatedAt,
