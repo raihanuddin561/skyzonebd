@@ -113,6 +113,13 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Get current default before updating
+    const currentConfig = await prisma.platformConfig.findUnique({
+      where: { key: 'default_platform_profit_percentage' }
+    });
+    
+    const oldDefault = currentConfig ? parseFloat(currentConfig.value) : 15;
+
     // Update default platform profit percentage
     const config = await prisma.platformConfig.upsert({
       where: { key: 'default_platform_profit_percentage' },
@@ -127,10 +134,10 @@ export async function PUT(request: NextRequest) {
       }
     });
 
-    // Update all products without specific profit percentage
+    // Update products that still use the old default value
     await prisma.product.updateMany({
       where: {
-        platformProfitPercentage: null
+        platformProfitPercentage: oldDefault
       },
       data: {
         platformProfitPercentage
