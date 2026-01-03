@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
         imageUrl: true,
         stockQuantity: true,
         availability: true,
-        retailPrice: true,
+        wholesalePrice: true,
         category: {
           select: {
             name: true,
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
         category: product.category?.name || 'Uncategorized',
         stock: product.stockQuantity,
         status,
-        price: product.retailPrice,
+        price: product.wholesalePrice,
         soldLast30Days,
         daysUntilStockout: daysUntilStockout === 999 ? 'N/A' : `${daysUntilStockout}d`,
         lastUpdated: product.updatedAt.toISOString().split('T')[0],
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
       },
     });
     const totalStockValue = products.reduce((sum, product) => 
-      sum + (product.stockQuantity * product.retailPrice), 0
+      sum + (product.stockQuantity * product.wholesalePrice), 0
     );
 
     return NextResponse.json({
