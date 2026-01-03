@@ -152,7 +152,7 @@ function UsersManagement() {
             <div className="bg-white rounded-lg shadow p-4">
               <p className="text-sm text-gray-600">Wholesale</p>
               <p className="text-2xl font-bold text-blue-600 mt-1">
-                {users.filter(u => u.userType === 'wholesale').length}
+                {users.filter(u => u.userType === 'WHOLESALE').length}
               </p>
             </div>
             <div className="bg-white rounded-lg shadow p-4">

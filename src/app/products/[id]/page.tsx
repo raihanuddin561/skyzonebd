@@ -99,7 +99,7 @@ export default function ProductDetailPage() {
   const handleQuantityChange = (newQuantity: number) => {
     if (product) {
       // Enforce MOQ ONLY for wholesale users, guests/retail can order from 1
-      const minQty = (user && user.userType === 'wholesale' && product.minOrderQuantity) ? product.minOrderQuantity : 1;
+      const minQty = (user && user.userType === 'WHOLESALE' && product.minOrderQuantity) ? product.minOrderQuantity : 1;
       setQuantity(Math.max(newQuantity, minQty));
     }
   };

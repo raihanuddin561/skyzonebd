@@ -20,7 +20,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   
   // Determine minimum order quantity based on user type
   // ONLY wholesale users have MOQ requirement, guests and retail customers start at 1
-  const effectiveMinQty = (user && user.userType === 'wholesale') ? product.minOrderQuantity : 1;
+  const effectiveMinQty = (user && user.userType === 'WHOLESALE') ? product.minOrderQuantity : 1;
   const [quantity, setQuantity] = useState(effectiveMinQty);
   const [isAdding, setIsAdding] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -100,7 +100,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       </Link>
       
       {/* Show MOQ ONLY for wholesale users, NOT for guests or retail */}
-      {isClient && user && user.userType === 'wholesale' && (
+      {isClient && user && user.userType === 'WHOLESALE' && (
         <p className="text-xs sm:text-sm text-gray-600 mb-2">MOQ: {product.minOrderQuantity} units</p>
       )}
       
@@ -136,7 +136,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       {(product.availability === 'in_stock' || product.availability === 'limited') && (
         <div className="mb-3">
           <label htmlFor={`quantity-${product.id}`} className="block text-xs sm:text-sm text-gray-600 mb-1.5 font-medium">
-            Quantity {(user && user.userType === 'wholesale' && product.minOrderQuantity && product.minOrderQuantity > 0) ? `(Min: ${product.minOrderQuantity})` : ''}
+            Quantity {(user && user.userType === 'WHOLESALE' && product.minOrderQuantity && product.minOrderQuantity > 0) ? `(Min: ${product.minOrderQuantity})` : ''}
           </label>
           <input
             id={`quantity-${product.id}`}
