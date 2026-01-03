@@ -76,62 +76,64 @@ export function calculateReorderQuantity(
 export function generateStockAlerts(
   inventory: InventoryItem[]
 ): StockAlert[] {
-  return inventory
-    .map(item => {
-      const stockPercentage = (item.currentStock / item.reorderLevel) * 100;
-      
-      // Out of stock
-      if (item.currentStock === 0) {
-        return {
-          productId: item.productId,
-          productName: item.productName,
-          currentStock: item.currentStock,
-          reorderLevel: item.reorderLevel,
-          severity: 'critical' as const,
-          message: 'OUT OF STOCK',
-          suggestedAction: `Order ${calculateReorderQuantity(
-            item.currentStock,
-            item.reorderLevel,
-            item.reorderQuantity,
-            item.moq
-          )} ${item.unit} immediately`
-        };
-      }
-      
-      // Critical low (below reorder level)
-      if (item.currentStock <= item.reorderLevel) {
-        return {
-          productId: item.productId,
-          productName: item.productName,
-          currentStock: item.currentStock,
-          reorderLevel: item.reorderLevel,
-          severity: 'critical' as const,
-          message: 'CRITICAL LOW STOCK',
-          suggestedAction: `Reorder ${calculateReorderQuantity(
-            item.currentStock,
-            item.reorderLevel,
-            item.reorderQuantity,
-            item.moq
-          )} ${item.unit} now`
-        };
-      }
-      
-      // Warning (within 20% above reorder level)
-      if (stockPercentage <= 120) {
-        return {
-          productId: item.productId,
-          productName: item.productName,
-          currentStock: item.currentStock,
-          reorderLevel: item.reorderLevel,
-          severity: 'warning' as const,
-          message: 'LOW STOCK',
-          suggestedAction: `Consider ordering ${item.reorderQuantity} ${item.unit} soon`
-        };
-      }
-      
-      return null;
-    })
-    .filter((alert): alert is StockAlert => alert !== null)
+  const alerts: StockAlert[] = [];
+  
+  for (const item of inventory) {
+    const stockPercentage = (item.currentStock / item.reorderLevel) * 100;
+    
+    // Out of stock
+    if (item.currentStock === 0) {
+      alerts.push({
+        productId: item.productId,
+        productName: item.productName,
+        currentStock: item.currentStock,
+        reorderLevel: item.reorderLevel,
+        severity: 'critical' as const,
+        message: 'OUT OF STOCK',
+        suggestedAction: `Order ${calculateReorderQuantity(
+          item.currentStock,
+          item.reorderLevel,
+          item.reorderQuantity,
+          item.moq
+        )} ${item.unit} immediately`
+      });
+      continue;
+    }
+    
+    // Critical low (below reorder level)
+    if (item.currentStock <= item.reorderLevel) {
+      alerts.push({
+        productId: item.productId,
+        productName: item.productName,
+        currentStock: item.currentStock,
+        reorderLevel: item.reorderLevel,
+        severity: 'critical' as const,
+        message: 'CRITICAL LOW STOCK',
+        suggestedAction: `Reorder ${calculateReorderQuantity(
+          item.currentStock,
+          item.reorderLevel,
+          item.reorderQuantity,
+          item.moq
+        )} ${item.unit} now`
+      });
+      continue;
+    }
+    
+    // Warning (within 20% above reorder level)
+    if (stockPercentage <= 120) {
+      alerts.push({
+        productId: item.productId,
+        productName: item.productName,
+        currentStock: item.currentStock,
+        reorderLevel: item.reorderLevel,
+        severity: 'warning' as const,
+        message: 'LOW STOCK',
+        suggestedAction: `Consider ordering ${item.reorderQuantity} ${item.unit} soon`
+      });
+    }
+  }
+  
+  return alerts
     .sort((a, b) => {
       // Sort by severity
       const severityOrder = { critical: 0, warning: 1, info: 2 };

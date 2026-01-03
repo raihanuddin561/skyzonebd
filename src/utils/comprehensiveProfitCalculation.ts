@@ -104,7 +104,7 @@ export async function calculateComprehensiveProfit(
       }
     },
     include: {
-      items: {
+      orderItems: {
         include: {
           product: true
         }
@@ -112,7 +112,7 @@ export async function calculateComprehensiveProfit(
     }
   });
   
-  const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
+  const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
   
   // Calculate returns
   const returnedOrders = await prisma.order.findMany({
@@ -125,7 +125,7 @@ export async function calculateComprehensiveProfit(
     }
   });
   
-  const returnRevenue = returnedOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+  const returnRevenue = returnedOrders.reduce((sum, order) => sum + order.total, 0);
   const netRevenue = totalRevenue - returnRevenue;
   
   // 2. Calculate COGS (Cost of Goods Sold)

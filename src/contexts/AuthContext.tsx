@@ -199,8 +199,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading: state.isLoading,
     isAuthenticated: state.isAuthenticated,
     isWholesaleCustomer: state.user?.userType === 'WHOLESALE',
+    isGuest: state.user?.userType === 'GUEST',
     login,
     register,
+    guestCheckout: async () => { /* TODO: Implement guest checkout */ },
     logout
   };
 
