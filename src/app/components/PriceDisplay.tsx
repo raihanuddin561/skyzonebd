@@ -21,7 +21,7 @@ interface PriceDisplayProps {
 export default function PriceDisplay({
   product,
   quantity = 1,
-  userType = 'guest',
+  userType = 'GUEST',
   showWholesaleTiers = false,
   className = '',
 }: PriceDisplayProps) {
