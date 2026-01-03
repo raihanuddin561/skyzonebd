@@ -63,9 +63,9 @@ export async function GET(request: NextRequest) {
 
     // Price range filter
     if (minPrice || maxPrice) {
-      where.retailPrice = {};
-      if (minPrice) where.retailPrice.gte = parseFloat(minPrice);
-      if (maxPrice) where.retailPrice.lte = parseFloat(maxPrice);
+      where.wholesalePrice = {};
+      if (minPrice) where.wholesalePrice.gte = parseFloat(minPrice);
+      if (maxPrice) where.wholesalePrice.lte = parseFloat(maxPrice);
     }
 
     // Featured filter
@@ -80,10 +80,10 @@ export async function GET(request: NextRequest) {
         orderBy = { name: 'asc' };
         break;
       case 'price-low':
-        orderBy = { retailPrice: 'asc' };
+        orderBy = { wholesalePrice: 'asc' };
         break;
       case 'price-high':
-        orderBy = { retailPrice: 'desc' };
+        orderBy = { wholesalePrice: 'desc' };
         break;
       case 'rating':
         orderBy = { rating: 'desc' };
@@ -135,11 +135,11 @@ export async function GET(request: NextRequest) {
     const transformedProducts = products.map(product => ({
       id: product.id, // Keep cuid string for database compatibility
       name: product.name,
-      price: product.retailPrice,
+      price: product.wholesalePrice,
       unit: product.unit,
-      retailPrice: product.retailPrice,
-      salePrice: product.salePrice,
-      comparePrice: product.comparePrice,
+      wholesalePrice: product.wholesalePrice,
+      basePrice: product.basePrice,
+      moq: product.moq,
       imageUrl: product.imageUrl,
       imageUrls: product.imageUrls,
       thumbnailUrl: product.thumbnailUrl,
@@ -149,9 +149,6 @@ export async function GET(request: NextRequest) {
       brand: product.brand,
       tags: product.tags,
       specifications: product.specifications as Record<string, string | number | boolean>,
-      minOrderQuantity: product.minOrderQuantity,
-      wholesaleMOQ: product.wholesaleMOQ,
-      wholesaleEnabled: product.wholesaleEnabled,
       wholesaleTiers: product.wholesaleTiers.map(tier => ({
         minQuantity: tier.minQuantity,
         maxQuantity: tier.maxQuantity,
@@ -247,16 +244,9 @@ export async function POST(request: NextRequest) {
         unit: body.unit || null,
         tags: body.tags || [],
         specifications: body.specifications || {},
-        retailPrice: body.retailPrice,
-        salePrice: body.salePrice,
-        retailMOQ: body.retailMOQ || null,
-        comparePrice: body.comparePrice,
-        wholesaleEnabled: body.wholesaleEnabled || false,
-        wholesaleMOQ: body.wholesaleMOQ || null,
-        baseWholesalePrice: body.baseWholesalePrice,
-        price: body.price,
-        wholesalePrice: body.wholesalePrice,
-        minOrderQuantity: body.minOrderQuantity || null,
+        basePrice: body.basePrice || body.price,
+        wholesalePrice: body.wholesalePrice || body.price,
+        moq: body.moq || body.minOrderQuantity || null,
         stockQuantity: body.stockQuantity || 0,
         availability: body.availability || 'in_stock',
         sku: body.sku,

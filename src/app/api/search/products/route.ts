@@ -49,13 +49,13 @@ export async function GET(request: NextRequest) {
     // Add price filters
     if (minPrice) {
       whereClause.AND.push({
-        retailPrice: { gte: parseFloat(minPrice) }
+        wholesalePrice: { gte: parseFloat(minPrice) }
       });
     }
 
     if (maxPrice) {
       whereClause.AND.push({
-        retailPrice: { lte: parseFloat(maxPrice) }
+        wholesalePrice: { lte: parseFloat(maxPrice) }
       });
     }
 
@@ -71,8 +71,8 @@ export async function GET(request: NextRequest) {
     const orderByClause: any = {};
     if (sortBy === 'name') {
       orderByClause.name = sortOrder;
-    } else if (sortBy === 'price' || sortBy === 'retailPrice') {
-      orderByClause.retailPrice = sortOrder;
+    } else if (sortBy === 'price' || sortBy === 'wholesalePrice') {
+      orderByClause.wholesalePrice = sortOrder;
     } else if (sortBy === 'rating') {
       orderByClause.rating = sortOrder;
     } else {
@@ -111,11 +111,10 @@ export async function GET(request: NextRequest) {
       description: product.description,
       imageUrl: product.imageUrl,
       imageUrls: product.imageUrls,
-      price: product.retailPrice, // Map retailPrice to price for compatibility
-      retailPrice: product.retailPrice,
-      wholesalePrice: product.baseWholesalePrice,
-      minOrderQuantity: product.retailMOQ,
-      wholesaleMOQ: product.wholesaleMOQ,
+      price: product.wholesalePrice,
+      wholesalePrice: product.wholesalePrice,
+      basePrice: product.basePrice,
+      moq: product.moq,
       brand: product.brand,
       category: product.category?.name || 'Uncategorized',
       categoryId: product.categoryId,

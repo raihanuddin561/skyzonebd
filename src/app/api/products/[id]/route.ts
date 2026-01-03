@@ -98,10 +98,10 @@ export async function GET(
       id: product.id, // Keep as string (cuid)
       name: product.name,
       slug: product.slug,
-      price: product.retailPrice,
-      retailPrice: product.retailPrice,
-      salePrice: product.salePrice,
-      comparePrice: product.comparePrice,
+      price: product.wholesalePrice,
+      wholesalePrice: product.wholesalePrice,
+      basePrice: product.basePrice,
+      moq: product.moq,
       imageUrl: product.imageUrl,
       imageUrls: product.imageUrls,
       thumbnailUrl: product.thumbnailUrl,
@@ -112,10 +112,6 @@ export async function GET(
       brand: product.brand,
       tags: product.tags,
       specifications: product.specifications as Record<string, string | number | boolean>,
-      minOrderQuantity: product.minOrderQuantity,
-      wholesaleMOQ: product.wholesaleMOQ,
-      wholesaleEnabled: product.wholesaleEnabled,
-      baseWholesalePrice: product.baseWholesalePrice, // Include for edit pages
       wholesaleTiers: product.wholesaleTiers.map(tier => ({
         minQuantity: tier.minQuantity,
         maxQuantity: tier.maxQuantity,
@@ -242,16 +238,9 @@ export async function PUT(
     if (body.unit !== undefined) updateData.unit = body.unit;
     if (body.tags) updateData.tags = body.tags;
     if (body.specifications !== undefined) updateData.specifications = body.specifications;
-    if (body.retailPrice !== undefined) updateData.retailPrice = body.retailPrice;
-    if (body.salePrice !== undefined) updateData.salePrice = body.salePrice;
-    if (body.retailMOQ !== undefined) updateData.retailMOQ = body.retailMOQ;
-    if (body.comparePrice !== undefined) updateData.comparePrice = body.comparePrice;
-    if (body.wholesaleEnabled !== undefined) updateData.wholesaleEnabled = body.wholesaleEnabled;
-    if (body.wholesaleMOQ !== undefined) updateData.wholesaleMOQ = body.wholesaleMOQ;
-    if (body.baseWholesalePrice !== undefined) updateData.baseWholesalePrice = body.baseWholesalePrice;
-    if (body.price !== undefined) updateData.price = body.price;
-    if (body.wholesalePrice !== undefined) updateData.wholesalePrice = body.wholesalePrice;
-    if (body.minOrderQuantity !== undefined) updateData.minOrderQuantity = body.minOrderQuantity;
+    if (body.basePrice !== undefined) updateData.basePrice = body.basePrice || body.price;
+    if (body.wholesalePrice !== undefined) updateData.wholesalePrice = body.wholesalePrice || body.price;
+    if (body.moq !== undefined) updateData.moq = body.moq || body.minOrderQuantity;
     if (body.stockQuantity !== undefined) updateData.stockQuantity = body.stockQuantity;
     if (body.availability) updateData.availability = body.availability;
     // Don't update SKU to avoid unique constraint issues - SKU should not be changed after creation
