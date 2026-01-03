@@ -310,8 +310,7 @@ export async function GET(request: NextRequest) {
       guestInfo: order.guestName ? {
         name: order.guestName,
         email: order.guestEmail,
-        mobile: order.guestPhone,
-        companyName: order.guestCompany
+        mobile: order.guestPhone
       } : null,
       items: order.orderItems.map(item => ({
         productId: item.productId,
@@ -497,8 +496,7 @@ export async function PATCH(request: NextRequest) {
       guestInfo: updatedOrder.guestName ? {
         name: updatedOrder.guestName,
         email: updatedOrder.guestEmail,
-        mobile: updatedOrder.guestPhone,
-        companyName: updatedOrder.guestCompany
+        mobile: updatedOrder.guestPhone
       } : null,
       items: updatedOrder.orderItems.map(item => ({
         productId: item.productId,

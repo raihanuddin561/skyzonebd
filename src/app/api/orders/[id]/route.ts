@@ -75,8 +75,7 @@ export async function GET(
       guestInfo: order.guestName ? {
         name: order.guestName,
         email: order.guestEmail,
-        mobile: order.guestPhone,
-        companyName: order.guestCompany
+        mobile: order.guestPhone
       } : null,
       items: order.orderItems.map(item => ({
         productId: item.productId,
