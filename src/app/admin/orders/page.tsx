@@ -308,6 +308,13 @@ export default function OrdersManagement() {
           <p className="text-gray-600 mt-1">Manage and process customer orders</p>
         </div>
         <div className="flex gap-3">
+          <Link 
+            href="/admin/orders/create"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium"
+          >
+            <span>➕</span>
+            <span>Create Order</span>
+          </Link>
           <button 
             onClick={handleRefresh}
             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
@@ -318,10 +325,6 @@ export default function OrdersManagement() {
           <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
             <span>📊</span>
             <span>Export Orders</span>
-          </button>
-          <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-            <span>🖨️</span>
-            <span>Print</span>
           </button>
         </div>
       </div>

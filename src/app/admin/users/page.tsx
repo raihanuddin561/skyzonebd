@@ -15,6 +15,9 @@ interface User {
   businessName?: string;
   totalOrders: number;
   totalSpent: number;
+  discountPercent?: number;
+  discountReason?: string;
+  discountValidUntil?: string;
   createdAt: string;
   lastLogin: string;
 }
@@ -28,6 +31,14 @@ export default function UsersManagement() {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Discount modal state
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [discountPercent, setDiscountPercent] = useState('');
+  const [discountReason, setDiscountReason] = useState('');
+  const [discountValidUntil, setDiscountValidUntil] = useState('');
+  const [discountSaving, setDiscountSaving] = useState(false);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -256,6 +267,112 @@ export default function UsersManagement() {
     } catch (error) {
       console.error('Error suspending users:', error);
       alert(`Failed to suspend users: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleOpenDiscountModal = (user: User) => {
+    setSelectedUser(user);
+    setDiscountPercent(user.discountPercent?.toString() || '');
+    setDiscountReason(user.discountReason || '');
+    setDiscountValidUntil(user.discountValidUntil ? new Date(user.discountValidUntil).toISOString().split('T')[0] : '');
+    setShowDiscountModal(true);
+  };
+
+  const handleSaveDiscount = async () => {
+    if (!selectedUser) return;
+
+    const percent = parseFloat(discountPercent);
+    if (isNaN(percent) || percent < 0 || percent > 100) {
+      alert('Please enter a valid discount percentage (0-100)');
+      return;
+    }
+
+    try {
+      setDiscountSaving(true);
+      const response = await fetch(`/api/admin/customers/${selectedUser.id}/discount`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          discountPercent: percent,
+          discountReason: discountReason || null,
+          discountValidUntil: discountValidUntil || null,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update user in the list
+        setUsers(users.map(u => 
+          u.id === selectedUser.id 
+            ? { 
+                ...u, 
+                discountPercent: percent,
+                discountReason: discountReason || undefined,
+                discountValidUntil: discountValidUntil || undefined,
+              } 
+            : u
+        ));
+        setShowDiscountModal(false);
+        alert('Discount updated successfully!');
+      } else {
+        throw new Error(result.error || 'Failed to update discount');
+      }
+    } catch (error) {
+      console.error('Error updating discount:', error);
+      alert(`Failed to update discount: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setDiscountSaving(false);
+    }
+  };
+
+  const handleRemoveDiscount = async () => {
+    if (!selectedUser) return;
+
+    if (!confirm('Are you sure you want to remove the discount for this customer?')) {
+      return;
+    }
+
+    try {
+      setDiscountSaving(true);
+      const response = await fetch(`/api/admin/customers/${selectedUser.id}/discount`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          discountPercent: 0,
+          discountReason: null,
+          discountValidUntil: null,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update user in the list
+        setUsers(users.map(u => 
+          u.id === selectedUser.id 
+            ? { 
+                ...u, 
+                discountPercent: undefined,
+                discountReason: undefined,
+                discountValidUntil: undefined,
+              } 
+            : u
+        ));
+        setShowDiscountModal(false);
+        alert('Discount removed successfully!');
+      } else {
+        throw new Error(result.error || 'Failed to remove discount');
+      }
+    } catch (error) {
+      console.error('Error removing discount:', error);
+      alert(`Failed to remove discount: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setDiscountSaving(false);
     }
   };
 
@@ -506,6 +623,15 @@ export default function UsersManagement() {
                       {user.totalSpent > 0 ? `৳${user.totalSpent.toLocaleString()}` : '-'}
                     </span>
                   </div>
+                  {user.discountPercent && user.discountPercent > 0 && (
+                    <div className="col-span-2">
+                      <span className="text-gray-600">Discount: </span>
+                      <span className="font-semibold text-green-600">{user.discountPercent}% OFF</span>
+                      {user.discountReason && (
+                        <span className="text-gray-500"> - {user.discountReason}</span>
+                      )}
+                    </div>
+                  )}
                   <div className="col-span-2">
                     <span className="text-gray-600">Last Login: </span>
                     <span className="font-medium">{new Date(user.lastLogin).toLocaleDateString('en-GB')}</span>
@@ -524,6 +650,12 @@ export default function UsersManagement() {
                   >
                     Orders
                   </Link>
+                  <button
+                    onClick={() => handleOpenDiscountModal(user)}
+                    className="flex-1 text-center px-3 py-1.5 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200"
+                  >
+                    Discount
+                  </button>
                 </div>
               </div>
             ))
@@ -547,6 +679,7 @@ export default function UsersManagement() {
                 <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
                 <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                 <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Business</th>
+                <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Discount</th>
                 <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Orders</th>
                 <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Spent</th>
                 <th className="px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -617,6 +750,37 @@ export default function UsersManagement() {
                       <span className="text-sm text-gray-400">-</span>
                     )}
                   </td>
+                  <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
+                    {user.discountPercent && user.discountPercent > 0 ? (
+                      <div>
+                        <div className="text-sm font-semibold text-green-600">
+                          {user.discountPercent}% OFF
+                        </div>
+                        {user.discountReason && (
+                          <div className="text-xs text-gray-600 truncate max-w-[150px]" title={user.discountReason}>
+                            {user.discountReason}
+                          </div>
+                        )}
+                        {user.discountValidUntil && new Date(user.discountValidUntil) > new Date() && (
+                          <div className="text-xs text-orange-600">
+                            Until {new Date(user.discountValidUntil).toLocaleDateString('en-GB')}
+                          </div>
+                        )}
+                        {user.discountValidUntil && new Date(user.discountValidUntil) <= new Date() && (
+                          <div className="text-xs text-red-600">
+                            Expired
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleOpenDiscountModal(user)}
+                        className="text-xs text-blue-600 hover:text-blue-700"
+                      >
+                        Set Discount
+                      </button>
+                    )}
+                  </td>
                   <td className="px-4 xl:px-6 py-4 text-sm text-gray-900 whitespace-nowrap">{user.totalOrders}</td>
                   <td className="px-4 xl:px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
                     {user.totalSpent > 0 ? `৳${user.totalSpent.toLocaleString()}` : '-'}
@@ -649,6 +813,12 @@ export default function UsersManagement() {
                       >
                         Orders
                       </Link>
+                      <button
+                        onClick={() => handleOpenDiscountModal(user)}
+                        className="text-green-600 hover:text-green-700 text-sm font-medium"
+                      >
+                        {user.discountPercent && user.discountPercent > 0 ? 'Edit Discount' : 'Discount'}
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -675,6 +845,120 @@ export default function UsersManagement() {
           </div>
         </div>
       </div>
+
+      {/* Discount Management Modal */}
+      {showDiscountModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">
+                Manage Discount for {selectedUser.name}
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Set a percentage discount that applies to all products for this customer
+              </p>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Discount Percentage */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Discount Percentage (0-100)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={discountPercent}
+                    onChange={(e) => setDiscountPercent(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g., 10"
+                  />
+                  <span className="absolute right-3 top-2.5 text-gray-500">%</span>
+                </div>
+              </div>
+
+              {/* Discount Reason */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={discountReason}
+                  onChange={(e) => setDiscountReason(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g., VIP Customer, Loyalty Reward"
+                />
+              </div>
+
+              {/* Valid Until */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Valid Until (Optional)
+                </label>
+                <input
+                  type="date"
+                  value={discountValidUntil}
+                  onChange={(e) => setDiscountValidUntil(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave empty for permanent discount
+                </p>
+              </div>
+
+              {/* Current Discount Info */}
+              {selectedUser.discountPercent && selectedUser.discountPercent > 0 && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Current Discount:</strong> {selectedUser.discountPercent}% OFF
+                  </p>
+                  {selectedUser.discountReason && (
+                    <p className="text-xs text-yellow-700 mt-1">
+                      Reason: {selectedUser.discountReason}
+                    </p>
+                  )}
+                  {selectedUser.discountValidUntil && (
+                    <p className="text-xs text-yellow-700 mt-1">
+                      Valid until: {new Date(selectedUser.discountValidUntil).toLocaleDateString('en-GB')}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={() => setShowDiscountModal(false)}
+                disabled={discountSaving}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              {selectedUser.discountPercent && selectedUser.discountPercent > 0 && (
+                <button
+                  onClick={handleRemoveDiscount}
+                  disabled={discountSaving}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                >
+                  {discountSaving ? 'Removing...' : 'Remove'}
+                </button>
+              )}
+              <button
+                onClick={handleSaveDiscount}
+                disabled={discountSaving || !discountPercent || parseFloat(discountPercent) < 0 || parseFloat(discountPercent) > 100}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {discountSaving ? 'Saving...' : 'Save Discount'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </>
       )}
     </div>

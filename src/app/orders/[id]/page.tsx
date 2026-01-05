@@ -48,6 +48,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editedItems, setEditedItems] = useState<OrderItem[]>([]);
 
   useEffect(() => {
     const loadParams = async () => {
@@ -79,6 +81,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
       if (result.success) {
         setOrder(result.data);
+        setEditedItems(result.data.items); // Initialize edited items
       } else {
         toast.error('Order not found');
       }
@@ -87,6 +90,80 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       toast.error('Failed to load order details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditToggle = () => {
+    if (editMode) {
+      // Cancel edit - reset to original items
+      setEditedItems(order?.items || []);
+    }
+    setEditMode(!editMode);
+  };
+
+  const handleItemChange = (index: number, field: 'quantity' | 'price', value: number) => {
+    const newItems = [...editedItems];
+    newItems[index] = {
+      ...newItems[index],
+      [field]: value,
+      total: field === 'quantity' 
+        ? value * newItems[index].price 
+        : newItems[index].quantity * value
+    };
+    setEditedItems(newItems);
+  };
+
+  const calculateEditedTotals = () => {
+    const subtotal = editedItems.reduce((sum, item) => sum + item.total, 0);
+    const tax = 0; // No tax
+    const shipping = order?.shipping || 0;
+    const total = subtotal + tax + shipping;
+    return { subtotal, tax, shipping, total };
+  };
+
+  const handleSaveItems = async () => {
+    if (!order || !user || user.role !== 'admin') {
+      toast.error('Unauthorized');
+      return;
+    }
+
+    if (!confirm('Save changes to this order?')) {
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      const token = localStorage.getItem('token');
+
+      const response = await fetch(`/api/admin/orders/${orderId}/items`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          items: editedItems.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price
+          }))
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success('Order items updated successfully');
+        setEditMode(false);
+        fetchOrderDetails(); // Refresh data
+      } else {
+        toast.error(result.error || 'Failed to update order items');
+      }
+    } catch (error) {
+      console.error('Error updating order items:', error);
+      toast.error('Failed to update order items');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -265,13 +342,39 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           <div className="lg:col-span-2 space-y-6">
             {/* Order Items */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="p-4 sm:p-6 border-b border-gray-200">
+              <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">Order Items</h2>
+                {user?.role === 'admin' && order.status === 'PENDING' && !editMode && (
+                  <button
+                    onClick={handleEditToggle}
+                    className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    ✏️ Edit Items
+                  </button>
+                )}
+                {editMode && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveItems}
+                      disabled={updating}
+                      className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {updating ? 'Saving...' : '✓ Save Changes'}
+                    </button>
+                    <button
+                      onClick={handleEditToggle}
+                      disabled={updating}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      ✕ Cancel
+                    </button>
+                  </div>
+                )}
               </div>
               
               <div className="p-4 sm:p-6">
                 <div className="space-y-4">
-                  {order.items.map((item, index) => (
+                  {(editMode ? editedItems : order.items).map((item, index) => (
                     <div key={index} className="flex gap-4 pb-4 border-b border-gray-200 last:border-0 last:pb-0">
                       <Link 
                         href={`/products/${item.productId}`}
@@ -305,17 +408,64 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                         {item.sku && (
                           <p className="text-xs text-gray-500 mb-2">SKU: {item.sku}</p>
                         )}
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                          <span className="text-gray-600">Qty: {item.quantity}</span>
-                          <span className="text-gray-600">৳{item.price.toLocaleString()}</span>
-                          <span className="font-semibold text-gray-900">
-                            Total: ৳{item.total.toLocaleString()}
-                          </span>
-                        </div>
+                        
+                        {editMode ? (
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <div className="flex items-center gap-2">
+                                <label className="text-xs text-gray-600 font-medium">Qty:</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.quantity}
+                                  onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 1)}
+                                  className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <label className="text-xs text-gray-600 font-medium">Price:</label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={item.price}
+                                  onChange={(e) => handleItemChange(index, 'price', parseFloat(e.target.value) || 0)}
+                                  className="w-24 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+                              <span className="text-sm font-semibold text-gray-900">
+                                Total: ৳{item.total.toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                            <span className="text-gray-600">Qty: {item.quantity}</span>
+                            <span className="text-gray-600">৳{item.price.toLocaleString()}</span>
+                            <span className="font-semibold text-gray-900">
+                              Total: ৳{item.total.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
+                
+                {editMode && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <div className="text-sm text-gray-700 space-y-1">
+                      <div className="flex justify-between">
+                        <span>Updated Subtotal:</span>
+                        <span className="font-semibold">৳{calculateEditedTotals().subtotal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Updated Total:</span>
+                        <span className="font-bold text-blue-600">৳{calculateEditedTotals().total.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -428,31 +578,44 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             {user?.role === 'admin' && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                 <div className="p-4 sm:p-6 border-b border-gray-200">
-                  <h2 className="text-lg font-semibold text-gray-900">Update Status</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">Admin Actions</h2>
                 </div>
                 
-                <div className="p-4 sm:p-6 space-y-2">
-                  {['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'].map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => handleStatusChange(status)}
-                      disabled={updating || order.status === status}
-                      className={`w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                        order.status === status
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      {updating ? 'Updating...' : `Mark as ${status}`}
-                    </button>
-                  ))}
+                <div className="p-4 sm:p-6 space-y-3">
+                  {order.status === 'PENDING' && (
+                    <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-xs text-yellow-800">
+                        💡 <strong>Tip:</strong> You can edit order items (quantity & price) before confirming this order.
+                      </p>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Update Status</h3>
+                    {['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'].map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => handleStatusChange(status)}
+                        disabled={updating || order.status === status || editMode}
+                        className={`w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          order.status === status
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : editMode
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                      >
+                        {updating ? 'Updating...' : `Mark as ${status}`}
+                      </button>
+                    ))}
+                  </div>
                   
                   {/* Cancel Order Button */}
                   {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && (
                     <div className="pt-3 border-t border-gray-200">
                       <button
                         onClick={handleCancelOrder}
-                        disabled={updating}
+                        disabled={updating || editMode}
                         className="w-full px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {updating ? 'Cancelling...' : '❌ Cancel Order'}

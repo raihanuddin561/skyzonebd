@@ -58,6 +58,9 @@ export async function GET(request: NextRequest) {
           isActive: true,
           isVerified: true,
           companyName: true,
+          discountPercent: true,
+          discountReason: true,
+          discountValidUntil: true,
           createdAt: true,
           updatedAt: true,
           _count: {
@@ -96,6 +99,9 @@ export async function GET(request: NextRequest) {
         businessName: user.companyName,
         totalOrders: user._count.orders,
         totalSpent,
+        discountPercent: user.discountPercent,
+        discountReason: user.discountReason,
+        discountValidUntil: user.discountValidUntil?.toISOString(),
         createdAt: user.createdAt.toISOString(),
         lastLogin: user.updatedAt.toISOString(), // Using updatedAt as proxy for lastLogin
       };

@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
 
     let userId = null;
     let guestData = null;
+    let customerDiscount = 0; // Customer's special discount percentage
 
     // Check if user is authenticated
     const authHeader = request.headers.get('authorization');
@@ -57,6 +58,24 @@ export async function POST(request: NextRequest) {
         const token = authHeader.substring(7);
         const decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
         userId = decoded.userId;
+        
+        // Get customer discount if user is logged in
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { 
+            discountPercent: true,
+            discountValidUntil: true 
+          }
+        });
+        
+        // Apply discount if valid
+        if (user && user.discountPercent && user.discountPercent > 0) {
+          // Check if discount has not expired
+          if (!user.discountValidUntil || user.discountValidUntil > new Date()) {
+            customerDiscount = user.discountPercent;
+            console.log(`💰 Customer discount applied: ${customerDiscount}%`);
+          }
+        }
       } catch {
         // Token invalid, treat as guest order
       }
@@ -82,13 +101,27 @@ export async function POST(request: NextRequest) {
     const subtotal = items.reduce((sum: number, item: OrderItem) => 
       sum + (item.price * item.quantity), 0);
     
+    // Apply customer discount if applicable
+    const discountAmount = customerDiscount > 0 ? (subtotal * customerDiscount / 100) : 0;
+    const subtotalAfterDiscount = subtotal - discountAmount;
+    
     // Only add charges if configured by admin (via env vars)
     const shippingCharge = process.env.SHIPPING_CHARGE ? parseFloat(process.env.SHIPPING_CHARGE) : 0;
     const taxRate = process.env.TAX_RATE ? parseFloat(process.env.TAX_RATE) : 0;
     
     const shipping = shippingCharge;
-    const tax = subtotal * taxRate;
-    const total = subtotal + shipping + tax;
+    const tax = subtotalAfterDiscount * taxRate;
+    const total = subtotalAfterDiscount + shipping + tax;
+    
+    console.log('💵 Order calculation:', {
+      originalSubtotal: subtotal,
+      discountPercent: customerDiscount,
+      discountAmount: discountAmount,
+      subtotalAfterDiscount: subtotalAfterDiscount,
+      shipping: shipping,
+      tax: tax,
+      total: total
+    });
     
     // Generate order number
     const orderNumber = `ORD-${Date.now()}`;

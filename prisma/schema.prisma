@@ -23,6 +23,11 @@ model User {
   isActive     Boolean  @default(true)
   isVerified   Boolean  @default(false)   // Optional business verification
   
+  // Customer Discount (Special Offer)
+  discountPercent Float?  @default(0)  // Special discount % for this customer (0-100)
+  discountReason  String?              // Reason for discount (e.g., "VIP Customer", "Annual Contract")
+  discountValidUntil DateTime?         // Optional expiration date for discount
+  
   // Profit Sharing Configuration (for sellers/partners)
   profitSharePercentage Float?  // Percentage of profit this seller/partner receives
   isProfitPartner       Boolean @default(false)  // Is this user a profit-sharing partner?
@@ -41,6 +46,8 @@ model User {
   activityLogs ActivityLog[]  // Admin activity logs
   dataDeletionRequests DataDeletionRequest[]  // GDPR data deletion requests
   permissions  UserPermission[]  // Granular permissions for this user
+  sales        Sale[]     // Sales where this user is the customer
+  salesEntered Sale[]     @relation("SaleEnteredBy")  // Sales entered by this admin
   
   @@map("users")
 }
@@ -287,6 +294,7 @@ model Product {
   heroSlides       HeroSlide[]
   inventoryLogs    InventoryLog[] // Track inventory changes
   profitReports    ProfitReport[] // Profit analysis per product
+  sales            Sale[]         // Sales records for this product
   
   @@map("products")
 }
@@ -370,6 +378,7 @@ model Order {
   orderItems      OrderItem[]
   payments        Payment[]
   profitReports   ProfitReport[]
+  sales           Sale[]        // Sales generated from this order
   
   @@map("orders")
 }
@@ -712,6 +721,67 @@ model Warehouse {
   @@map("warehouses")
 }
 
+// Sales Tracking System - Tracks both direct sales and order-based sales
+model Sale {
+  id              String       @id @default(cuid())
+  saleType        SaleType     // DIRECT or ORDER_BASED
+  saleDate        DateTime     @default(now())
+  
+  // Reference
+  orderId         String?      // Reference to order if ORDER_BASED
+  invoiceNumber   String?      // Invoice/receipt number
+  
+  // Customer Information
+  customerName    String
+  customerPhone   String?
+  customerEmail   String?
+  customerId      String?      // Reference to user if registered customer
+  
+  // Product Details
+  productId       String
+  productName     String       // Snapshot of product name at time of sale
+  productSku      String?
+  quantity        Int
+  unitPrice       Float        // Price per unit at time of sale
+  totalAmount     Float        // quantity × unitPrice
+  
+  // Cost & Profit
+  costPrice       Float?       // Cost per unit (for profit calculation)
+  profitAmount    Float?       // (unitPrice - costPrice) × quantity
+  profitMargin    Float?       // (profitAmount / totalAmount) × 100
+  
+  // Payment Information
+  paymentMethod   String?      // Cash, Card, Bank Transfer, Mobile Banking, etc.
+  paymentStatus   PaymentStatus @default(PAID)
+  
+  // Additional Information
+  notes           String?      // Additional notes
+  enteredBy       String?      // Admin user ID who entered the sale
+  isDelivered     Boolean      @default(true) // True for direct sales, depends on order for order-based
+  
+  // Relations
+  product         Product      @relation(fields: [productId], references: [id])
+  order           Order?       @relation(fields: [orderId], references: [id])
+  customer        User?        @relation(fields: [customerId], references: [id])
+  enteredByUser   User?        @relation("SaleEnteredBy", fields: [enteredBy], references: [id])
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@map("sales")
+  @@index([saleType])
+  @@index([saleDate])
+  @@index([orderId])
+  @@index([customerId])
+  @@index([productId])
+  @@index([paymentStatus])
+}
+
+enum SaleType {
+  DIRECT       // Direct sale entered manually by admin
+  ORDER_BASED  // Sale generated from delivered order
+}
+
 // Employee Management
 model Employee {
   id              String           @id @default(cuid())
@@ -978,6 +1048,84 @@ model ProfitLossReport {
   @@unique([month, year])
   @@map("profit_loss_reports")
   @@index([month, year])
+}
+
+// Business Partners - Profit Sharing Management
+model Partner {
+  id              String   @id @default(cuid())
+  name            String   // Partner name
+  email           String?  @unique
+  phone           String?
+  
+  // Profit Share Configuration
+  profitSharePercentage Float  // Percentage of net profit (0-100)
+  isActive        Boolean  @default(true)
+  
+  // Partnership Details
+  partnerType     String?  // INVESTOR, CO-OWNER, SILENT_PARTNER, etc.
+  joinDate        DateTime @default(now())
+  exitDate        DateTime?
+  
+  // Financial
+  initialInvestment Float?  // Initial capital invested
+  totalProfitReceived Float @default(0)  // Total profit distributed
+  
+  // Contact & Legal
+  address         String?
+  taxId           String?
+  bankAccount     String?
+  
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  profitDistributions ProfitDistribution[]
+  
+  @@map("partners")
+  @@index([isActive])
+}
+
+// Profit Distribution Records
+model ProfitDistribution {
+  id              String   @id @default(cuid())
+  partnerId       String
+  
+  // Period
+  periodType      String   // DAILY, WEEKLY, MONTHLY, YEARLY
+  startDate       DateTime
+  endDate         DateTime
+  
+  // Financial Data
+  totalRevenue    Float
+  totalCosts      Float    // All operational costs
+  netProfit       Float    // Revenue - Costs
+  
+  partnerShare    Float    // Partner's percentage share
+  distributionAmount Float  // Actual amount to distribute
+  
+  // Status
+  status          String   @default("PENDING") // PENDING, APPROVED, PAID
+  approvedBy      String?
+  approvedAt      DateTime?
+  paidAt          DateTime?
+  paymentMethod   String?
+  paymentReference String?
+  
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  partner         Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  
+  @@map("profit_distributions")
+  @@index([partnerId])
+  @@index([periodType])
+  @@index([startDate, endDate])
+  @@index([status])
 }
 
 // Data Deletion Request Model (for GDPR/Google Play compliance)
