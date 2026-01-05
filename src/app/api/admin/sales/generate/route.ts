@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 
 // POST - Generate sales from delivered orders
 export async function POST(request: NextRequest) {
   try {
     // Verify admin access
-    const adminCheck = await verifyAdmin(request);
-    if (!adminCheck.isValid) {
-      return NextResponse.json(
-        { success: false, error: adminCheck.error },
-        { status: 401 }
-      );
-    }
+    const admin = await requireAdmin(request);
 
     const body = await request.json();
     const { orderId } = body;
@@ -112,7 +106,7 @@ export async function POST(request: NextRequest) {
         paymentMethod: order.paymentMethod || 'Not specified',
         paymentStatus: order.isPaid ? 'PAID' : 'PENDING',
         notes: `Generated from order ${order.orderNumber}`,
-        enteredBy: adminCheck.user.id,
+        enteredBy: admin.id,
         isDelivered: true,
       };
     });
@@ -128,7 +122,7 @@ export async function POST(request: NextRequest) {
         action: 'CREATE',
         entityType: 'SALE',
         entityId: orderId,
-        userId: adminCheck.user.id,
+        userId: admin.id,
         metadata: {
           action: 'generate_sales_from_order',
           orderNumber: order.orderNumber,
@@ -160,12 +154,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Verify admin access
-    const adminCheck = await verifyAdmin(request);
-    if (!adminCheck.isValid) {
-      return NextResponse.json(
-        { success: false, error: adminCheck.error },
-        { status: 401 }
-      );
+    await requireAdmin(request);
     }
 
     const searchParams = request.nextUrl.searchParams;

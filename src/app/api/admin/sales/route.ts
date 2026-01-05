@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 
 // GET - Get all sales (with filters)
 export async function GET(request: NextRequest) {
   try {
     // Verify admin access
-    const adminCheck = await verifyAdmin(request);
-    if (!adminCheck.isValid) {
-      return NextResponse.json(
-        { success: false, error: adminCheck.error },
-        { status: 401 }
-      );
-    }
+    await requireAdmin(request);
 
     const searchParams = request.nextUrl.searchParams;
     const saleType = searchParams.get('saleType'); // DIRECT | ORDER_BASED
@@ -153,13 +147,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Verify admin access
-    const adminCheck = await verifyAdmin(request);
-    if (!adminCheck.isValid) {
-      return NextResponse.json(
-        { success: false, error: adminCheck.error },
-        { status: 401 }
-      );
-    }
+    const admin = await requireAdmin(request);
 
     const body = await request.json();
     const {
@@ -244,7 +232,7 @@ export async function POST(request: NextRequest) {
           paymentMethod,
           paymentStatus: paymentStatus || 'PAID',
           notes,
-          enteredBy: adminCheck.user.id,
+          enteredBy: admin.id,
           isDelivered: true, // Direct sales are delivered
         },
         include: {
@@ -283,7 +271,7 @@ export async function POST(request: NextRequest) {
           newStock: product.stockQuantity - quantity,
           reference: `DIRECT-${newSale.id}`,
           notes: `Direct sale to ${customerName}`,
-          performedBy: adminCheck.user.id,
+          performedBy: admin.id,
         },
       });
 
@@ -293,7 +281,9 @@ export async function POST(request: NextRequest) {
           action: 'CREATE',
           entityType: 'SALE',
           entityId: newSale.id,
-          userId: adminCheck.user.id,
+          userId: admin.id,
+          userName: admin.name,
+          description: `Created direct sale for ${product.name}`,
           metadata: {
             saleType: 'DIRECT',
             productName: product.name,
