@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
+import { SaleType } from '@prisma/client';
 
 // POST - Generate sales from delivered orders
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // Verify admin access
     const admin = await requireAdmin(request);
@@ -29,7 +30,8 @@ export async function POST(request: NextRequest) {
                 id: true,
                 name: true,
                 sku: true,
-                costPrice: true,
+                costPerUnit: true,
+                basePrice: true,
               },
             },
           },
@@ -53,11 +55,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if order is delivered
-    if (order.status !== 'delivered') {
+    if (order.status !== 'DELIVERED') {
       return NextResponse.json(
         { 
           success: false, 
-          error: `Order must be in 'delivered' status. Current status: ${order.status}` 
+          error: `Order must be in 'DELIVERED' status. Current status: ${order.status}` 
         },
         { status: 400 }
       );
@@ -80,19 +82,19 @@ export async function POST(request: NextRequest) {
 
     // Create sales records for each order item
     const salesData = order.orderItems.map((item) => {
-      const costPrice = item.costPerUnit || item.product.costPrice || 0;
+      const costPrice = item.costPerUnit || item.product.costPerUnit || item.product.basePrice || 0;
       const profitPerUnit = item.price - costPrice;
       const profitAmount = profitPerUnit * item.quantity;
       const profitMargin = item.total > 0 ? (profitAmount / item.total) * 100 : 0;
 
       return {
-        saleType: 'ORDER_BASED',
+        saleType: SaleType.ORDER_BASED,
         saleDate: order.updatedAt, // Use order update time as sale date
         orderId: order.id,
         invoiceNumber: order.orderNumber,
-        customerName: order.user?.name || order.customerName || 'Unknown',
-        customerPhone: order.user?.phone || order.phone,
-        customerEmail: order.user?.email || order.email,
+        customerName: order.user?.name || order.guestName || 'Unknown',
+        customerPhone: order.user?.phone || order.guestPhone || null,
+        customerEmail: order.user?.email || order.guestEmail || null,
         customerId: order.userId,
         productId: item.productId,
         productName: item.product.name,
@@ -104,7 +106,7 @@ export async function POST(request: NextRequest) {
         profitAmount,
         profitMargin,
         paymentMethod: order.paymentMethod || 'Not specified',
-        paymentStatus: order.isPaid ? 'PAID' : 'PENDING',
+        paymentStatus: order.paymentStatus,
         notes: `Generated from order ${order.orderNumber}`,
         enteredBy: admin.id,
         isDelivered: true,
@@ -123,6 +125,8 @@ export async function POST(request: NextRequest) {
         entityType: 'SALE',
         entityId: orderId,
         userId: admin.id,
+        userName: admin.name || admin.email,
+        description: `Generated ${salesData.length} sale records from order ${order.orderNumber}`,
         metadata: {
           action: 'generate_sales_from_order',
           orderNumber: order.orderNumber,
@@ -151,11 +155,10 @@ export async function POST(request: NextRequest) {
 }
 
 // GET - Get sales statistics
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // Verify admin access
     await requireAdmin(request);
-    }
 
     const searchParams = request.nextUrl.searchParams;
     const startDate = searchParams.get('startDate');
@@ -173,7 +176,7 @@ export async function GET(request: NextRequest) {
     // Get delivered orders without sales
     const deliveredOrdersWithoutSales = await prisma.order.findMany({
       where: {
-        status: 'delivered',
+        status: 'DELIVERED',
         sales: {
           none: {},
         },

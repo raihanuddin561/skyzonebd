@@ -3,11 +3,12 @@ import prisma from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const partner = await prisma.partner.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         profitDistributions: {
           orderBy: { createdAt: 'desc' },
@@ -37,9 +38,10 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const {
       name,
@@ -68,7 +70,7 @@ export async function PATCH(
       const activePartners = await prisma.partner.findMany({
         where: {
           isActive: true,
-          NOT: { id: params.id },
+          NOT: { id },
         },
       });
 
@@ -102,7 +104,7 @@ export async function PATCH(
     if (exitDate !== undefined) updateData.exitDate = exitDate ? new Date(exitDate) : null;
 
     const partner = await prisma.partner.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     });
 
@@ -130,11 +132,12 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await prisma.partner.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({

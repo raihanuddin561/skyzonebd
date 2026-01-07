@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
+import { SaleType } from '@prisma/client';
 
 // GET - Get all sales (with filters)
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // Verify admin access
     await requireAdmin(request);
@@ -144,7 +145,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Create a new direct sale
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // Verify admin access
     const admin = await requireAdmin(request);
@@ -180,7 +181,8 @@ export async function POST(request: NextRequest) {
         name: true,
         sku: true,
         stockQuantity: true,
-        costPrice: true,
+        costPerUnit: true,
+        basePrice: true,
       },
     });
 
@@ -204,7 +206,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate totals
     const totalAmount = quantity * unitPrice;
-    const costPrice = product.costPrice || 0;
+    const costPrice = product.costPerUnit || product.basePrice || 0;
     const profitPerUnit = unitPrice - costPrice;
     const profitAmount = profitPerUnit * quantity;
     const profitMargin = totalAmount > 0 ? (profitAmount / totalAmount) * 100 : 0;
@@ -214,7 +216,7 @@ export async function POST(request: NextRequest) {
       // Create sale record
       const newSale = await tx.sale.create({
         data: {
-          saleType: 'DIRECT',
+          saleType: SaleType.DIRECT,
           saleDate: saleDate ? new Date(saleDate) : new Date(),
           productId,
           productName: product.name,

@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { SaleType } from '@prisma/client';
 
 /**
  * Automatically generate sales records when an order is marked as delivered
@@ -17,7 +18,8 @@ export async function autoGenerateSalesFromOrder(orderId: string, performedBy?: 
                 id: true,
                 name: true,
                 sku: true,
-                costPrice: true,
+                costPerUnit: true,
+                basePrice: true,
               },
             },
           },
@@ -38,7 +40,7 @@ export async function autoGenerateSalesFromOrder(orderId: string, performedBy?: 
     }
 
     // Check if order is delivered
-    if (order.status !== 'delivered') {
+    if (order.status !== 'DELIVERED') {
       console.log(`Order ${orderId} is not delivered yet. Skipping sales generation.`);
       return { success: false, message: 'Order not delivered' };
     }
@@ -55,19 +57,19 @@ export async function autoGenerateSalesFromOrder(orderId: string, performedBy?: 
 
     // Create sales records for each order item
     const salesData = order.orderItems.map((item) => {
-      const costPrice = item.costPerUnit || item.product.costPrice || 0;
+      const costPrice = item.costPerUnit || item.product.costPerUnit || item.product.basePrice || 0;
       const profitPerUnit = item.price - costPrice;
       const profitAmount = profitPerUnit * item.quantity;
       const profitMargin = item.total > 0 ? (profitAmount / item.total) * 100 : 0;
 
       return {
-        saleType: 'ORDER_BASED' as const,
+        saleType: SaleType.ORDER_BASED,
         saleDate: order.updatedAt,
         orderId: order.id,
         invoiceNumber: order.orderNumber,
-        customerName: order.user?.name || order.customerName || 'Unknown',
-        customerPhone: order.user?.phone || order.phone,
-        customerEmail: order.user?.email || order.email,
+        customerName: order.user?.name || order.guestName || 'Unknown',
+        customerPhone: order.user?.phone || order.guestPhone || null,
+        customerEmail: order.user?.email || order.guestEmail || null,
         customerId: order.userId,
         productId: item.productId,
         productName: item.product.name,
@@ -79,7 +81,7 @@ export async function autoGenerateSalesFromOrder(orderId: string, performedBy?: 
         profitAmount,
         profitMargin,
         paymentMethod: order.paymentMethod || 'Not specified',
-        paymentStatus: (order.isPaid ? 'PAID' : 'PENDING') as const,
+        paymentStatus: order.paymentStatus,
         notes: `Auto-generated from delivered order ${order.orderNumber}`,
         enteredBy: performedBy || null,
         isDelivered: true,
@@ -115,7 +117,7 @@ export async function batchGenerateSalesFromDeliveredOrders() {
     // Get all delivered orders without sales
     const deliveredOrders = await prisma.order.findMany({
       where: {
-        status: 'delivered',
+        status: 'DELIVERED',
         sales: {
           none: {},
         },

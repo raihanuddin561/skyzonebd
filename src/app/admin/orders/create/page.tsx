@@ -250,7 +250,7 @@ function CreateOrderPage() {
   };
 
   return (
-    <ProtectedRoute requireAdmin>
+    <ProtectedRoute requiredRole="admin">
       <main className="min-h-screen bg-gray-50">
         <Header />
         <ToastContainer />

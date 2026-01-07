@@ -131,16 +131,6 @@ export async function POST(request: NextRequest) {
           name: true,
           wholesalePrice: true,
           stockQuantity: true,
-          customerPricing: customerId ? {
-            where: {
-              userId: customerId,
-              isActive: true,
-              OR: [
-                { validUntil: null },
-                { validUntil: { gte: new Date() } }
-              ]
-            }
-          } : false
         }
       });
 
@@ -159,15 +149,12 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Determine price: custom price > customer-specific price > product wholesale price
+      // Determine price: custom price > product wholesale price
       let itemPrice = product.wholesalePrice;
       
       if (item.customPrice !== undefined && item.customPrice !== null) {
         // Admin provided custom price for this order
         itemPrice = item.customPrice;
-      } else if (customerId && product.customerPricing && product.customerPricing.length > 0) {
-        // Use customer-specific pricing if available
-        itemPrice = product.customerPricing[0].customPrice;
       }
       
       // Apply customer discount to the item price if no custom price
