@@ -663,10 +663,13 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           </div>
         </div>
 
-        {/* Pricing */}
+        {/* Pricing - Retail pricing disabled (Enable later if needed) */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Pricing & Inventory</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Retail pricing hidden - wholesale only */}
+            {false && (
+            <>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Retail Price *
@@ -709,6 +712,8 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                 step="0.01"
               />
             </div>
+            </>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

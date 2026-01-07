@@ -224,8 +224,8 @@ export default function NewProduct() {
     setIsSubmitting(true);
 
     try {
-      // Validate required fields
-      if (!formData.name || !formData.retailPrice || !formData.category) {
+      // Validate required fields - Retail price not required (wholesale only)
+      if (!formData.name || !formData.category) {
         toast.error('Please fill in all required fields');
         setIsSubmitting(false);
         return;
@@ -256,10 +256,10 @@ export default function NewProduct() {
         categoryId: formData.category,
         brand: formData.brand,
         unit: formData.unit || null,
-        retailPrice: parseFloat(formData.retailPrice),
+        retailPrice: formData.retailPrice ? parseFloat(formData.retailPrice) : 0, // Default to 0 for wholesale-only
         salePrice: formData.salePrice ? parseFloat(formData.salePrice) : null,
-        retailMOQ: parseInt(formData.retailMOQ),
-        price: parseFloat(formData.retailPrice), // For backward compatibility
+        retailMOQ: formData.retailMOQ ? parseInt(formData.retailMOQ) : 1,
+        price: formData.retailPrice ? parseFloat(formData.retailPrice) : 0, // For backward compatibility
         wholesaleEnabled: formData.wholesaleEnabled,
         wholesaleMOQ: formData.wholesaleMOQ ? parseInt(formData.wholesaleMOQ) : null,
         stockQuantity: parseInt(formData.stock),
@@ -481,7 +481,8 @@ export default function NewProduct() {
           </div>
         </div>
 
-        {/* Pricing - B2C */}
+        {/* Pricing - B2C - DISABLED (Enable this section later if retail pricing is needed) */}
+        {false && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Retail Pricing (B2C)</h2>
           
@@ -530,6 +531,7 @@ export default function NewProduct() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Wholesale Pricing - B2B */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

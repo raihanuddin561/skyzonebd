@@ -505,7 +505,7 @@ export default function UsersManagement() {
               className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Types</option>
-              <option value="retail">Retail</option>
+              {/* <option value="retail">Retail</option> - Retail pricing disabled */}
               <option value="wholesale">Wholesale</option>
             </select>
           </div>

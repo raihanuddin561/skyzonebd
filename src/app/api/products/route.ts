@@ -208,8 +208,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     
-    // Validate required fields
-    const requiredFields = ['name', 'slug', 'categoryId', 'imageUrl', 'price', 'retailPrice'];
+    // Validate required fields - Removed retailPrice requirement (wholesale only mode)
+    const requiredFields = ['name', 'slug', 'categoryId', 'imageUrl', 'price'];
     for (const field of requiredFields) {
       if (!body[field]) {
         return NextResponse.json(
