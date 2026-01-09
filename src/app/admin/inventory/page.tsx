@@ -34,8 +34,22 @@ export default function InventoryPage() {
       
       if (response.ok) {
         const data = await response.json();
-        if (data.success) {
-          setInventory(data.data);
+        if (data.success && data.data.products) {
+          // Map API response to component's expected format
+          const mappedInventory = data.data.products.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            sku: p.sku,
+            currentStock: p.stock || 0,
+            minStock: 10, // Default min stock
+            maxStock: 1000, // Default max stock
+            category: p.category || 'Uncategorized',
+            price: p.price || 0,
+            status: p.status === 'Out of Stock' ? 'out_of_stock' : 
+                   p.status === 'Low Stock' || p.status === 'Critical' ? 'low_stock' : 'in_stock',
+            lastUpdated: p.lastUpdated || new Date().toISOString()
+          }));
+          setInventory(mappedInventory);
         }
       } else {
         // Fallback to products API
