@@ -3,8 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
-import { isSuperAdmin, isAdmin } from '@/lib/permissions';
-import { UserRole } from '@/types/roles';
+import { UserRole, isSuperAdmin, isAdmin } from '@/types/roles';
 
 /**
  * PATCH /api/admin/users/[id]/status
