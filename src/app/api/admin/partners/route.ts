@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
+import { canOverridePercentage, requireAdmin } from '@/lib/permissions';
+import { UserRole } from '@/types/roles';
 
 export async function GET(request: NextRequest) {
   try {
+    // Require authentication
+    const authUser = await requireAuth(request);
+    
+    // Check if user has permission to view partners
+    if (!requireAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 403 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const isActive = searchParams.get('isActive');
 
@@ -38,6 +52,8 @@ export async function GET(request: NextRequest) {
           remainingShare: 100 - totalActiveShare,
         },
       },
+      userRole: authUser.role,
+      canOverride: canOverridePercentage(authUser.role as UserRole)
     });
   } catch (error) {
     console.error('Error fetching partners:', error);
@@ -50,6 +66,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Require authentication
+    const authUser = await requireAuth(request);
+    
+    // Check if user has permission to manage partners
+    if (!requireAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const {
       name,
@@ -62,6 +89,7 @@ export async function POST(request: NextRequest) {
       taxId,
       bankAccount,
       notes,
+      overrideLimit, // Super admin can force override
     } = body;
 
     // Validate required fields
@@ -90,15 +118,26 @@ export async function POST(request: NextRequest) {
       0
     );
 
-    if (currentTotalShare + profitSharePercentage > 100) {
+    const newTotal = currentTotalShare + profitSharePercentage;
+
+    // Super admin can override percentage limit
+    const isSuperAdmin = canOverridePercentage(authUser.role as UserRole);
+    
+    if (newTotal > 100 && !isSuperAdmin) {
       return NextResponse.json(
         {
           success: false,
-          error: `Total share would exceed 100%. Current: ${currentTotalShare}%, Adding: ${profitSharePercentage}%`,
+          error: `Total share would exceed 100%. Current: ${currentTotalShare.toFixed(1)}%, Adding: ${profitSharePercentage}%. Total: ${newTotal.toFixed(1)}%`,
+          suggestion: 'Contact super admin to override this limit.'
         },
         { status: 400 }
       );
     }
+
+    // Warning if exceeding 100% but super admin is overriding
+    const warning = newTotal > 100 && isSuperAdmin 
+      ? `Warning: Total share is ${newTotal.toFixed(1)}% (Super admin override applied)`
+      : undefined;
 
     const partner = await prisma.partner.create({
       data: {
@@ -119,6 +158,9 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Partner created successfully',
       data: { partner },
+      warning,
+      totalShare: newTotal,
+      isSuperAdminOverride: newTotal > 100
     });
   } catch (error: any) {
     console.error('Error creating partner:', error);

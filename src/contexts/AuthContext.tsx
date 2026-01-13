@@ -194,6 +194,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     toast.info('Logged out successfully');
   };
 
+  // Refresh user data
+  const refreshUser = async () => {
+    try {
+      const token = safeLocalStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('/api/user/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.user) {
+          // Update localStorage and state
+          safeLocalStorage.setJSON('user', data.user);
+          dispatch({ type: 'SET_USER', payload: data.user });
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+    }
+  };
+
   const value: AuthContextType = {
     user: state.user,
     isLoading: state.isLoading,
@@ -203,7 +228,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     register,
     guestCheckout: async () => { /* TODO: Implement guest checkout */ },
-    logout
+    logout,
+    refreshUser
   };
 
   return (

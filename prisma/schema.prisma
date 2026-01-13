@@ -463,9 +463,13 @@ model RFQItem {
 
 // Enums
 enum UserRole {
-  ADMIN
-  SELLER
-  BUYER
+  SUPER_ADMIN  // Level 5 - Full system control + override capabilities
+  ADMIN        // Level 4 - Full management access
+  PARTNER      // Level 3 - Partner/Investor level access + profit viewing
+  MANAGER      // Level 2 - Department/team management
+  SELLER       // Level 1.5 - Can sell and manage own products
+  BUYER        // Level 1 - Standard customer access
+  GUEST        // Level 0 - Limited guest access
 }
 
 enum UserType {

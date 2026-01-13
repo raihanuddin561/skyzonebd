@@ -101,4 +101,5 @@ export interface AuthContextType {
   register: (data: RegisterData) => Promise<void>;
   guestCheckout: (data: GuestCheckoutData) => Promise<void>;
   logout: () => void;
+  refreshUser?: () => Promise<void>;
 }

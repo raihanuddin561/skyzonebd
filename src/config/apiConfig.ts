@@ -24,13 +24,13 @@ export const API_ENDPOINTS = {
 
   // User endpoints
   USER: {
-    GET_PROFILE: '/users/profile',
-    UPDATE_PROFILE: '/users/profile',
-    CHANGE_PASSWORD: '/users/change-password',
-    UPLOAD_AVATAR: '/users/avatar',
-    GET_ORDERS: '/users/orders',
-    GET_WISHLIST: '/users/wishlist',
-    DELETE_ACCOUNT: '/users/delete',
+    GET_PROFILE: '/user/profile',
+    UPDATE_PROFILE: '/user/profile',
+    CHANGE_PASSWORD: '/user/profile/password',
+    UPLOAD_AVATAR: '/user/avatar',
+    GET_ORDERS: '/user/orders',
+    GET_WISHLIST: '/user/wishlist',
+    DELETE_ACCOUNT: '/user/delete',
   },
 
   // Product endpoints
