@@ -8,7 +8,7 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: 'ADMIN' | 'SUPER_ADMIN' | 'PARTNER' | 'MANAGER' | 'BUYER' | 'SELLER';
   isActive: boolean;
   isVerified: boolean;
   createdAt: Date;

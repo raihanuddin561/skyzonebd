@@ -122,7 +122,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   };
 
   const handleSaveItems = async () => {
-    if (!order || !user || user.role !== 'admin') {
+    if (!order || !user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
       toast.error('Unauthorized');
       return;
     }
@@ -208,7 +208,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   };
 
   const handleStatusChange = async (newStatus: string) => {
-    if (!user || user.role !== 'admin') {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
       toast.error('Only admins can update order status');
       return;
     }

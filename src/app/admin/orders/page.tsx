@@ -231,7 +231,7 @@ export default function OrdersManagement() {
   };
 
   const handleRefresh = () => {
-    if (user && user.role === 'admin') {
+    if (user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) {
       const fetchOrders = async () => {
         try {
           setLoading(true);

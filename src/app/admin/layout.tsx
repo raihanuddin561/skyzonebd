@@ -68,7 +68,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }, [isMobile, sidebarOpen]);
 
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'admin')) {
+    if (!isLoading && (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN'))) {
       router.push('/auth/login');
     }
   }, [user, isLoading, router]);

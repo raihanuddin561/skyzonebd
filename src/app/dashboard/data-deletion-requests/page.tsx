@@ -40,7 +40,7 @@ export default function DataDeletionRequestsPage() {
   const [rejectionReason, setRejectionReason] = useState('');
 
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== 'admin')) {
+    if (!authLoading && (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN'))) {
       router.push('/auth/login');
     }
   }, [user, authLoading, router]);
