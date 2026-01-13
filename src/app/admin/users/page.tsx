@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { toast } from 'react-toastify';
 
 interface User {
   id: string;
@@ -168,13 +169,13 @@ export default function UsersManagement() {
           }
         }
         
-        alert(`User status updated successfully!`);
+        toast.success(`User status updated successfully!`);
       } else {
         throw new Error(result.error || 'Failed to update user status');
       }
     } catch (error) {
       console.error('Error updating user status:', error);
-      alert(`Failed to update user status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to update user status: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -217,10 +218,10 @@ export default function UsersManagement() {
       }
       
       setSelectedUsers([]);
-      alert(`${selectedUsers.length} user(s) activated successfully!`);
+      toast.success(`${selectedUsers.length} user(s) activated successfully!`);
     } catch (error) {
       console.error('Error activating users:', error);
-      alert(`Failed to activate users: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to activate users: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -263,10 +264,10 @@ export default function UsersManagement() {
       }
       
       setSelectedUsers([]);
-      alert(`${selectedUsers.length} user(s) suspended successfully!`);
+      toast.success(`${selectedUsers.length} user(s) suspended successfully!`);
     } catch (error) {
       console.error('Error suspending users:', error);
-      alert(`Failed to suspend users: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to suspend users: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -283,7 +284,7 @@ export default function UsersManagement() {
 
     const percent = parseFloat(discountPercent);
     if (isNaN(percent) || percent < 0 || percent > 100) {
-      alert('Please enter a valid discount percentage (0-100)');
+      toast.warning('Please enter a valid discount percentage (0-100)');
       return;
     }
 
@@ -316,13 +317,13 @@ export default function UsersManagement() {
             : u
         ));
         setShowDiscountModal(false);
-        alert('Discount updated successfully!');
+        toast.success('Discount updated successfully!');
       } else {
         throw new Error(result.error || 'Failed to update discount');
       }
     } catch (error) {
       console.error('Error updating discount:', error);
-      alert(`Failed to update discount: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to update discount: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setDiscountSaving(false);
     }
@@ -364,13 +365,13 @@ export default function UsersManagement() {
             : u
         ));
         setShowDiscountModal(false);
-        alert('Discount removed successfully!');
+        toast.success('Discount removed successfully!');
       } else {
         throw new Error(result.error || 'Failed to remove discount');
       }
     } catch (error) {
       console.error('Error removing discount:', error);
-      alert(`Failed to remove discount: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to remove discount: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setDiscountSaving(false);
     }

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import Header from "../../components/Header";
+import { toast } from 'react-toastify';
 
 interface ChargeSettings {
   // Global Settings
@@ -88,7 +89,7 @@ function ChargesSettings() {
 
   const handleSave = () => {
     // TODO: Save to API
-    alert('Settings saved successfully!');
+    toast.success('Settings saved successfully!');
   };
 
   const handleAddEntry = () => {

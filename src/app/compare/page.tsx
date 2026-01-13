@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Header from '../components/Header';
 import { dataService } from '@/services/dataService';
 import { Product } from '@/types/cart';
+import { toast } from 'react-toastify';
 
 export default function ComparePage() {
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
@@ -34,15 +35,15 @@ export default function ComparePage() {
         if (product && !selectedProducts.find(p => p.id === (product as Product).id)) {
           setSelectedProducts([...selectedProducts, product as Product]);
           setProductId('');
-          alert('Product added to comparison');
+          toast.success('Product added to comparison');
         } else if (!product) {
-          alert('Product not found');
+          toast.error('Product not found');
         } else {
-          alert('Product already added');
+          toast.info('Product already added');
         }
       } catch (error) {
         console.error('Error adding product:', error);
-        alert('Failed to add product');
+        toast.error('Failed to add product');
       } finally {
         setLoading(false);
       }

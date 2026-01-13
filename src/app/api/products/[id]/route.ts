@@ -348,6 +348,22 @@ export async function DELETE(
       );
     }
 
+    // Check if product has any order items (cannot delete if used in orders)
+    const orderItemCount = await prisma.orderItem.count({
+      where: { productId }
+    });
+
+    if (orderItemCount > 0) {
+      return NextResponse.json(
+        { 
+          error: 'Cannot delete product',
+          message: `This product cannot be deleted because it has been used in ${orderItemCount} order(s). Products with order history must be kept for record-keeping purposes.`,
+          suggestion: 'You can deactivate the product instead by setting it to inactive.'
+        },
+        { status: 400 }
+      );
+    }
+
     // Delete product
     await prisma.product.delete({
       where: { id: productId }

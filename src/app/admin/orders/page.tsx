@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'react-toastify';
 
 interface Order {
   id: string;
@@ -151,7 +152,7 @@ export default function OrdersManagement() {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        alert('Please login to update order status');
+        toast.error('Please login to update order status');
         return;
       }
 
@@ -173,13 +174,13 @@ export default function OrdersManagement() {
             ? { ...order, status: newStatus.toLowerCase() as any }
             : order
         ));
-        alert(`Order status updated to ${newStatus}`);
+        toast.success(`Order status updated to ${newStatus}`);
       } else {
-        alert(result.error || 'Failed to update order status');
+        toast.error(result.error || 'Failed to update order status');
       }
     } catch (error) {
       console.error('Error updating order status:', error);
-      alert('Failed to update order status');
+      toast.error('Failed to update order status');
     }
   };
 
@@ -193,7 +194,7 @@ export default function OrdersManagement() {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        alert('Please login to cancel order');
+        toast.error('Please login to cancel order');
         return;
       }
 
@@ -218,14 +219,14 @@ export default function OrdersManagement() {
             ? { ...order, status: 'cancelled' as any }
             : order
         ));
-        alert('Order cancelled successfully. Stock has been restored.');
+        toast.success('Order cancelled successfully. Stock has been restored.');
         handleRefresh(); // Refresh to get latest data
       } else {
-        alert(result.error || 'Failed to cancel order');
+        toast.error(result.error || 'Failed to cancel order');
       }
     } catch (error) {
       console.error('Error cancelling order:', error);
-      alert('Failed to cancel order');
+      toast.error('Failed to cancel order');
     }
   };
 

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { toast } from 'react-toastify';
 
 interface Product {
   id: string;
@@ -124,15 +125,15 @@ export default function ProductsManagement() {
       const result = await response.json();
       
       if (result.success) {
-        alert(`Successfully deleted ${result.data.deletedCount} products`);
+        toast.success(`Successfully deleted ${result.data.deletedCount} products`);
         setSelectedProducts([]);
         fetchProducts(); // Refresh the list
       } else {
-        alert('Failed to delete products: ' + result.error);
+        toast.error('Failed to delete products: ' + result.error);
       }
     } catch (error) {
       console.error('Error deleting products:', error);
-      alert('Failed to delete products');
+      toast.error('Failed to delete products');
     }
   };
 
@@ -154,14 +155,14 @@ export default function ProductsManagement() {
       const result = await response.json();
       
       if (result.success) {
-        alert('Product deleted successfully');
+        toast.success('Product deleted successfully');
         fetchProducts(); // Refresh the list
       } else {
-        alert('Failed to delete product: ' + result.error);
+        toast.error('Failed to delete product: ' + result.error);
       }
     } catch (error) {
       console.error('Error deleting product:', error);
-      alert('Failed to delete product');
+      toast.error('Failed to delete product');
     }
   };
 

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useCart } from '@/contexts/CartContext';
+import { toast } from 'react-toastify';
 
 /**
  * Component to automatically detect and clear cart items with old numeric IDs
@@ -28,8 +29,10 @@ export function CartMigration() {
       // Clear the cart
       clearCart();
       
-      // Show alert to user
-      alert('Your cart has been cleared due to a system update. Please add products again.');
+      // Show toast to user
+      toast.info('Your cart has been cleared due to a system update. Please add products again.', {
+        autoClose: 5000
+      });
       
       // Reload to fetch fresh products from database
       window.location.reload();

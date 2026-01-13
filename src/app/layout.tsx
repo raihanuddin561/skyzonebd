@@ -73,15 +73,24 @@ export default function RootLayout({
               {children}
               <ToastContainer
                 position="top-right"
-                autoClose={3000}
+                autoClose={4000}
                 hideProgressBar={false}
-                newestOnTop={false}
+                newestOnTop={true}
                 closeOnClick
                 rtl={false}
                 pauseOnFocusLoss
                 draggable
                 pauseOnHover
-                theme="light"
+                theme="colored"
+                style={{
+                  zIndex: 9999,
+                }}
+                toastStyle={{
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+                  fontSize: '15px',
+                  fontWeight: 500,
+                }}
               />
             </CartProvider>
           </WishlistProvider>

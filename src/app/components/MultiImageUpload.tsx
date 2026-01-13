@@ -297,8 +297,10 @@ export default function MultiImageUpload({
             console.error('❌ Response was:', responseText.substring(0, 1000));
             setDebugInfo(`❌ Invalid JSON: ${responseText.substring(0, 100)}`);
             
-            // Show the actual error in an alert for mobile users
-            alert(`Server Error:\n\n${responseText.substring(0, 500)}`);
+            // Show error via toast
+            toast.error(`Server returned invalid response: ${responseText.substring(0, 200)}`, {
+              autoClose: 8000
+            });
             
             throw new Error(`Server returned invalid response: ${responseText.substring(0, 100)}`);
           }
@@ -333,10 +335,9 @@ export default function MultiImageUpload({
       console.error('Upload error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload images';
       setDebugInfo(`❌ Final error: ${errorMessage}`);
-      toast.error(errorMessage);
-      
-      // Show error in alert for mobile debugging
-      alert(`Upload Error:\n\n${errorMessage}`);
+      toast.error(errorMessage, {
+        autoClose: 5000
+      });
     } finally {
       setUploading(false);
       setUploadProgress('');

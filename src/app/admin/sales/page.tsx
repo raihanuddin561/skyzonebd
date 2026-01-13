@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { toast } from 'react-toastify';
 
 interface Sale {
   id: string;
@@ -148,15 +149,15 @@ export default function SalesManagement() {
       const data = await response.json();
       
       if (data.success) {
-        alert(data.message);
+        toast.success(data.message);
         fetchSales();
         fetchDeliveredOrders();
       } else {
-        alert(`Error: ${data.error}`);
+        toast.error(`Error: ${data.error}`);
       }
     } catch (error) {
       console.error('Error generating sales:', error);
-      alert('Failed to generate sales');
+      toast.error('Failed to generate sales');
     } finally {
       setGenerating(false);
     }
