@@ -3,14 +3,13 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { UserRole } from '@/types/auth';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAuth?: boolean;
   redirectTo?: string;
-  requiredRole?: UserRole; // Optional: restrict by role
-  allowedRoles?: UserRole[]; // Optional: allow multiple roles
+  requiredRole?: string; // Optional: restrict by role (accepts uppercase database values or lowercase for backwards compatibility)
+  allowedRoles?: string[]; // Optional: allow multiple roles
 }
 
 export default function ProtectedRoute({ 

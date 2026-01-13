@@ -2,6 +2,9 @@
 
 import { UserRole } from './roles';
 
+// Re-export UserRole for backward compatibility
+export { UserRole };
+
 export type UserType = 'RETAIL' | 'WHOLESALE' | 'SELLER' | 'ADMIN' | 'GUEST';
 export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'resubmit';
 
