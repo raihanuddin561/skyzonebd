@@ -56,8 +56,8 @@ export async function PATCH(
       );
     }
 
-    // Only super admin can deactivate other admins
-    if (targetUser.role === 'ADMIN' && !isSuperAdmin(userRole)) {
+    // Only super admin can change other admins or super admins
+    if ((targetUser.role === 'ADMIN' || targetUser.role === 'SUPER_ADMIN') && !isSuperAdmin(userRole)) {
       return NextResponse.json(
         { success: false, error: 'Only super admin can manage admin accounts' },
         { status: 403 }

@@ -295,7 +295,7 @@ export async function GET(request: NextRequest) {
 
     let dbOrders;
     // If admin, return all orders
-    if (userRole === 'admin') {
+    if (userRole === 'admin' || userRole === 'super_admin') {
       dbOrders = await prisma.order.findMany({
         include: {
           orderItems: {

@@ -299,7 +299,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         {/* Header */}
         <div className="mb-6">
           <Link 
-            href={user?.role === 'admin' ? '/admin/orders' : '/orders'} 
+            href={(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') ? '/admin/orders' : '/orders'} 
             className="text-blue-600 hover:text-blue-700 mb-4 inline-flex items-center"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -344,7 +344,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">Order Items</h2>
-                {user?.role === 'admin' && order.status === 'PENDING' && !editMode && (
+                {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && order.status === 'PENDING' && !editMode && (
                   <button
                     onClick={handleEditToggle}
                     className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
@@ -575,7 +575,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </div>
 
             {/* Admin Actions */}
-            {user?.role === 'admin' && (
+            {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                 <div className="p-4 sm:p-6 border-b border-gray-200">
                   <h2 className="text-lg font-semibold text-gray-900">Admin Actions</h2>

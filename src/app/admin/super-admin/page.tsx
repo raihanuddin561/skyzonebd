@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { UserRole } from '@/types/roles';
 
 interface User {
   id: string;
@@ -37,7 +36,7 @@ export default function SuperAdminDashboard() {
 
   useEffect(() => {
     // Check if user is super admin
-    if (user && user.role !== UserRole.SUPER_ADMIN) {
+    if (user && user.role !== 'SUPER_ADMIN') {
       router.push('/admin/profit-dashboard');
       return;
     }

@@ -46,7 +46,7 @@ export default function DataDeletionRequestsPage() {
   }, [user, authLoading, router]);
 
   useEffect(() => {
-    if (user && user.role === 'admin') {
+    if (user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) {
       fetchRequests();
     }
   }, [user]);
@@ -138,7 +138,7 @@ export default function DataDeletionRequestsPage() {
     );
   }
 
-  if (!user || user.role !== 'admin') {
+  if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
     return null;
   }
 

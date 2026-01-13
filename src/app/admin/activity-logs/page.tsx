@@ -82,7 +82,7 @@ export default function ActivityLogsPage() {
 
   // Fetch activity logs
   useEffect(() => {
-    if (user && user.role === 'admin') {
+    if (user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) {
       fetchLogs();
       fetchStats();
     }
@@ -176,7 +176,7 @@ export default function ActivityLogsPage() {
     });
   };
 
-  if (!user || user.role !== 'admin') {
+  if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
     return null;
   }
 

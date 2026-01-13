@@ -40,7 +40,7 @@ export async function hasPermission(
     }
     
     // Super admin has all permissions
-    if (user.role === 'ADMIN') {
+    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
       return true;
     }
     
@@ -200,7 +200,7 @@ export async function getUserPermissions(userId: string) {
   }
   
   // Super admin has all permissions
-  if (user.role === 'ADMIN') {
+  if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
     return getAllPermissionModules().map(module => ({
       module,
       canView: true,

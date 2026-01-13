@@ -154,7 +154,7 @@ export async function requireAdmin(request: NextRequest): Promise<{
 }> {
   const user = await requireAuth(request);
 
-  if (user.role !== 'ADMIN') {
+  if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
     throw new Response(
       JSON.stringify({ error: 'Admin access required' }),
       { status: 403, headers: { 'Content-Type': 'application/json' } }

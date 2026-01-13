@@ -97,7 +97,7 @@ export default function OrdersManagement() {
       }
     };
 
-    if (user && user.role === 'admin') {
+    if (user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) {
       fetchOrders();
     }
   }, [user]);

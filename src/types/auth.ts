@@ -1,7 +1,8 @@
 // types/auth.ts - Simplified Registration
 
+import { UserRole } from './roles';
+
 export type UserType = 'RETAIL' | 'WHOLESALE' | 'SELLER' | 'ADMIN' | 'GUEST';
-export type UserRole = 'buyer' | 'seller' | 'admin';
 export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'resubmit';
 
 export interface BusinessInfo {

@@ -81,7 +81,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
-  if (!user || user.role !== 'admin') {
+  if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
     return null;
   }
 
