@@ -81,7 +81,7 @@ export default function ProductsManagement() {
           availability: product.stockQuantity > 20 ? 'in_stock' : product.stockQuantity > 0 ? 'limited' : 'out_of_stock',
           image: product.imageUrl || '/images/placeholder.jpg',
           featured: product.isFeatured || false,
-          isActive: product.isActive !== false,
+          isActive: product.isActive === true,
           createdAt: product.createdAt || new Date().toISOString(),
         }));
         
@@ -196,25 +196,7 @@ export default function ProductsManagement() {
     try {
       const token = localStorage.getItem('token');
       
-      // Get the full product first
-      const getResponse = await fetch(`/api/products/${productId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      
-      const productData = await getResponse.json();
-      
-      if (!productData.success) {
-        toast.error('Failed to fetch product data');
-        setIsDeactivating(false);
-        setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true });
-        return;
-      }
-      
-      const product = productData.data;
-      
-      // Update with full data, only changing isActive
+      // Simple update - just send isActive field
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
         headers: {
@@ -222,7 +204,6 @@ export default function ProductsManagement() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          ...product,
           isActive: !isActive 
         }),
       });
@@ -236,6 +217,7 @@ export default function ProductsManagement() {
       } else {
         const errorMsg = result.message || result.error || 'Failed to update product status';
         toast.error(errorMsg);
+        console.error('Deactivate error response:', result);
         setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true });
       }
     } catch (error) {
@@ -303,12 +285,15 @@ export default function ProductsManagement() {
           <div>
             <select
               value={filterActiveStatus}
-              onChange={(e) => setFilterActiveStatus(e.target.value)}
+              onChange={(e) => {
+                console.log('Filter changed to:', e.target.value);
+                setFilterActiveStatus(e.target.value);
+              }}
               className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base bg-white"
             >
-              <option value="all">All Products</option>
-              <option value="active">✅ Active Only</option>
-              <option value="inactive">❌ Inactive Only</option>
+              <option value="all">All Products ({products.length})</option>
+              <option value="active">✅ Active ({products.filter(p => p.isActive).length})</option>
+              <option value="inactive">❌ Inactive ({products.filter(p => !p.isActive).length})</option>
             </select>
           </div>
         </div>
@@ -355,6 +340,13 @@ export default function ProductsManagement() {
             if (filterActiveStatus === 'inactive') return !product.isActive;
             return true; // 'all'
           });
+          
+          // Debug logging
+          console.log('Filter Status:', filterActiveStatus);
+          console.log('Total Products:', products.length);
+          console.log('Active Products:', products.filter(p => p.isActive).length);
+          console.log('Inactive Products:', products.filter(p => !p.isActive).length);
+          console.log('Filtered Products:', filteredProducts.length);
           
           return filteredProducts.length === 0 ? (
           <div className="text-center py-12 sm:py-16 px-4">
