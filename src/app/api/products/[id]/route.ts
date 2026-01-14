@@ -249,7 +249,10 @@ export async function PUT(
     if (body.availability) updateData.availability = body.availability;
     // Don't update SKU to avoid unique constraint issues - SKU should not be changed after creation
     if (body.categoryId) updateData.categoryId = body.categoryId;
-    if (body.isActive !== undefined) updateData.isActive = body.isActive;
+    if (body.isActive !== undefined) {
+      updateData.isActive = body.isActive;
+      console.log(`[PRODUCT UPDATE] Changing isActive for product ${productId}: ${existing.isActive} → ${body.isActive}`);
+    }
     if (body.isFeatured !== undefined) updateData.isFeatured = body.isFeatured;
     if (body.rating !== undefined) updateData.rating = body.rating;
     if (body.reviewCount !== undefined) updateData.reviewCount = body.reviewCount;
@@ -265,6 +268,8 @@ export async function PUT(
         wholesaleTiers: true,
       }
     });
+    
+    console.log(`[PRODUCT UPDATE] Product ${productId} updated successfully. isActive = ${product.isActive}`);
 
     // Get admin user info for logging
     const admin = await prisma.user.findUnique({

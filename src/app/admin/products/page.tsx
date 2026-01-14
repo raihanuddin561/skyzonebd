@@ -217,10 +217,19 @@ export default function ProductsManagement() {
 
       const result = await response.json();
       
+      console.log('Deactivate API response:', result);
+      console.log('Product ID:', productId);
+      console.log('New isActive status:', !isActive);
+      
       if (result.success) {
-        toast.success(`Product ${!isActive ? 'activated' : 'deactivated'} successfully`);
+        const newStatus = !isActive ? 'activated' : 'deactivated';
+        toast.success(`Product ${newStatus} successfully! Refreshing list...`);
         setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true });
-        await fetchProducts(); // Refresh the list
+        
+        // Refresh the list to show updated status
+        await fetchProducts();
+        
+        console.log('Products refreshed after', newStatus);
       } else {
         const errorMsg = result.message || result.error || 'Failed to update product status';
         toast.error(errorMsg);
