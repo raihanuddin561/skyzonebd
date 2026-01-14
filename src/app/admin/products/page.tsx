@@ -34,6 +34,7 @@ export default function ProductsManagement() {
     productId: null, 
     productName: '' 
   });
+  const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
   const productsPerPage = 12;
 
   useEffect(() => {
@@ -113,10 +114,10 @@ export default function ProductsManagement() {
   };
 
   const handleBulkDelete = async () => {
-    if (!confirm(`Delete ${selectedProducts.length} products? This action cannot be undone.`)) {
-      return;
-    }
+    setBulkDeleteDialog(true);
+  };
 
+  const confirmBulkDelete = async () => {
     try {
       const token = localStorage.getItem('token');
       const idsParam = selectedProducts.join(',');
@@ -131,15 +132,18 @@ export default function ProductsManagement() {
       const result = await response.json();
       
       if (result.success) {
-        toast.success(`Successfully deleted ${result.data.deletedCount} products`);
+        toast.success(`Successfully deleted ${result.data.deletedCount || result.count} products`);
+        setBulkDeleteDialog(false);
         setSelectedProducts([]);
         fetchProducts(); // Refresh the list
       } else {
-        toast.error('Failed to delete products: ' + result.error);
+        toast.error('Failed to delete products: ' + (result.message || result.error));
+        setBulkDeleteDialog(false);
       }
     } catch (error) {
       console.error('Error deleting products:', error);
       toast.error('Failed to delete products');
+      setBulkDeleteDialog(false);
     }
   };
 
@@ -521,6 +525,18 @@ export default function ProductsManagement() {
         title="Delete Product"
         message={`Are you sure you want to delete "${deleteDialog.productName}"? This action cannot be undone.`}
         confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={bulkDeleteDialog}
+        onClose={() => setBulkDeleteDialog(false)}
+        onConfirm={confirmBulkDelete}
+        title="Delete Multiple Products"
+        message={`Are you sure you want to delete ${selectedProducts.length} product(s)? This action cannot be undone and will permanently remove these products from your store.`}
+        confirmText={`Delete ${selectedProducts.length} Products`}
         cancelText="Cancel"
         type="danger"
       />

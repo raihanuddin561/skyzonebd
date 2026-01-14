@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { toast } from 'react-toastify';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 interface Category {
   id: string;
@@ -84,6 +85,8 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
   const [newTag, setNewTag] = useState('');
   const [newSpecKey, setNewSpecKey] = useState('');
   const [newSpecValue, setNewSpecValue] = useState('');
+  const [imageToDelete, setImageToDelete] = useState<string | null>(null);
+  const [deleteProductDialog, setDeleteProductDialog] = useState(false);
   
   // Hero Slider state
   const [addToHeroSlider, setAddToHeroSlider] = useState(false);
@@ -304,12 +307,15 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           setPrimaryImage(images[0] || '');
         }
         toast.success('Image deleted');
+        setImageToDelete(null);
       } else {
         toast.error('Failed to delete image');
+        setImageToDelete(null);
       }
     } catch (error) {
       console.error('Delete error:', error);
       toast.error('Failed to delete image');
+      setImageToDelete(null);
     }
   };
 
@@ -403,33 +409,6 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
       toast.error('Failed to update product');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/products/${productId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        toast.success('Product deleted successfully');
-        router.push('/admin/products');
-      } else {
-        toast.error(result.error || 'Failed to delete product');
-      }
-    } catch (error) {
-      console.error('Delete error:', error);
-      toast.error('Failed to delete product');
     }
   };
 
@@ -961,7 +940,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
         <div className="flex flex-col sm:flex-row gap-3 justify-between">
           <button
             type="button"
-            onClick={handleDelete}
+            onClick={() => setDeleteProductDialog(true)}
             className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
           >
             Delete Product
@@ -1092,6 +1071,62 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           </div>
         </div>
       )}
+
+      {/* Delete Image Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={imageToDelete !== null}
+        onClose={() => setImageToDelete(null)}
+        onConfirm={confirmDeleteImage}
+        title="Delete Image"
+        message="Are you sure you want to delete this image? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
+
+      {/* Delete Product Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteProductDialog}
+        onClose={() => setDeleteProductDialog(false)}
+        onConfirm={async () => {
+          // Handle product deletion
+          try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`/api/products/${productId}`, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+
+            const result = await response.json();
+            if (result.success) {
+              toast.success('Product deleted successfully');
+              setTimeout(() => {
+                router.push('/admin/products');
+              }, 1000);
+            } else {
+              const errorMsg = result.message || result.error || 'Failed to delete product';
+              toast.error(errorMsg, { autoClose: 5000 });
+              if (result.suggestion) {
+                setTimeout(() => {
+                  toast.info(result.suggestion, { autoClose: 7000 });
+                }, 500);
+              }
+              setDeleteProductDialog(false);
+            }
+          } catch (error) {
+            console.error('Delete error:', error);
+            toast.error('Failed to delete product');
+            setDeleteProductDialog(false);
+          }
+        }}
+        title="Delete Product"
+        message={`Are you sure you want to delete "${formData.name}"? This action cannot be undone and will permanently remove the product from your store.`}
+        confirmText="Delete Product"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 }

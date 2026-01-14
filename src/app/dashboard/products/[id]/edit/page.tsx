@@ -258,7 +258,10 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
   };
 
   const handleDelete = async () => {
-    setIsDeleting(true);
+    if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/products/${productId}`, {
@@ -283,14 +286,10 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
             toast.info(result.suggestion, { autoClose: 7000 });
           }, 500);
         }
-        setDeleteDialog(false);
       }
     } catch (error) {
       console.error('Delete error:', error);
       toast.error('Failed to delete product');
-      setDeleteDialog(false);
-    } finally {
-      setIsDeleting(false);
     }
   };
 
