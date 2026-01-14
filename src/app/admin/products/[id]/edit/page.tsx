@@ -280,7 +280,11 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
   };
 
   const handleDeleteImage = async (imageUrl: string) => {
-    if (!confirm('Delete this image?')) return;
+    setImageToDelete(imageUrl);
+  };
+
+  const confirmDeleteImage = async () => {
+    if (!imageToDelete) return;
 
     try {
       const token = localStorage.getItem('token');
@@ -290,13 +294,13 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ urls: [imageUrl] }),
+        body: JSON.stringify({ urls: [imageToDelete] }),
       });
 
       const result = await response.json();
       if (result.success) {
-        setImages(images.filter(img => img !== imageUrl));
-        if (primaryImage === imageUrl) {
+        setImages(images.filter(img => img !== imageToDelete));
+        if (primaryImage === imageToDelete) {
           setPrimaryImage(images[0] || '');
         }
         toast.success('Image deleted');

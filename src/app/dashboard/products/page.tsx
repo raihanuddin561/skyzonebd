@@ -7,6 +7,7 @@ import ProtectedRoute from "../../components/ProtectedRoute";
 import Header from "../../components/Header";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 interface Product {
   id: string | number;
@@ -24,6 +25,12 @@ function ProductsManagement() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; productId: string | null; productName: string }>({ 
+    isOpen: false, 
+    productId: null, 
+    productName: '' 
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -73,14 +80,21 @@ function ProductsManagement() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleDelete = async (id: string | number) => {
-    if (!confirm("Are you sure you want to delete this product?")) {
-      return;
-    }
+  const openDeleteDialog = (id: string, name: string) => {
+    setDeleteDialog({ isOpen: true, productId: id, productName: name });
+  };
 
+  const closeDeleteDialog = () => {
+    setDeleteDialog({ isOpen: false, productId: null, productName: '' });
+  };
+
+  const handleDelete = async () => {
+    if (!deleteDialog.productId) return;
+
+    setIsDeleting(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/products/${id}`, {
+      const response = await fetch(`/api/products/${deleteDialog.productId}`, {
         method: 'DELETE',
         headers: {
           ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -91,13 +105,25 @@ function ProductsManagement() {
       
       if (result.success) {
         toast.success('Product deleted successfully');
+        closeDeleteDialog();
         fetchProducts(); // Refresh the list
       } else {
-        toast.error(result.error || 'Failed to delete product');
+        // Show all error information
+        const errorMsg = result.message || result.error || 'Failed to delete product';
+        toast.error(errorMsg, { autoClose: 5000 });
+        if (result.suggestion) {
+          setTimeout(() => {
+            toast.info(result.suggestion, { autoClose: 7000 });
+          }, 500);
+        }
+        closeDeleteDialog();
       }
     } catch (error) {
       console.error('Error deleting product:', error);
       toast.error('Failed to delete product');
+      closeDeleteDialog();
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -251,7 +277,7 @@ function ProductsManagement() {
                               </svg>
                             </Link>
                             <button
-                              onClick={() => handleDelete(product.id)}
+                              onClick={() => openDeleteDialog(String(product.id), product.name)}
                               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                               title="Delete"
                             >
@@ -283,6 +309,19 @@ function ProductsManagement() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={closeDeleteDialog}
+        onConfirm={handleDelete}
+        title="Delete Product"
+        message={`Are you sure you want to delete "${deleteDialog.productName}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+        isLoading={isDeleting}
+      />
     </>
   );
 }

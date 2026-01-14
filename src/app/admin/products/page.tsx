@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'react-toastify';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 interface Product {
   id: string;
@@ -28,6 +29,11 @@ export default function ProductsManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; productId: string | null; productName: string }>({ 
+    isOpen: false, 
+    productId: null, 
+    productName: '' 
+  });
   const productsPerPage = 12;
 
   useEffect(() => {
@@ -138,10 +144,6 @@ export default function ProductsManagement() {
   };
 
   const handleDelete = async (productId: string) => {
-    if (!confirm('Delete this product? This action cannot be undone.')) {
-      return;
-    }
-
     try {
       const token = localStorage.getItem('token');
       
@@ -156,9 +158,18 @@ export default function ProductsManagement() {
       
       if (result.success) {
         toast.success('Product deleted successfully');
+        setDeleteDialog({ isOpen: false, productId: null, productName: '' });
         fetchProducts(); // Refresh the list
       } else {
-        toast.error('Failed to delete product: ' + result.error);
+        // Show all error information
+        const errorMsg = result.message || result.error || 'Failed to delete product';
+        toast.error(errorMsg, { autoClose: 5000 });
+        if (result.suggestion) {
+          setTimeout(() => {
+            toast.info(result.suggestion, { autoClose: 7000 });
+          }, 500);
+        }
+        setDeleteDialog({ isOpen: false, productId: null, productName: '' });
       }
     } catch (error) {
       console.error('Error deleting product:', error);
@@ -351,7 +362,7 @@ export default function ProductsManagement() {
                             Edit
                           </Link>
                           <button 
-                            onClick={() => handleDelete(product.id)}
+                            onClick={() => setDeleteDialog({ isOpen: true, productId: product.id, productName: product.name })}
                             className="px-3 py-1.5 bg-red-600 text-white text-xs sm:text-sm rounded hover:bg-red-700 font-medium touch-manipulation"
                           >
                             Delete
@@ -501,6 +512,18 @@ export default function ProductsManagement() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, productId: null, productName: '' })}
+        onConfirm={() => deleteDialog.productId && handleDelete(deleteDialog.productId)}
+        title="Delete Product"
+        message={`Are you sure you want to delete "${deleteDialog.productName}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 }
