@@ -43,6 +43,7 @@ export default function ProductsManagement() {
     productName: '', 
     isActive: true 
   });
+  const [isDeactivating, setIsDeactivating] = useState(false);
   const productsPerPage = 12;
 
   useEffect(() => {
@@ -191,16 +192,39 @@ export default function ProductsManagement() {
   };
 
   const handleDeactivate = async (productId: string, isActive: boolean) => {
+    setIsDeactivating(true);
     try {
       const token = localStorage.getItem('token');
       
+      // Get the full product first
+      const getResponse = await fetch(`/api/products/${productId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      const productData = await getResponse.json();
+      
+      if (!productData.success) {
+        toast.error('Failed to fetch product data');
+        setIsDeactivating(false);
+        setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true });
+        return;
+      }
+      
+      const product = productData.data;
+      
+      // Update with full data, only changing isActive
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ isActive: !isActive }),
+        body: JSON.stringify({ 
+          ...product,
+          isActive: !isActive 
+        }),
       });
 
       const result = await response.json();
@@ -208,7 +232,7 @@ export default function ProductsManagement() {
       if (result.success) {
         toast.success(`Product ${!isActive ? 'activated' : 'deactivated'} successfully`);
         setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true });
-        fetchProducts(); // Refresh the list
+        await fetchProducts(); // Refresh the list
       } else {
         const errorMsg = result.message || result.error || 'Failed to update product status';
         toast.error(errorMsg);
@@ -218,6 +242,8 @@ export default function ProductsManagement() {
       console.error('Error updating product status:', error);
       toast.error('Failed to update product status');
       setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true });
+    } finally {
+      setIsDeactivating(false);
     }
   };
 
@@ -680,7 +706,7 @@ export default function ProductsManagement() {
       {/* Deactivate/Activate Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deactivateDialog.isOpen}
-        onClose={() => setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true })}
+        onClose={() => !isDeactivating && setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true })}
         onConfirm={() => deactivateDialog.productId && handleDeactivate(deactivateDialog.productId, deactivateDialog.isActive)}
         title={deactivateDialog.isActive ? 'Deactivate Product' : 'Activate Product'}
         message={deactivateDialog.isActive 
@@ -690,6 +716,7 @@ export default function ProductsManagement() {
         confirmText={deactivateDialog.isActive ? 'Deactivate' : 'Activate'}
         cancelText="Cancel"
         type={deactivateDialog.isActive ? 'warning' : 'info'}
+        isLoading={isDeactivating}
       />
     </div>
   );

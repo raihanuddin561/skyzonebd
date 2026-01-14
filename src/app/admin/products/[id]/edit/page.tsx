@@ -88,6 +88,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
   const [imageToDelete, setImageToDelete] = useState<string | null>(null);
   const [deleteProductDialog, setDeleteProductDialog] = useState(false);
   const [deactivateDialog, setDeactivateDialog] = useState(false);
+  const [isDeactivating, setIsDeactivating] = useState(false);
   
   // Hero Slider state
   const [addToHeroSlider, setAddToHeroSlider] = useState(false);
@@ -414,6 +415,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
   };
 
   const handleDeactivate = async () => {
+    setIsDeactivating(true);
     try {
       const token = localStorage.getItem('token');
       const newActiveState = !formData.isActive;
@@ -440,6 +442,8 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
       console.error('Deactivate error:', error);
       toast.error('Failed to update product status');
       setDeactivateDialog(false);
+    } finally {
+      setIsDeactivating(false);
     }
   };
 
@@ -1136,7 +1140,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
       {/* Deactivate/Activate Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deactivateDialog}
-        onClose={() => setDeactivateDialog(false)}
+        onClose={() => !isDeactivating && setDeactivateDialog(false)}
         onConfirm={handleDeactivate}
         title={formData.isActive ? 'Deactivate Product' : 'Activate Product'}
         message={formData.isActive 
@@ -1146,6 +1150,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
         confirmText={formData.isActive ? 'Deactivate' : 'Activate'}
         cancelText="Cancel"
         type={formData.isActive ? 'warning' : 'info'}
+        isLoading={isDeactivating}
       />
 
       {/* Delete Image Confirmation Dialog */}
