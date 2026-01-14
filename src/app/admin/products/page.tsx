@@ -367,11 +367,18 @@ export default function ProductsManagement() {
                           <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-2 mb-1">
                             {product.name}
                           </h3>
-                          {product.featured && (
-                            <span className="inline-block text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded mb-1">
-                              Featured
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {product.featured && (
+                              <span className="inline-block text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-medium">
+                                ⭐ Featured
+                              </span>
+                            )}
+                            {!product.isActive && (
+                              <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
+                                👁️‍🗨️ Hidden
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 ${getAvailabilityBadge(product.availability).class}`}>
                           {getAvailabilityBadge(product.availability).text}
@@ -397,27 +404,48 @@ export default function ProductsManagement() {
                         <div className="text-base sm:text-lg font-bold text-gray-900">
                           ৳{product.price.toLocaleString()}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Link
                             href={`/admin/products/${product.id}/edit`}
-                            className="px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700 font-medium touch-manipulation"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs sm:text-sm rounded-lg hover:bg-blue-700 font-medium touch-manipulation transition-colors shadow-sm"
                           >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
                             Edit
                           </Link>
                           <button 
                             onClick={() => setDeactivateDialog({ isOpen: true, productId: product.id, productName: product.name, isActive: product.isActive })}
-                            className={`px-3 py-1.5 text-white text-xs sm:text-sm rounded font-medium touch-manipulation ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-white text-xs sm:text-sm rounded-lg font-medium touch-manipulation transition-all shadow-sm ${
                               product.isActive 
-                                ? 'bg-orange-600 hover:bg-orange-700' 
-                                : 'bg-green-600 hover:bg-green-700'
+                                ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700' 
+                                : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
                             }`}
                           >
-                            {product.isActive ? 'Deactivate' : 'Activate'}
+                            {product.isActive ? (
+                              <>
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                </svg>
+                                Hide
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                Show
+                              </>
+                            )}
                           </button>
                           <button 
                             onClick={() => setDeleteDialog({ isOpen: true, productId: product.id, productName: product.name })}
-                            className="px-3 py-1.5 bg-red-600 text-white text-xs sm:text-sm rounded hover:bg-red-700 font-medium touch-manipulation"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white text-xs sm:text-sm rounded-lg font-medium touch-manipulation transition-all shadow-sm"
                           >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                             Delete
                           </button>
                         </div>
@@ -472,11 +500,18 @@ export default function ProductsManagement() {
                           />
                           <div>
                             <div className="font-medium text-gray-900">{product.name}</div>
-                            {product.featured && (
-                              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">
-                                Featured
-                              </span>
-                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              {product.featured && (
+                                <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-medium">
+                                  ⭐ Featured
+                                </span>
+                              )}
+                              {!product.isActive && (
+                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
+                                  👁️‍🗨️ Hidden
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -495,24 +530,45 @@ export default function ProductsManagement() {
                         <div className="flex items-center gap-2">
                           <Link
                             href={`/admin/products/${product.id}/edit`}
-                            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-sm"
                           >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
                             Edit
                           </Link>
                           <button 
                             onClick={() => setDeactivateDialog({ isOpen: true, productId: product.id, productName: product.name, isActive: product.isActive })}
-                            className={`text-sm font-medium ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-white text-xs rounded-lg font-medium transition-all shadow-sm ${
                               product.isActive 
-                                ? 'text-orange-600 hover:text-orange-700' 
-                                : 'text-green-600 hover:text-green-700'
+                                ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700' 
+                                : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
                             }`}
                           >
-                            {product.isActive ? 'Deactivate' : 'Activate'}
+                            {product.isActive ? (
+                              <>
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                </svg>
+                                Hide
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                Show
+                              </>
+                            )}
                           </button>
                           <button 
                             onClick={() => setDeleteDialog({ isOpen: true, productId: product.id, productName: product.name })}
-                            className="text-red-600 hover:text-red-700 text-sm font-medium"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white text-xs rounded-lg font-medium transition-all shadow-sm"
                           >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                             Delete
                           </button>
                         </div>
