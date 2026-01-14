@@ -26,6 +26,7 @@ export default function ProductsManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterActiveStatus, setFilterActiveStatus] = useState('all');
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -239,7 +240,7 @@ export default function ProductsManagement() {
 
       {/* Filters and Search */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <div className="sm:col-span-2">
             <input
               type="text"
@@ -267,10 +268,21 @@ export default function ProductsManagement() {
               onChange={(e) => setFilterStatus(e.target.value)}
               className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
             >
-              <option value="all">All Status</option>
+              <option value="all">All Stock Status</option>
               <option value="in_stock">In Stock</option>
               <option value="limited">Limited Stock</option>
               <option value="out_of_stock">Out of Stock</option>
+            </select>
+          </div>
+          <div>
+            <select
+              value={filterActiveStatus}
+              onChange={(e) => setFilterActiveStatus(e.target.value)}
+              className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base bg-white"
+            >
+              <option value="all">All Products</option>
+              <option value="active">✅ Active Only</option>
+              <option value="inactive">❌ Inactive Only</option>
             </select>
           </div>
         </div>
@@ -310,11 +322,21 @@ export default function ProductsManagement() {
               <p className="mt-3 text-gray-600 text-sm">Loading products...</p>
             </div>
           </div>
-        ) : products.length === 0 ? (
+        ) : (() => {
+          // Filter products based on active status
+          const filteredProducts = products.filter(product => {
+            if (filterActiveStatus === 'active') return product.isActive;
+            if (filterActiveStatus === 'inactive') return !product.isActive;
+            return true; // 'all'
+          });
+          
+          return filteredProducts.length === 0 ? (
           <div className="text-center py-12 sm:py-16 px-4">
             <div className="text-gray-300 text-5xl sm:text-6xl mb-4">📦</div>
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No products found</h3>
-            <p className="text-sm sm:text-base text-gray-600 mb-4">Start by adding your first product to the catalog.</p>
+            <p className="text-sm sm:text-base text-gray-600 mb-4">
+              {filterActiveStatus === 'inactive' ? 'No inactive products found.' : 'Start by adding your first product to the catalog.'}
+            </p>
             <Link
               href="/admin/products/new"
               className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base font-medium"
@@ -331,16 +353,16 @@ export default function ProductsManagement() {
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   <input
                     type="checkbox"
-                    checked={selectedProducts.length === products.length}
+                    checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
                     onChange={handleSelectAll}
                     className="rounded border-gray-300 touch-manipulation"
                   />
                   <span>Select All</span>
                 </label>
-                <span className="text-sm text-gray-600">{products.length} products</span>
+                <span className="text-sm text-gray-600">{filteredProducts.length} products</span>
               </div>
               
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <div key={product.id} className="p-3 sm:p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start gap-3">
                     {/* Checkbox */}
@@ -478,7 +500,7 @@ export default function ProductsManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {products.map((product) => (
+                  {filteredProducts.map((product) => (
                     <tr key={product.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <input
@@ -577,7 +599,8 @@ export default function ProductsManagement() {
               </table>
             </div>
           </>
-        )}
+        ); // End of filter function
+        })()}
 
         {/* Pagination */}
         {!loading && products.length > 0 && (

@@ -42,11 +42,28 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '12');
     const featured = searchParams.get('featured') === 'true';
+    const includeInactive = searchParams.get('includeInactive') === 'true';
+
+    // Check if request is from admin (for showing inactive products)
+    let isAdmin = false;
+    try {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string; role: string };
+        isAdmin = decoded.role.toUpperCase() === 'ADMIN';
+      }
+    } catch {
+      // Not admin or invalid token, continue as guest
+    }
 
     // Build where clause
-    const where: Prisma.ProductWhereInput = {
-      isActive: true,
-    };
+    const where: Prisma.ProductWhereInput = {};
+    
+    // Only filter by isActive if not admin or if not explicitly including inactive
+    if (!isAdmin && !includeInactive) {
+      where.isActive = true;
+    }
 
     // Search filter
     if (search) {
