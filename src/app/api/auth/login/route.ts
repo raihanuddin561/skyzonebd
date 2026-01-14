@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       { 
         userId: user.id, 
         email: user.email, 
-        role: user.role.toLowerCase()
+        role: user.role // Keep original case (ADMIN, SUPER_ADMIN, etc.)
       },
       process.env.JWT_SECRET || 'fallback-secret',
       { expiresIn: '7d' }
@@ -77,8 +77,8 @@ export async function POST(request: NextRequest) {
       success: true,
       user: {
         ...userWithoutPassword,
-        role: user.role.toLowerCase(),
-        userType: user.userType.toLowerCase()
+        role: user.role, // Keep original case
+        userType: user.userType // Keep original case
       },
       token
     });
