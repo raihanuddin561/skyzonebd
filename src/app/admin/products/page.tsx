@@ -16,6 +16,7 @@ interface Product {
   availability: 'in_stock' | 'limited' | 'out_of_stock';
   image: string;
   featured: boolean;
+  isActive: boolean;
   createdAt: string;
 }
 
@@ -35,6 +36,12 @@ export default function ProductsManagement() {
     productName: '' 
   });
   const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
+  const [deactivateDialog, setDeactivateDialog] = useState<{ isOpen: boolean; productId: string | null; productName: string; isActive: boolean }>({ 
+    isOpen: false, 
+    productId: null, 
+    productName: '', 
+    isActive: true 
+  });
   const productsPerPage = 12;
 
   useEffect(() => {
@@ -72,6 +79,7 @@ export default function ProductsManagement() {
           availability: product.stockQuantity > 20 ? 'in_stock' : product.stockQuantity > 0 ? 'limited' : 'out_of_stock',
           image: product.imageUrl || '/images/placeholder.jpg',
           featured: product.isFeatured || false,
+          isActive: product.isActive !== false,
           createdAt: product.createdAt || new Date().toISOString(),
         }));
         
@@ -178,6 +186,37 @@ export default function ProductsManagement() {
     } catch (error) {
       console.error('Error deleting product:', error);
       toast.error('Failed to delete product');
+    }
+  };
+
+  const handleDeactivate = async (productId: string, isActive: boolean) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ isActive: !isActive }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success(`Product ${!isActive ? 'activated' : 'deactivated'} successfully`);
+        setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true });
+        fetchProducts(); // Refresh the list
+      } else {
+        const errorMsg = result.message || result.error || 'Failed to update product status';
+        toast.error(errorMsg);
+        setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true });
+      }
+    } catch (error) {
+      console.error('Error updating product status:', error);
+      toast.error('Failed to update product status');
+      setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true });
     }
   };
 
@@ -366,6 +405,16 @@ export default function ProductsManagement() {
                             Edit
                           </Link>
                           <button 
+                            onClick={() => setDeactivateDialog({ isOpen: true, productId: product.id, productName: product.name, isActive: product.isActive })}
+                            className={`px-3 py-1.5 text-white text-xs sm:text-sm rounded font-medium touch-manipulation ${
+                              product.isActive 
+                                ? 'bg-orange-600 hover:bg-orange-700' 
+                                : 'bg-green-600 hover:bg-green-700'
+                            }`}
+                          >
+                            {product.isActive ? 'Deactivate' : 'Activate'}
+                          </button>
+                          <button 
                             onClick={() => setDeleteDialog({ isOpen: true, productId: product.id, productName: product.name })}
                             className="px-3 py-1.5 bg-red-600 text-white text-xs sm:text-sm rounded hover:bg-red-700 font-medium touch-manipulation"
                           >
@@ -451,7 +500,17 @@ export default function ProductsManagement() {
                             Edit
                           </Link>
                           <button 
-                            onClick={() => handleDelete(product.id)}
+                            onClick={() => setDeactivateDialog({ isOpen: true, productId: product.id, productName: product.name, isActive: product.isActive })}
+                            className={`text-sm font-medium ${
+                              product.isActive 
+                                ? 'text-orange-600 hover:text-orange-700' 
+                                : 'text-green-600 hover:text-green-700'
+                            }`}
+                          >
+                            {product.isActive ? 'Deactivate' : 'Activate'}
+                          </button>
+                          <button 
+                            onClick={() => setDeleteDialog({ isOpen: true, productId: product.id, productName: product.name })}
                             className="text-red-600 hover:text-red-700 text-sm font-medium"
                           >
                             Delete
@@ -539,6 +598,21 @@ export default function ProductsManagement() {
         confirmText={`Delete ${selectedProducts.length} Products`}
         cancelText="Cancel"
         type="danger"
+      />
+
+      {/* Deactivate/Activate Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deactivateDialog.isOpen}
+        onClose={() => setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true })}
+        onConfirm={() => deactivateDialog.productId && handleDeactivate(deactivateDialog.productId, deactivateDialog.isActive)}
+        title={deactivateDialog.isActive ? 'Deactivate Product' : 'Activate Product'}
+        message={deactivateDialog.isActive 
+          ? `Are you sure you want to deactivate "${deactivateDialog.productName}"? The product will be hidden from customers but will remain in the system for order history.`
+          : `Are you sure you want to activate "${deactivateDialog.productName}"? The product will become visible to customers again.`
+        }
+        confirmText={deactivateDialog.isActive ? 'Deactivate' : 'Activate'}
+        cancelText="Cancel"
+        type={deactivateDialog.isActive ? 'warning' : 'info'}
       />
     </div>
   );

@@ -87,6 +87,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
   const [newSpecValue, setNewSpecValue] = useState('');
   const [imageToDelete, setImageToDelete] = useState<string | null>(null);
   const [deleteProductDialog, setDeleteProductDialog] = useState(false);
+  const [deactivateDialog, setDeactivateDialog] = useState(false);
   
   // Hero Slider state
   const [addToHeroSlider, setAddToHeroSlider] = useState(false);
@@ -409,6 +410,36 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
       toast.error('Failed to update product');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeactivate = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const newActiveState = !formData.isActive;
+      
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ...formData, isActive: newActiveState }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setFormData({ ...formData, isActive: newActiveState });
+        toast.success(`Product ${newActiveState ? 'activated' : 'deactivated'} successfully`);
+        setDeactivateDialog(false);
+      } else {
+        toast.error(result.error || 'Failed to update product status');
+        setDeactivateDialog(false);
+      }
+    } catch (error) {
+      console.error('Deactivate error:', error);
+      toast.error('Failed to update product status');
+      setDeactivateDialog(false);
     }
   };
 
@@ -938,13 +969,26 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 justify-between">
-          <button
-            type="button"
-            onClick={() => setDeleteProductDialog(true)}
-            className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
-          >
-            Delete Product
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              onClick={() => setDeactivateDialog(true)}
+              className={`px-6 py-3 rounded-lg font-medium ${
+                formData.isActive 
+                  ? 'bg-orange-600 text-white hover:bg-orange-700' 
+                  : 'bg-green-600 text-white hover:bg-green-700'
+              }`}
+            >
+              {formData.isActive ? 'Deactivate Product' : 'Activate Product'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeleteProductDialog(true)}
+              className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+            >
+              Delete Product
+            </button>
+          </div>
           <div className="flex gap-3">
             <button
               type="button"
@@ -1071,6 +1115,21 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           </div>
         </div>
       )}
+
+      {/* Deactivate/Activate Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deactivateDialog}
+        onClose={() => setDeactivateDialog(false)}
+        onConfirm={handleDeactivate}
+        title={formData.isActive ? 'Deactivate Product' : 'Activate Product'}
+        message={formData.isActive 
+          ? `Are you sure you want to deactivate "${formData.name}"? The product will be hidden from customers but will remain in the system for order history.`
+          : `Are you sure you want to activate "${formData.name}"? The product will become visible to customers again.`
+        }
+        confirmText={formData.isActive ? 'Deactivate' : 'Activate'}
+        cancelText="Cancel"
+        type={formData.isActive ? 'warning' : 'info'}
+      />
 
       {/* Delete Image Confirmation Dialog */}
       <ConfirmDialog
