@@ -71,6 +71,13 @@ export default function ProductsManagement() {
       const result = await response.json();
       
       if (result.success && result.data) {
+        // Debug: Log first product to see raw data
+        if (result.data.products.length > 0) {
+          console.log('Sample product from API:', result.data.products[0]);
+          console.log('isActive value:', result.data.products[0].isActive);
+          console.log('isActive type:', typeof result.data.products[0].isActive);
+        }
+        
         const transformedProducts = result.data.products.map((product: any) => ({
           id: product.id.toString(),
           name: product.name,
@@ -81,7 +88,7 @@ export default function ProductsManagement() {
           availability: product.stockQuantity > 20 ? 'in_stock' : product.stockQuantity > 0 ? 'limited' : 'out_of_stock',
           image: product.imageUrl || '/images/placeholder.jpg',
           featured: product.isFeatured || false,
-          isActive: product.isActive === true,
+          isActive: product.isActive ?? true, // Default to true if undefined/null
           createdAt: product.createdAt || new Date().toISOString(),
         }));
         
