@@ -55,6 +55,7 @@ export enum PermissionModule {
   PRODUCTS_EDIT = 'PRODUCTS_EDIT',
   PRODUCTS_DELETE = 'PRODUCTS_DELETE',
   PRODUCTS_APPROVE = 'PRODUCTS_APPROVE',
+  PRODUCTS_MANAGE = 'PRODUCTS_MANAGE', // Composite: Create + Edit + Delete
   
   // Order Management
   ORDERS_VIEW = 'ORDERS_VIEW',
@@ -75,6 +76,7 @@ export enum PermissionModule {
   USERS_EDIT = 'USERS_EDIT',
   USERS_DELETE = 'USERS_DELETE',
   USERS_SUSPEND = 'USERS_SUSPEND',
+  USERS_MANAGE = 'USERS_MANAGE', // Composite: Create + Edit + Delete + Suspend
   ROLES_MANAGE = 'ROLES_MANAGE',
   
   // Employee Management
