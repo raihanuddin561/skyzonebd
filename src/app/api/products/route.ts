@@ -6,7 +6,11 @@ import { logActivity } from '@/lib/activityLogger';
 const prisma = new PrismaClient();
 
 // Helper to verify JWT and check admin role
-function verifyAdmin(request: NextRequest) {
+type AuthResult = 
+  | { authorized: true; userId: string; error?: never }
+  | { authorized: false; userId?: never; error: string };
+
+function verifyAdmin(request: NextRequest): AuthResult {
   try {
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {

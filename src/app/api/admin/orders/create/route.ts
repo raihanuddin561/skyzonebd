@@ -5,23 +5,27 @@ import jwt from 'jsonwebtoken';
 const prisma = new PrismaClient();
 
 // Helper to verify JWT and check admin role
-function verifyAdmin(request: NextRequest) {
+type AuthResult = 
+  | { authorized: true; userId: string; error?: never }
+  | { authorized: false; userId?: never; error: string };
+
+function verifyAdmin(request: NextRequest): AuthResult {
   try {
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      return { authorized: false, error: 'No authorization token', userId: null };
+      return { authorized: false, error: 'No authorization token' };
     }
 
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string; role: string };
 
     if (decoded.role.toUpperCase() !== 'ADMIN') {
-      return { authorized: false, error: 'Admin access required', userId: null };
+      return { authorized: false, error: 'Admin access required' };
     }
 
     return { authorized: true, userId: decoded.userId };
   } catch {
-    return { authorized: false, error: 'Invalid token', userId: null };
+    return { authorized: false, error: 'Invalid token' };
   }
 }
 

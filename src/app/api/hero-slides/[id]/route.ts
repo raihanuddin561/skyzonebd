@@ -4,7 +4,11 @@ import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
 
-function verifyAdmin(request: NextRequest) {
+type AuthResult = 
+  | { authorized: true; userId: string; error?: never }
+  | { authorized: false; userId?: never; error: string };
+
+function verifyAdmin(request: NextRequest): AuthResult {
   try {
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {

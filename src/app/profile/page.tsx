@@ -11,6 +11,7 @@ interface ProfileFormData {
   email: string;
   phone: string;
   companyName: string;
+  [key: string]: string; // Index signature for compatibility
 }
 
 interface PasswordFormData {
