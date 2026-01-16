@@ -183,6 +183,12 @@ export async function PUT(
 
     const { id: productId } = await params;
     const body = await request.json();
+    
+    // Log incoming request for debugging
+    console.log(`[PRODUCT UPDATE REQUEST] Product ID: ${productId}`);
+    console.log('[PRODUCT UPDATE REQUEST] Body:', JSON.stringify(body, null, 2));
+    console.log('[PRODUCT UPDATE REQUEST] isActive in body:', body.isActive);
+    console.log('[PRODUCT UPDATE REQUEST] isActive type:', typeof body.isActive);
 
     // Check if product exists
     const existing = await prisma.product.findUnique({
@@ -195,6 +201,8 @@ export async function PUT(
         { status: 404 }
       );
     }
+    
+    console.log(`[PRODUCT UPDATE] Current isActive in DB: ${existing.isActive}`);
 
     // If slug is being updated, check for conflicts
     if (body.slug && body.slug !== existing.slug) {
@@ -312,6 +320,9 @@ export async function PUT(
       },
       request
     });
+
+    console.log(`[PRODUCT UPDATE] Returning updated product. isActive = ${product.isActive}`);
+    console.log(`[PRODUCT UPDATE] Changes tracked: ${changes.join(', ')}`);
 
     return NextResponse.json({
       success: true,

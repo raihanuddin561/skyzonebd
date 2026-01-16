@@ -148,7 +148,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           tags: product.tags || [],
           specifications: product.specifications || {},
           isFeatured: product.isFeatured || false,
-          isActive: product.isActive !== false,
+          isActive: product.isActive ?? true,
           metaTitle: product.metaTitle || '',
           metaDescription: product.metaDescription || '',
         });
