@@ -245,8 +245,12 @@ export default function ProductsManagement() {
         toast.success(`Product ${newStatus} successfully!`);
         setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true });
         
-        // Don't refresh immediately to avoid race condition - the optimistic update is sufficient
-        // If user needs to see latest data, they can refresh the page or navigate away and back
+        // Refresh to ensure consistency (now API includes isActive)
+        setTimeout(() => {
+          fetchProducts().then(() => {
+            console.log('[TOGGLE] Products list refreshed from backend');
+          });
+        }, 500);
       } else {
         const errorMsg = result.message || result.error || 'Failed to update product status';
         toast.error(errorMsg);

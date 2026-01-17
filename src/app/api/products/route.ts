@@ -182,6 +182,7 @@ export async function GET(request: NextRequest) {
       rating: product.rating,
       reviewCount: product.reviewCount,
       isFeatured: product.isFeatured,
+      isActive: product.isActive, // CRITICAL: Include isActive for admin panel
       createdAt: product.createdAt.toISOString(),
     }));
 
