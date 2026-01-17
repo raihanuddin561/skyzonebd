@@ -393,6 +393,191 @@ psql $DATABASE_URL < backup.sql
    - Update DNS records
    - Update NEXTAUTH_URL
 
+---
+
+## 🔍 Production Verification Checklist
+
+### Database & Migration Status Verification
+
+After deploying to Vercel, verify your database and migration status using the following endpoints:
+
+#### 1. **Database Connectivity & Statistics**
+
+```bash
+# GET request - no authentication required (public endpoint)
+curl https://your-domain.vercel.app/api/db/status
+```
+
+**Expected Response:**
+```json
+{
+  "success": true,
+  "message": "Database connected successfully!",
+  "database": "sagor_db",
+  "status": "connected",
+  "statistics": {
+    "users": 5,
+    "products": 50,
+    "activeProducts": 45,
+    "inactiveProducts": 5,
+    "categories": 10,
+    "orders": 25
+  },
+  "timestamp": "2026-01-17T10:30:00.000Z"
+}
+```
+
+**What to Check:**
+- ✅ `status: "connected"` - Database is reachable
+- ✅ Record counts match your expected data
+- ✅ `activeProducts` and `inactiveProducts` sum equals total products
+
+---
+
+#### 2. **Migration Status Check**
+
+```bash
+# GET request - requires MIGRATION_SECRET_KEY
+curl -H "Authorization: Bearer YOUR_MIGRATION_SECRET_KEY" \
+  https://your-domain.vercel.app/api/migrate
+```
+
+**Expected Response:**
+```json
+{
+  "success": true,
+  "status": "Database schema is up to date!"
+}
+```
+
+**What to Check:**
+- ✅ Returns "up to date" or shows list of applied migrations
+- ✅ No pending migrations
+- ✅ No error messages
+
+**Common Issues:**
+- ❌ "Unauthorized" - Check your `MIGRATION_SECRET_KEY` environment variable
+- ❌ Migration pending - Run migration endpoint or redeploy
+
+---
+
+#### 3. **Database Schema Sync Check**
+
+```bash
+# GET request - requires MIGRATION_SECRET_KEY
+curl -H "Authorization: Bearer YOUR_MIGRATION_SECRET_KEY" \
+  https://your-domain.vercel.app/api/db-sync
+```
+
+**Expected Response:**
+```json
+{
+  "success": true,
+  "status": "connected",
+  "tables": [
+    {"table_name": "User", "column_count": 8},
+    {"table_name": "Product", "column_count": 25},
+    {"table_name": "Category", "column_count": 6},
+    {"table_name": "Order", "column_count": 12}
+  ],
+  "recordCounts": {
+    "users": 5,
+    "products": 50,
+    "categories": 10,
+    "orders": 25
+  },
+  "message": "Database is accessible and has data"
+}
+```
+
+**What to Check:**
+- ✅ All expected tables exist (User, Product, Category, Order, etc.)
+- ✅ Table structures match your Prisma schema
+- ✅ Record counts are reasonable
+
+---
+
+#### 4. **Verify Product Toggle Persistence** (Admin Feature Test)
+
+To confirm the Deactivate/Activate button works correctly:
+
+1. **Login to Admin Panel:**
+   ```
+   https://your-domain.vercel.app/auth/login
+   Email: admin@skyzonebd.com
+   Password: 11admin22
+   ```
+
+2. **Navigate to Products:**
+   ```
+   https://your-domain.vercel.app/admin/products
+   ```
+
+3. **Test Toggle:**
+   - Click "Deactivate" on an active product
+   - Verify button changes to "Activate" immediately
+   - Refresh the page
+   - Confirm the button still shows "Activate" (proves DB persistence)
+
+4. **Verify via API:**
+   ```bash
+   # Check DB status shows correct active/inactive counts
+   curl https://your-domain.vercel.app/api/db/status
+   ```
+
+---
+
+### Required Environment Variables for Verification
+
+Make sure these are set in Vercel (Project Settings → Environment Variables):
+
+```env
+# Database
+DATABASE_URL="postgresql://..."
+
+# Migration/Sync endpoints security
+MIGRATION_SECRET_KEY="your-secret-key-here"
+
+# Authentication
+JWT_SECRET="your-jwt-secret"
+```
+
+**Security Note:** Never expose `MIGRATION_SECRET_KEY` in client-side code or public documentation. Store it securely in Vercel environment variables.
+
+---
+
+### Automated Build Migration Process
+
+**How Vercel Handles Migrations Automatically:**
+
+1. **Build Command:** `npm run vercel-build`
+   - Runs `node scripts/migrate.js`
+   - Executes Prisma migrations or db push
+   - Builds Next.js application
+
+2. **Post-Install Hook:** `npm run postinstall`
+   - Runs `prisma generate`
+   - Creates Prisma Client for the build
+
+3. **Migration Script Logic:** (in `scripts/migrate.js`)
+   - Development: Uses `prisma migrate dev`
+   - Production: Uses `prisma db push` (safe for Vercel Postgres)
+   - Fallback: Tries `prisma migrate deploy` if push fails
+
+**What This Means:**
+- ✅ Every Vercel deployment automatically applies schema changes
+- ✅ No manual migration commands needed
+- ✅ Database stays in sync with your codebase
+- ✅ Safe for production (uses `db push`, not migrate dev)
+
+**To Verify Auto-Migration Works:**
+1. Make a schema change in `prisma/schema.prisma`
+2. Push to GitHub (triggers Vercel deployment)
+3. After deployment, check `/api/migrate` endpoint
+4. Confirm "up to date" status
+
+---
+
 ## 🎉 You're Live!
 
 Your Skyzone e-commerce platform is now running on Vercel with:

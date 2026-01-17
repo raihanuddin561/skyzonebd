@@ -195,7 +195,45 @@ NEXT_PUBLIC_BASE_URL="https://skyzonebd.com"
 
 ---
 
-## 🚀 Deployment Steps
+## � Production Database & Migration Verification
+
+### Quick Verification Commands
+
+After deployment, use these endpoints to verify your database and migrations:
+
+#### 1. Database Status (Public)
+```bash
+curl https://your-domain.vercel.app/api/db/status
+```
+Expected: `"status": "connected"` with product counts including activeProducts/inactiveProducts
+
+#### 2. Migration Status (Requires Auth)
+```bash
+curl -H "Authorization: Bearer YOUR_MIGRATION_SECRET_KEY" \
+  https://your-domain.vercel.app/api/migrate
+```
+Expected: `"status": "Database schema is up to date!"`
+
+#### 3. Database Sync Check (Requires Auth)
+```bash
+curl -H "Authorization: Bearer YOUR_MIGRATION_SECRET_KEY" \
+  https://your-domain.vercel.app/api/db-sync
+```
+Expected: List of tables with record counts
+
+### Verify Product Toggle Persistence
+
+1. Login to admin panel: `/auth/login`
+2. Go to products: `/admin/products`
+3. Click "Deactivate" on a product
+4. Verify button changes to "Activate"
+5. Refresh page - confirm button stays "Activate"
+
+This confirms the `isActive` field is persisting correctly in the database.
+
+---
+
+## �🚀 Deployment Steps
 
 ### 1. Push to GitHub
 ```bash

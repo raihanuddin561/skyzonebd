@@ -23,6 +23,10 @@ export async function GET(request: NextRequest) {
     const productCount = await prisma.product.count()
     const categoryCount = await prisma.category.count()
     const orderCount = await prisma.order.count()
+    
+    // Get active/inactive product counts
+    const activeProducts = await prisma.product.count({ where: { isActive: true } })
+    const inactiveProducts = await prisma.product.count({ where: { isActive: false } })
 
     return NextResponse.json({
       success: true,
@@ -32,6 +36,8 @@ export async function GET(request: NextRequest) {
       statistics: {
         users: userCount,
         products: productCount,
+        activeProducts,
+        inactiveProducts,
         categories: categoryCount,
         orders: orderCount
       },

@@ -202,8 +202,13 @@ export default function ProductsManagement() {
     setIsDeactivating(true);
     try {
       const token = localStorage.getItem('token');
+      const newIsActive = !isActive;
       
-      // Simple update - just send isActive field
+      console.log('[TOGGLE] Before API call - Product ID:', productId);
+      console.log('[TOGGLE] Before API call - Current isActive:', isActive);
+      console.log('[TOGGLE] Before API call - Sending isActive:', newIsActive);
+      
+      // Update via API
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
         headers: {
@@ -211,33 +216,41 @@ export default function ProductsManagement() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          isActive: !isActive 
+          isActive: newIsActive 
         }),
       });
 
       const result = await response.json();
       
-      console.log('Deactivate API response:', result);
-      console.log('Product ID:', productId);
-      console.log('New isActive status:', !isActive);
+      console.log('[TOGGLE] API response:', result);
+      console.log('[TOGGLE] API returned isActive:', result.data?.isActive);
       
-      if (result.success) {
-        const newStatus = !isActive ? 'activated' : 'deactivated';
-        toast.success(`Product ${newStatus} successfully! Refreshing list...`);
+      if (result.success && result.data) {
+        // Optimistically update local state immediately
+        setProducts(prevProducts => 
+          prevProducts.map(p => 
+            p.id === productId 
+              ? { ...p, isActive: result.data.isActive }
+              : p
+          )
+        );
+        
+        const newStatus = newIsActive ? 'activated' : 'deactivated';
+        toast.success(`Product ${newStatus} successfully!`);
         setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true });
         
-        // Refresh the list to show updated status
-        await fetchProducts();
-        
-        console.log('Products refreshed after', newStatus);
+        // Refresh to ensure consistency with backend
+        fetchProducts().then(() => {
+          console.log('[TOGGLE] Products list refreshed from backend');
+        });
       } else {
         const errorMsg = result.message || result.error || 'Failed to update product status';
         toast.error(errorMsg);
-        console.error('Deactivate error response:', result);
+        console.error('[TOGGLE] Error response:', result);
         setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true });
       }
     } catch (error) {
-      console.error('Error updating product status:', error);
+      console.error('[TOGGLE] Exception during update:', error);
       toast.error('Failed to update product status');
       setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true });
     } finally {
