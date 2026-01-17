@@ -189,6 +189,7 @@ export async function PUT(
     console.log('[PRODUCT UPDATE REQUEST] Body:', JSON.stringify(body, null, 2));
     console.log('[PRODUCT UPDATE REQUEST] isActive in body:', body.isActive);
     console.log('[PRODUCT UPDATE REQUEST] isActive type:', typeof body.isActive);
+    console.log('[PRODUCT UPDATE REQUEST] Body keys:', Object.keys(body));
 
     // Check if product exists
     const existing = await prisma.product.findUnique({
@@ -196,6 +197,7 @@ export async function PUT(
     });
 
     if (!existing) {
+      console.log(`[PRODUCT UPDATE ERROR] Product ${productId} not found in database`);
       return NextResponse.json(
         { error: 'Product not found' },
         { status: 404 }
@@ -258,14 +260,17 @@ export async function PUT(
     // Don't update SKU to avoid unique constraint issues - SKU should not be changed after creation
     if (body.categoryId) updateData.categoryId = body.categoryId;
     if (body.isActive !== undefined) {
-      updateData.isActive = body.isActive;
-      console.log(`[PRODUCT UPDATE] Changing isActive for product ${productId}: ${existing.isActive} → ${body.isActive}`);
+      updateData.isActive = Boolean(body.isActive);
+      console.log(`[PRODUCT UPDATE] Changing isActive for product ${productId}: ${existing.isActive} → ${body.isActive} (converted to ${Boolean(body.isActive)})`);
     }
     if (body.isFeatured !== undefined) updateData.isFeatured = body.isFeatured;
     if (body.rating !== undefined) updateData.rating = body.rating;
     if (body.reviewCount !== undefined) updateData.reviewCount = body.reviewCount;
     if (body.metaTitle !== undefined) updateData.metaTitle = body.metaTitle;
     if (body.metaDescription !== undefined) updateData.metaDescription = body.metaDescription;
+    
+    console.log('[PRODUCT UPDATE] Update data being sent to Prisma:', JSON.stringify(updateData, null, 2));
+    console.log('[PRODUCT UPDATE] isActive in updateData:', updateData.isActive);
     
     // Update product
     const product = await prisma.product.update({
@@ -278,6 +283,7 @@ export async function PUT(
     });
     
     console.log(`[PRODUCT UPDATE] Product ${productId} updated successfully. isActive = ${product.isActive}`);
+    console.log('[PRODUCT UPDATE] Full product after update:', JSON.stringify({ id: product.id, isActive: product.isActive, updatedAt: product.updatedAt }));
 
     // Get admin user info for logging
     const admin = await prisma.user.findUnique({
