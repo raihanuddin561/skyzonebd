@@ -223,26 +223,30 @@ export default function ProductsManagement() {
       const result = await response.json();
       
       console.log('[TOGGLE] API response:', result);
+      console.log('[TOGGLE] API returned product:', result.data);
       console.log('[TOGGLE] API returned isActive:', result.data?.isActive);
       
       if (result.success && result.data) {
         // Optimistically update local state immediately
-        setProducts(prevProducts => 
-          prevProducts.map(p => 
-            p.id === productId 
-              ? { ...p, isActive: result.data.isActive }
-              : p
-          )
-        );
+        const updatedProducts = products.map(p => {
+          if (p.id === productId || p.id === productId.toString() || productId === p.id.toString()) {
+            console.log('[TOGGLE] Updating product in state:', p.id, 'setting isActive to:', newIsActive);
+            return { ...p, isActive: newIsActive };
+          }
+          return p;
+        });
+        
+        console.log('[TOGGLE] State updated. Product count:', updatedProducts.length);
+        console.log('[TOGGLE] Updated product:', updatedProducts.find(p => p.id === productId || p.id === productId.toString()));
+        
+        setProducts(updatedProducts);
         
         const newStatus = newIsActive ? 'activated' : 'deactivated';
         toast.success(`Product ${newStatus} successfully!`);
         setDeactivateDialog({ isOpen: false, productId: null, productName: '', isActive: true });
         
-        // Refresh to ensure consistency with backend
-        fetchProducts().then(() => {
-          console.log('[TOGGLE] Products list refreshed from backend');
-        });
+        // Don't refresh immediately to avoid race condition - the optimistic update is sufficient
+        // If user needs to see latest data, they can refresh the page or navigate away and back
       } else {
         const errorMsg = result.message || result.error || 'Failed to update product status';
         toast.error(errorMsg);
@@ -484,7 +488,10 @@ export default function ProductsManagement() {
                             Edit
                           </Link>
                           <button 
-                            onClick={() => setDeactivateDialog({ isOpen: true, productId: product.id, productName: product.name, isActive: product.isActive })}
+                            onClick={() => {
+                              console.log('[BUTTON CLICK] Product ID:', product.id, 'Current isActive:', product.isActive);
+                              setDeactivateDialog({ isOpen: true, productId: product.id, productName: product.name, isActive: product.isActive });
+                            }}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-white text-xs sm:text-sm rounded-lg font-medium touch-manipulation transition-all shadow-sm ${
                               product.isActive
                                 ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700' 
@@ -606,7 +613,10 @@ export default function ProductsManagement() {
                             Edit
                           </Link>
                           <button 
-                            onClick={() => setDeactivateDialog({ isOpen: true, productId: product.id, productName: product.name, isActive: product.isActive })}
+                            onClick={() => {
+                              console.log('[BUTTON CLICK] Product ID:', product.id, 'Current isActive:', product.isActive);
+                              setDeactivateDialog({ isOpen: true, productId: product.id, productName: product.name, isActive: product.isActive });
+                            }}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-white text-xs rounded-lg font-medium transition-all shadow-sm ${
                               product.isActive
                                 ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700' 
