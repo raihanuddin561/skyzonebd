@@ -1,7 +1,7 @@
 // utils/profitReportGeneration.ts
 // Auto-generate profit reports when orders are delivered
 
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
 /**
  * Auto-generate profit report for a delivered order

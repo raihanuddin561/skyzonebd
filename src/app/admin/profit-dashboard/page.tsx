@@ -13,13 +13,48 @@ interface Partner {
 
 interface DashboardStats {
   totalRevenue: number;
+  revenueGrowth: number;
   totalCosts: number;
+  costGrowth: number;
   netProfit: number;
+  profitGrowth: number;
   profitMargin: number;
   totalOrders: number;
+  ordersGrowth: number;
+  averageOrderValue: number;
   activePartners: number;
   totalPartnerShare: number;
   remainingProfit: number;
+}
+
+interface TopProduct {
+  id: string;
+  productId: string;
+  netProfit: number;
+  revenue: number;
+  product: {
+    name: string;
+    sku: string;
+  };
+}
+
+interface DashboardData {
+  stats: DashboardStats;
+  monthlyTrends: Array<{
+    month: string;
+    revenue: number;
+    costs: number;
+    profit: number;
+  }>;
+  recentTransactions: Array<{
+    id: string;
+    type: 'SALE' | 'COST';
+    description: string;
+    amount: number;
+    date: Date;
+    status: string;
+  }>;
+  partners: Partner[];
 }
 
 export default function ProfitDashboardPage() {
@@ -27,6 +62,8 @@ export default function ProfitDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [trends, setTrends] = useState<any[]>([]);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [error, setError] = useState('');
@@ -48,6 +85,7 @@ export default function ProfitDashboardPage() {
   useEffect(() => {
     fetchDashboardData();
     fetchPartners();
+    fetchTopProducts();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -55,11 +93,15 @@ export default function ProfitDashboardPage() {
       const response = await fetch('/api/admin/profit-reports/dashboard');
       const data = await response.json();
       
-      if (data.success) {
+      if (response.ok && data.success) {
         setStats(data.stats);
+        setTrends(data.monthlyTrends || []);
+      } else {
+        setError(data.error || 'Failed to fetch dashboard data');
       }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
+      setError('Failed to fetch dashboard data');
     } finally {
       setLoading(false);
     }
@@ -75,6 +117,49 @@ export default function ProfitDashboardPage() {
       }
     } catch (err) {
       console.error('Error fetching partners:', err);
+    }
+  };
+
+  const fetchTopProducts = async () => {
+    try {
+      // Fetch last 30 days of profit reports to get top products
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const response = await fetch(`/api/admin/profit-reports?startDate=${thirtyDaysAgo.toISOString()}&endDate=${new Date().toISOString()}`);
+      const data = await response.json();
+      
+      if (data.success && data.reports) {
+        // Group by product and sum profits
+        const productMap = new Map<string, TopProduct>();
+        
+        data.reports.forEach((report: any) => {
+          if (report.product) {
+            const key = report.productId;
+            if (productMap.has(key)) {
+              const existing = productMap.get(key)!;
+              existing.netProfit += report.netProfit;
+              existing.revenue += report.revenue;
+            } else {
+              productMap.set(key, {
+                id: report.id,
+                productId: report.productId,
+                netProfit: report.netProfit,
+                revenue: report.revenue,
+                product: report.product
+              });
+            }
+          }
+        });
+        
+        const sorted = Array.from(productMap.values())
+          .sort((a, b) => b.netProfit - a.netProfit)
+          .slice(0, 10);
+        
+        setTopProducts(sorted);
+      }
+    } catch (err) {
+      console.error('Error fetching top products:', err);
     }
   };
 
@@ -301,6 +386,61 @@ export default function ProfitDashboardPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* 30-Day Trend Chart */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Revenue & Profit Trend (6 Months)</h2>
+            <div className="h-[300px] flex items-center justify-center">
+              {trends.length > 0 ? (
+                <div className="w-full space-y-2">
+                  {trends.map((item, index) => (
+                    <div key={index} className="flex justify-between items-center p-2 border-b">
+                      <span className="text-sm font-medium">{item.month}</span>
+                      <div className="flex gap-4 text-sm">
+                        <span className="text-green-600">Rev: {formatCurrency(item.revenue)}</span>
+                        <span className="text-blue-600">Profit: {formatCurrency(item.profit)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500">No trend data available</p>
+              )}
+            </div>
+          </div>
+
+          {/* Top Products by Profit */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Top 10 Products by Net Profit</h2>
+            <div className="space-y-3 max-h-[300px] overflow-y-auto">
+              {topProducts.length === 0 ? (
+                <p className="text-gray-500 text-sm text-center py-8">No profit data available yet</p>
+              ) : (
+                topProducts.map((product, index) => (
+                  <div key={product.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-semibold text-sm">
+                        {index + 1}
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{product.product.name}</p>
+                        <p className="text-xs text-gray-500">SKU: {product.product.sku}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-green-600">{formatCurrency(product.netProfit)}</p>
+                      <p className="text-xs text-gray-500">
+                        {((product.netProfit / product.revenue) * 100).toFixed(1)}% margin
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

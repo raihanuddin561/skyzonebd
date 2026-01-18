@@ -112,6 +112,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       ]
     },
     {
+      category: 'Financial',
+      items: [
+        { name: 'Profit Dashboard', icon: '💰', path: '/admin/profit-dashboard' },
+        { name: 'Profit Reports', icon: '📊', path: '/admin/profit-reports' },
+        { name: 'Profit & Loss', icon: '📈', path: '/admin/profit-loss' },
+      ]
+    },
+    {
       category: 'Content',
       items: [
         { name: 'Hero Slides', icon: '🎯', path: '/admin/hero-slides' },

@@ -8,11 +8,11 @@ import {
   calculateYTDProfit 
 } from '@/utils/comprehensiveProfitCalculation';
 import { checkPermission } from '@/middleware/permissionMiddleware';
-import { prisma } from '@/lib/db';
 
 /**
  * GET /api/admin/profit-loss
  * Get profit & loss report for a period
+ * Requires PROFIT_LOSS_VIEW permission
  */
 export async function GET(request: NextRequest) {
   try {
@@ -95,39 +95,6 @@ export async function GET(request: NextRequest) {
         error: 'Failed to generate report',
         details: error.message 
       },
-      { status: 500 }
-    );
-  }
-}
-
-/**
- * GET /api/admin/profit-loss/saved
- * Get saved profit & loss reports from database
- */
-export async function getSavedReports(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams;
-    const year = searchParams.get('year');
-    
-    const where: any = {};
-    if (year) where.year = parseInt(year);
-    
-    const reports = await prisma.profitLossReport.findMany({
-      where,
-      orderBy: [
-        { year: 'desc' },
-        { month: 'desc' }
-      ]
-    });
-    
-    return NextResponse.json({
-      success: true,
-      data: reports
-    });
-  } catch (error) {
-    console.error('Error fetching saved reports:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch saved reports' },
       { status: 500 }
     );
   }
