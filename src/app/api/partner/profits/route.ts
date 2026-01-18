@@ -257,77 +257,11 @@ export async function GET(request: NextRequest) {
 
     // 3. Financial Ledger Entries (if exists)
     if (type === 'all' || type === 'ledger') {
-      try {
-        const ledgerWhere: any = {
-          partyId: partner.id,
-          partyType: 'PARTNER',
-          ...dateFilter
-        };
-
-        const [ledgerEntries, totalLedgerEntries] = await Promise.all([
-          prisma.financialLedger.findMany({
-            where: ledgerWhere,
-            orderBy: { createdAt: 'desc' },
-            skip: offset,
-            take: limit,
-            include: {
-              order: {
-                select: {
-                  orderNumber: true,
-                  total: true
-                }
-              }
-            }
-          }),
-          prisma.financialLedger.count({ where: ledgerWhere })
-        ]);
-
-        const credits = ledgerEntries
-          .filter(e => e.direction === 'CREDIT')
-          .reduce((sum, e) => sum + e.amount, 0);
-
-        const debits = ledgerEntries
-          .filter(e => e.direction === 'DEBIT')
-          .reduce((sum, e) => sum + e.amount, 0);
-
-        response.data.ledger = {
-          items: ledgerEntries.map(e => ({
-            id: e.id,
-            sourceType: e.sourceType,
-            sourceId: e.sourceId,
-            sourceName: e.sourceName,
-            orderNumber: e.order?.orderNumber,
-            amount: e.amount,
-            direction: e.direction,
-            currency: e.currency,
-            category: e.category,
-            subcategory: e.subcategory,
-            description: e.description,
-            notes: e.notes,
-            fiscalYear: e.fiscalYear,
-            fiscalMonth: e.fiscalMonth,
-            isReconciled: e.isReconciled,
-            createdAt: e.createdAt
-          })),
-          summary: {
-            totalEntries: totalLedgerEntries,
-            totalCredits: credits,
-            totalDebits: debits,
-            netBalance: credits - debits,
-            pagination: {
-              limit,
-              offset,
-              hasMore: totalLedgerEntries > offset + limit
-            }
-          }
-        };
-      } catch (error) {
-        // FinancialLedger table might not exist yet
-        response.data.ledger = {
-          available: false,
-          message: 'Financial ledger not yet implemented'
-        };
-      }
+      // Note: FinancialLedger model not yet implemented
+      response.data.ledger = {
+        available: false,
+        message: 'Financial ledger feature not yet implemented'
+      };
     }
 
     return NextResponse.json(response);

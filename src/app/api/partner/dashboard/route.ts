@@ -126,35 +126,8 @@ export async function GET(request: NextRequest) {
     const totalSellerProfit = profitReports.reduce((sum, r) => sum + r.sellerProfit, 0);
 
     // Get financial ledger entries (if any)
-    let ledgerSummary = null;
-    try {
-      const ledgerEntries = await prisma.financialLedger.findMany({
-        where: { 
-          partyId: partner.id,
-          partyType: 'PARTNER'
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 50
-      });
-
-      const credits = ledgerEntries
-        .filter(e => e.direction === 'CREDIT')
-        .reduce((sum, e) => sum + e.amount, 0);
-
-      const debits = ledgerEntries
-        .filter(e => e.direction === 'DEBIT')
-        .reduce((sum, e) => sum + e.amount, 0);
-
-      ledgerSummary = {
-        totalCredits: credits,
-        totalDebits: debits,
-        netBalance: credits - debits,
-        entryCount: ledgerEntries.length
-      };
-    } catch (error) {
-      // FinancialLedger might not exist yet - ignore error
-      ledgerSummary = null;
-    }
+    // Note: FinancialLedger model not yet implemented
+    const ledgerSummary = null;
 
     // Current month statistics
     const currentMonthStart = new Date();
