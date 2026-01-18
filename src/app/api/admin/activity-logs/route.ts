@@ -14,8 +14,6 @@ interface DecodedToken extends JwtPayload {
  */
 export async function GET(request: NextRequest) {
   try {
-    console.log('📥 GET /api/admin/activity-logs - Request received');
-    
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(

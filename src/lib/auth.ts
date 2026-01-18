@@ -187,3 +187,40 @@ export function isWholesaleUser(user: { userType: string }): boolean {
 export function isRetailUser(user: { userType: string }): boolean {
   return user.userType === 'RETAIL';
 }
+
+/**
+ * Verify admin JWT token from request (inline helper)
+ * Returns authorization status and userId
+ * 
+ * @deprecated Use requireAdmin() for proper error handling
+ * This is kept for backward compatibility with inline verifyAdmin patterns
+ */
+export type AdminAuthResult = 
+  | { authorized: true; userId: string; error?: never }
+  | { authorized: false; userId?: never; error: string };
+
+export function verifyAdminToken(request: NextRequest): AdminAuthResult {
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return { authorized: false, error: 'No authorization token' };
+    }
+
+    const token = authHeader.substring(7);
+    const decoded = verifyToken(token);
+
+    if (!decoded) {
+      return { authorized: false, error: 'Invalid token' };
+    }
+
+    // Case-insensitive role check
+    const role = decoded.role?.toUpperCase();
+    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+      return { authorized: false, error: 'Admin access required' };
+    }
+
+    return { authorized: true, userId: decoded.userId };
+  } catch {
+    return { authorized: false, error: 'Invalid token' };
+  }
+}

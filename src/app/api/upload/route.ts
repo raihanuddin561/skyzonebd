@@ -12,15 +12,11 @@ export const runtime = 'nodejs';
 export const maxDuration = 60; // 60 seconds timeout
 
 export async function POST(request: NextRequest) {
-  console.log('🔵 Upload API called');
-  
   try {
     // Verify admin authentication
     const authHeader = request.headers.get('authorization');
-    console.log('🔍 Auth header present:', !!authHeader);
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('❌ No valid auth header');
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }
@@ -28,14 +24,11 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    console.log('🔍 Token length:', token.length);
     
     let decoded: DecodedToken;
     try {
       const jwtSecret = process.env.JWT_SECRET || 'fallback-secret';
-      console.log('🔍 JWT Secret exists:', !!jwtSecret);
       decoded = verify(token, jwtSecret) as DecodedToken;
-      console.log('✅ Token verified, role:', decoded.role);
     } catch (error) {
       console.error('❌ Token verification failed:', error);
       return NextResponse.json(
@@ -46,14 +39,11 @@ export async function POST(request: NextRequest) {
 
     // Only admin can upload images (check both ADMIN and admin for case-insensitivity)
     if (decoded.role.toUpperCase() !== 'ADMIN') {
-      console.log('❌ Not admin, role:', decoded.role);
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
       );
     }
-
-    console.log('✅ Admin verified');
 
     // Parse form data with error handling
     let formData: FormData;
@@ -105,7 +95,6 @@ export async function POST(request: NextRequest) {
     // Validate file size (max 4MB due to Vercel's 4.5MB request limit with FormData overhead)
     const maxSize = 4 * 1024 * 1024; // 4MB
     if (file.size > maxSize) {
-      console.log('❌ File too large:', file.size);
       return NextResponse.json(
         { success: false, error: `File size is ${Math.round(file.size / 1024 / 1024)}MB. Maximum is 4MB due to Vercel limits. Please compress the image first.` },
         { status: 400 }
@@ -116,9 +105,6 @@ export async function POST(request: NextRequest) {
     const filename = `${folder}/${Date.now()}-${file.name}`;
     const blobToken = process.env.BLOB_READ_WRITE_TOKEN || process.env.SKY_ZONE_BD_BLOB_READ_WRITE_TOKEN;
     
-    console.log('🔍 Upload attempt - Token exists:', !!blobToken);
-    console.log('🔍 File details:', { name: file.name, size: file.size, type: file.type });
-    
     if (!blobToken) {
       console.error('❌ No Blob token found in environment variables');
       console.error('❌ Available env keys:', Object.keys(process.env).filter(k => k.includes('BLOB')));
@@ -128,7 +114,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('📤 Uploading to Vercel Blob...');
     let blob;
     try {
       blob = await put(filename, file, {
@@ -154,8 +139,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log('✅ Image uploaded successfully:', blob.url);
 
     return NextResponse.json({
       success: true,
@@ -238,8 +221,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     await del(url, { token: blobToken });
-
-    console.log('✅ Image deleted successfully:', url);
 
     return NextResponse.json({
       success: true,

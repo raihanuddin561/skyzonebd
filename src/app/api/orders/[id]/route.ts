@@ -1,34 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/db';
+import { autoGenerateProfitReport } from '@/utils/profitReportGeneration';
+import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
 
-const prisma = new PrismaClient();
-
-// Helper to verify JWT and check admin role
-type AuthResult = 
-  | { authorized: true; userId: string; error?: never }
-  | { authorized: false; userId?: never; error: string };
-
-function verifyAdmin(request: NextRequest): AuthResult {
-  try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return { authorized: false, error: 'No authorization token' };
-    }
-
-    const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string; role: string };
-
-    // Case-insensitive role check (login returns lowercase, but DB stores uppercase)
-    if (decoded.role.toUpperCase() !== 'ADMIN') {
-      return { authorized: false, error: 'Admin access required' };
-    }
-
-    return { authorized: true, userId: decoded.userId };
-  } catch {
-    return { authorized: false, error: 'Invalid token' };
-  }
-}
+// Use shared auth helper
+const verifyAdmin = verifyAdminToken;
 
 // GET - Get single order details
 export async function GET(
@@ -179,6 +155,14 @@ export async function PATCH(
         }
       }
     });
+
+    // Auto-generate profit report if order is now DELIVERED
+    if (updateData.status === 'DELIVERED' && existingOrder.status !== 'DELIVERED') {
+      const profitResult = await autoGenerateProfitReport(updatedOrder.id);
+      if (profitResult.success) {
+        console.log(profitResult.message);
+      }
+    }
 
     return NextResponse.json({
       success: true,

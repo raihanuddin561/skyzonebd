@@ -1,7 +1,6 @@
 // app/api/admin/profit-loss/route.ts - Comprehensive Profit & Loss Report API
 
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { 
   calculateComprehensiveProfit, 
   saveProfitLossReport,
@@ -9,8 +8,7 @@ import {
   calculateYTDProfit 
 } from '@/utils/comprehensiveProfitCalculation';
 import { checkPermission } from '@/middleware/permissionMiddleware';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/db';
 
 /**
  * GET /api/admin/profit-loss

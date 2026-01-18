@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verify, JwtPayload } from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
 import { logActivity } from '@/lib/activityLogger';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/db';
 
 interface DecodedToken extends JwtPayload {
   userId: string;
@@ -17,7 +15,6 @@ interface DecodedToken extends JwtPayload {
  */
 export async function POST(request: NextRequest) {
   try {
-    console.log('📥 POST /api/orders/cancel - Request received');
     
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -112,7 +109,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Restore stock for cancelled order items
-    console.log('📦 Restoring stock for cancelled order items...');
+
     for (const item of updatedOrder.orderItems) {
       await prisma.product.update({
         where: { id: item.productId },
@@ -122,7 +119,6 @@ export async function POST(request: NextRequest) {
           }
         }
       });
-      console.log(`  ✅ Stock restored for ${item.product.name}: +${item.quantity}`);
     }
 
     // Get user info for logging
@@ -149,13 +145,6 @@ export async function POST(request: NextRequest) {
         itemsCount: updatedOrder.orderItems.length
       },
       request
-    });
-
-    console.log('✅ Order cancelled successfully:', {
-      orderId: updatedOrder.id,
-      orderNumber: updatedOrder.orderNumber,
-      cancelledBy: isAdmin ? 'admin' : 'customer',
-      reason: reason || 'No reason provided'
     });
 
     // Format response

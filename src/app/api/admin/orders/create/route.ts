@@ -1,33 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/db';
+import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
 
-const prisma = new PrismaClient();
-
-// Helper to verify JWT and check admin role
-type AuthResult = 
-  | { authorized: true; userId: string; error?: never }
-  | { authorized: false; userId?: never; error: string };
-
-function verifyAdmin(request: NextRequest): AuthResult {
-  try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return { authorized: false, error: 'No authorization token' };
-    }
-
-    const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string; role: string };
-
-    if (decoded.role.toUpperCase() !== 'ADMIN') {
-      return { authorized: false, error: 'Admin access required' };
-    }
-
-    return { authorized: true, userId: decoded.userId };
-  } catch {
-    return { authorized: false, error: 'Invalid token' };
-  }
-}
+// Use shared auth helper
+const verifyAdmin = verifyAdminToken;
 
 // Generate unique order number
 function generateOrderNumber(): string {
@@ -110,14 +86,23 @@ export async function POST(request: NextRequest) {
       if (customer.discountPercent && customer.discountPercent > 0) {
         if (!customer.discountValidUntil || customer.discountValidUntil > new Date()) {
           customerDiscount = customer.discountPercent;
-          console.log(`💰 Customer discount applied: ${customerDiscount}%`);
+
         }
       }
     }
 
     // Validate and calculate items
     let subtotal = 0;
-    const orderItemsData = [];
+    const orderItemsData: Array<{
+      productId: string;
+      quantity: number;
+      price: number;
+      total: number;
+      costPerUnit: number;
+      profitPerUnit: number;
+      totalProfit: number;
+      profitMargin: number;
+    }> = [];
 
     for (const item of items) {
       if (!item.productId || !item.quantity || item.quantity <= 0) {
@@ -135,6 +120,9 @@ export async function POST(request: NextRequest) {
           name: true,
           wholesalePrice: true,
           stockQuantity: true,
+          basePrice: true,
+          costPerUnit: true,
+          platformProfitPercentage: true
         }
       });
 
@@ -169,11 +157,22 @@ export async function POST(request: NextRequest) {
       const itemTotal = itemPrice * item.quantity;
       subtotal += itemTotal;
 
+      // Calculate profit metrics (snapshot at order time)
+      const costPerUnit = product.costPerUnit || product.basePrice;
+      const profitPerUnit = itemPrice - costPerUnit;
+      const totalProfit = profitPerUnit * item.quantity;
+      const profitMargin = itemTotal > 0 ? (totalProfit / itemTotal) * 100 : 0;
+
       orderItemsData.push({
         productId: item.productId,
         quantity: item.quantity,
         price: itemPrice,
-        total: itemTotal
+        total: itemTotal,
+        // Snapshot profit configuration
+        costPerUnit: costPerUnit,
+        profitPerUnit: profitPerUnit,
+        totalProfit: totalProfit,
+        profitMargin: profitMargin
       });
     }
 
@@ -182,69 +181,83 @@ export async function POST(request: NextRequest) {
     // Generate order number
     const orderNumber = generateOrderNumber();
 
-    // Create order
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        userId: customerId || null,
-        subtotal,
-        tax,
-        shipping,
-        total,
-        status,
-        paymentStatus: 'PENDING',
-        paymentMethod,
-        shippingAddress,
-        billingAddress,
-        notes,
-        orderItems: {
-          create: orderItemsData
-        }
-      },
-      include: {
-        orderItems: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                imageUrl: true,
-                sku: true
+    // Create order, update stock, and log activity in a single transaction
+    const order: any = await prisma.$transaction(async (tx) => {
+      // Create order
+      const newOrder = await tx.order.create({
+        data: {
+          orderNumber,
+          userId: customerId || null,
+          subtotal,
+          tax,
+          shipping,
+          total,
+          status,
+          paymentStatus: 'PENDING',
+          paymentMethod,
+          shippingAddress,
+          billingAddress,
+          notes,
+          orderItems: {
+            create: orderItemsData.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              price: item.price,
+              total: item.total,
+              costPerUnit: item.costPerUnit,
+              profitPerUnit: item.profitPerUnit,
+              totalProfit: item.totalProfit,
+              profitMargin: item.profitMargin
+            }))
+          }
+        },
+        include: {
+          orderItems: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  imageUrl: true,
+                  sku: true
+                }
               }
             }
           }
         }
-      }
-    });
+      });
 
-    // Update stock quantities
-    for (const item of orderItemsData) {
-      await prisma.product.update({
-        where: { id: item.productId },
+      // Update stock quantities
+      for (const item of orderItemsData) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stockQuantity: {
+              decrement: item.quantity
+            }
+          }
+        });
+      }
+
+      // Log activity
+      await tx.activityLog.create({
         data: {
-          stockQuantity: {
-            decrement: item.quantity
+          userId: auth.userId!,
+          userName: 'Admin',
+          action: 'CREATE',
+          entityType: 'Order',
+          entityId: newOrder.id,
+          entityName: newOrder.orderNumber,
+          description: `Manually created order ${newOrder.orderNumber}${customer ? ` for ${customer.name}` : ''}`,
+          metadata: {
+            customerId: customerId,
+            itemCount: items.length,
+            total: total
           }
         }
       });
-    }
-
-    // Log activity
-    await prisma.activityLog.create({
-      data: {
-        userId: auth.userId!,
-        userName: 'Admin',
-        action: 'CREATE',
-        entityType: 'Order',
-        entityId: order.id,
-        entityName: order.orderNumber,
-        description: `Manually created order ${order.orderNumber}${customer ? ` for ${customer.name}` : ''}`,
-        metadata: {
-          customerId: customerId,
-          itemCount: items.length,
-          total: total
-        }
-      }
+      
+      return newOrder;
     });
 
     return NextResponse.json({
@@ -254,7 +267,7 @@ export async function POST(request: NextRequest) {
         orderNumber: order.orderNumber,
         customerId: order.userId,
         customerName: customer?.name,
-        items: order.orderItems.map(item => ({
+        items: (order.orderItems).map((item: any) => ({
           productId: item.productId,
           name: item.product.name,
           imageUrl: item.product.imageUrl,

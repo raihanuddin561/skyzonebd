@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verify, JwtPayload } from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
 import { logActivity } from '@/lib/activityLogger';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/db';
+import { autoGenerateProfitReport } from '@/utils/profitReportGeneration';
 
 interface DecodedToken extends JwtPayload {
   userId: string;
@@ -19,9 +18,7 @@ interface OrderItem {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📥 POST /api/orders - Request received');
     const body = await request.json();
-    console.log('📦 Request body:', JSON.stringify(body, null, 2));
     
     const { 
       items, 
@@ -73,7 +70,6 @@ export async function POST(request: NextRequest) {
           // Check if discount has not expired
           if (!user.discountValidUntil || user.discountValidUntil > new Date()) {
             customerDiscount = user.discountPercent;
-            console.log(`💰 Customer discount applied: ${customerDiscount}%`);
           }
         }
       } catch {
@@ -113,36 +109,21 @@ export async function POST(request: NextRequest) {
     const tax = subtotalAfterDiscount * taxRate;
     const total = subtotalAfterDiscount + shipping + tax;
     
-    console.log('💵 Order calculation:', {
-      originalSubtotal: subtotal,
-      discountPercent: customerDiscount,
-      discountAmount: discountAmount,
-      subtotalAfterDiscount: subtotalAfterDiscount,
-      shipping: shipping,
-      tax: tax,
-      total: total
-    });
-    
     // Generate order number
     const orderNumber = `ORD-${Date.now()}`;
     
-    // Log items and their productIds for debugging
-    console.log('🔍 Processing order items:');
-    items.forEach((item: OrderItem, index: number) => {
-      console.log(`  Item ${index + 1}:`, {
-        productId: item.productId,
-        type: typeof item.productId,
-        name: item.name,
-        quantity: item.quantity
-      });
-    });
-    
     // Verify all products exist in database before creating order
-    console.log('🔍 Verifying products exist in database...');
     for (const item of items) {
       const productExists = await prisma.product.findUnique({
         where: { id: item.productId.toString() },
-        select: { id: true, name: true }
+        select: { 
+          id: true, 
+          name: true, 
+          stockQuantity: true,
+          basePrice: true,
+          costPerUnit: true,
+          platformProfitPercentage: true
+        }
       });
       
       if (!productExists) {
@@ -157,72 +138,100 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      console.log(`  ✅ Product found:`, productExists);
+      
+      // Check stock availability
+      if (productExists.stockQuantity < item.quantity) {
+        return NextResponse.json(
+          { success: false, error: `Insufficient stock for ${productExists.name}. Available: ${productExists.stockQuantity}` },
+          { status: 400 }
+        );
+      }
     }
     
-    // Create order in database and deduct stock
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        userId: userId || undefined,
-        guestName: guestData?.name,
-        guestEmail: guestData?.email,
-        guestPhone: guestData?.mobile,
-        subtotal,
-        tax,
-        shipping,
-        total,
-        status: 'PENDING',
-        paymentStatus: 'PENDING',
-        paymentMethod,
-        shippingAddress,
-        billingAddress,
-        notes: notes || undefined,
-        orderItems: {
-          create: items.map((item: OrderItem) => ({
-            productId: item.productId.toString(),
-            quantity: item.quantity,
-            price: item.price,
-            total: item.price * item.quantity
-          }))
-        }
-      },
-      include: {
-        orderItems: {
-          include: {
-            product: true
-          }
-        }
-      }
-    });
-
-    // Deduct stock for each ordered item
-    console.log('📦 Deducting stock for order items...');
+    // Fetch product profit data for snapshotting
+    const productProfitData = new Map();
     for (const item of items) {
       const product = await prisma.product.findUnique({
         where: { id: item.productId.toString() },
-        select: { id: true, name: true, stockQuantity: true }
+        select: {
+          id: true,
+          basePrice: true,
+          costPerUnit: true,
+          platformProfitPercentage: true
+        }
       });
-
       if (product) {
-        const newStock = Math.max(0, product.stockQuantity - item.quantity);
-        await prisma.product.update({
-          where: { id: product.id },
-          data: { stockQuantity: newStock }
-        });
-        console.log(`  ✅ Stock updated for ${product.name}: ${product.stockQuantity} → ${newStock}`);
+        productProfitData.set(item.productId.toString(), product);
       }
     }
     
-    console.log('✅ Order created successfully in database:', {
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      isGuest: !userId,
-      customerName: guestData?.name || 'Logged-in user',
-      itemsCount: items.length,
-      total: order.total
-    });
+    // Create order in database and deduct stock in a single transaction
+    const order = await prisma.$transaction(async (tx) => {
+      // Create order with order items
+      const newOrder = await tx.order.create({
+        data: {
+          orderNumber,
+          userId: userId || undefined,
+          guestName: guestData?.name,
+          guestEmail: guestData?.email,
+          guestPhone: guestData?.mobile,
+          subtotal,
+          tax,
+          shipping,
+          total,
+          status: 'PENDING',
+          paymentStatus: 'PENDING',
+          paymentMethod,
+          shippingAddress,
+          billingAddress,
+          notes: notes || undefined,
+          orderItems: {
+            create: items.map((item: OrderItem) => {
+              const productProfit = productProfitData.get(item.productId.toString());
+              const costPerUnit = productProfit?.costPerUnit || productProfit?.basePrice || 0;
+              const profitPerUnit = item.price - costPerUnit;
+              const totalProfit = profitPerUnit * item.quantity;
+              const itemTotal = item.price * item.quantity;
+              const profitMargin = itemTotal > 0 ? (totalProfit / itemTotal) * 100 : 0;
+              
+              return {
+                productId: item.productId.toString(),
+                quantity: item.quantity,
+                price: item.price,
+                total: itemTotal,
+                // Snapshot profit configuration
+                costPerUnit: costPerUnit,
+                profitPerUnit: profitPerUnit,
+                totalProfit: totalProfit,
+                profitMargin: profitMargin
+              };
+            })
+          }
+        },
+        include: {
+          orderItems: {
+            include: {
+              product: true
+            }
+          }
+        }
+      });
 
+      // Deduct stock for each ordered item
+      for (const item of items) {
+        await tx.product.update({
+          where: { id: item.productId.toString() },
+          data: {
+            stockQuantity: {
+              decrement: item.quantity
+            }
+          }
+        });
+      }
+      
+      return newOrder;
+    });
+    
     // Format response to match frontend expectations
     const responseOrder = {
       id: order.id,
@@ -385,7 +394,6 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    console.log('📥 PATCH /api/orders - Request received');
     
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -512,12 +520,13 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    console.log('✅ Order updated successfully:', {
-      orderId: updatedOrder.id,
-      orderNumber: updatedOrder.orderNumber,
-      newStatus: updatedOrder.status,
-      newPaymentStatus: updatedOrder.paymentStatus
-    });
+    // Auto-generate profit report if order is now DELIVERED
+    if (updateData.status === 'DELIVERED' && currentOrder.status !== 'DELIVERED') {
+      const profitResult = await autoGenerateProfitReport(updatedOrder.id);
+      if (profitResult.success) {
+        console.log(profitResult.message);
+      }
+    }
 
     // Format response
     const responseOrder = {

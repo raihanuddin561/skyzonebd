@@ -1,32 +1,39 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/db';
+import { requireAuth } from '@/lib/auth';
+import { verify } from 'jsonwebtoken';
 
 export async function POST(request: Request) {
   try {
-    // ALWAYS require authentication for seeding
-    const authHeader = request.headers.get('authorization');
-    const seedSecret = process.env.SEED_SECRET;
-    
-    if (!seedSecret) {
-      return NextResponse.json({
-        error: 'Seeding disabled: SEED_SECRET not configured in environment variables'
-      }, { status: 503 });
-    }
-    
-    if (authHeader !== `Bearer ${seedSecret}`) {
-      return NextResponse.json({
-        error: 'Unauthorized: Invalid or missing SEED_SECRET'
-      }, { status: 401 });
-    }
+    // Only allow in development OR with SUPER_ADMIN role
+    if (process.env.NODE_ENV === 'production') {
+      const authHeader = request.headers.get('authorization');
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return NextResponse.json({
+          error: 'Unauthorized: Authentication required'
+        }, { status: 401 });
+      }
 
-    console.log('🌱 Starting database seed...');
+      const token = authHeader.substring(7);
+      try {
+        const decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as { userId: string; role: string };
+        
+        if (decoded.role.toUpperCase() !== 'SUPER_ADMIN') {
+          return NextResponse.json({
+            error: 'Forbidden: SUPER_ADMIN access required'
+          }, { status: 403 });
+        }
+      } catch {
+        return NextResponse.json({
+          error: 'Unauthorized: Invalid token'
+        }, { status: 401 });
+      }
+    }
 
     // Check if data already exists
     const existingProducts = await prisma.product.count();
     if (existingProducts > 0) {
-      console.log('🔄 Re-seeding database (deleting existing data)...');
       // Delete existing data
       await prisma.product.deleteMany();
       await prisma.category.deleteMany();
@@ -34,7 +41,6 @@ export async function POST(request: Request) {
     }
 
     // Create categories
-    console.log('📁 Creating categories...');
     const electronics = await prisma.category.create({
       data: {
         name: 'Electronics',
@@ -63,7 +69,6 @@ export async function POST(request: Request) {
     });
 
     // Create sample products
-    console.log('📦 Creating products...');
     
     await prisma.product.createMany({
       data: [
@@ -194,10 +199,6 @@ export async function POST(request: Request) {
     // Get counts
     const categoryCount = await prisma.category.count();
     const productCount = await prisma.product.count();
-
-    console.log('✅ Database seeded successfully!');
-    console.log(`📁 Categories: ${categoryCount}`);
-    console.log(`📦 Products: ${productCount}`);
 
     return NextResponse.json({
       success: true,

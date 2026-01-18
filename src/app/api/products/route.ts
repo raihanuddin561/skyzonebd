@@ -1,35 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import { logActivity } from '@/lib/activityLogger';
+import { prisma } from '@/lib/db';
+import { validateWholesalePricing, formatValidationErrors } from '@/utils/wholesaleValidation';
+import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
 
-const prisma = new PrismaClient();
-
-// Helper to verify JWT and check admin role
-type AuthResult = 
-  | { authorized: true; userId: string; error?: never }
-  | { authorized: false; userId?: never; error: string };
-
-function verifyAdmin(request: NextRequest): AuthResult {
-  try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return { authorized: false, error: 'No authorization token' };
-    }
-
-    const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string; role: string };
-
-    // Case-insensitive role check (login returns lowercase, but DB stores uppercase)
-    if (decoded.role.toUpperCase() !== 'ADMIN') {
-      return { authorized: false, error: 'Admin access required' };
-    }
-
-    return { authorized: true, userId: decoded.userId };
-  } catch {
-    return { authorized: false, error: 'Invalid token' };
-  }
-}
+// Use shared auth helper
+const verifyAdmin = verifyAdminToken;
 
 export async function GET(request: NextRequest) {
   try {
@@ -250,6 +228,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Product with this slug already exists' },
         { status: 409 }
+      );
+    }
+
+    // Validate wholesale pricing rules
+    const validationResult = validateWholesalePricing({
+      basePrice: body.basePrice || body.price,
+      wholesalePrice: body.wholesalePrice || body.price,
+      moq: body.moq || body.minOrderQuantity,
+      wholesaleTiers: body.wholesaleTiers || []
+    });
+
+    if (!validationResult.isValid) {
+      return NextResponse.json(
+        formatValidationErrors(validationResult),
+        { status: 400 }
       );
     }
 

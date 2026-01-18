@@ -1,35 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import { logActivity } from '@/lib/activityLogger';
+import { prisma } from '@/lib/db';
+import { validateWholesalePricing, formatValidationErrors } from '@/utils/wholesaleValidation';
+import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
 
-const prisma = new PrismaClient();
-
-// Helper to verify JWT and check admin role
-type AuthResult = 
-  | { authorized: true; userId: string; error?: never }
-  | { authorized: false; userId?: never; error: string };
-
-function verifyAdmin(request: NextRequest): AuthResult {
-  try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return { authorized: false, error: 'No authorization token' };
-    }
-
-    const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string; role: string };
-
-    // Case-insensitive role check (login returns lowercase, but DB stores uppercase)
-    if (decoded.role.toUpperCase() !== 'ADMIN') {
-      return { authorized: false, error: 'Admin access required' };
-    }
-
-    return { authorized: true, userId: decoded.userId };
-  } catch {
-    return { authorized: false, error: 'Invalid token' };
-  }
-}
+// Use shared auth helper
+const verifyAdmin = verifyAdminToken;
 
 export async function GET(
   request: NextRequest,
@@ -184,27 +161,17 @@ export async function PUT(
     const { id: productId } = await params;
     const body = await request.json();
     
-    // Log incoming request for debugging
-    console.log(`[PRODUCT UPDATE REQUEST] Product ID: ${productId}`);
-    console.log('[PRODUCT UPDATE REQUEST] Body:', JSON.stringify(body, null, 2));
-    console.log('[PRODUCT UPDATE REQUEST] isActive in body:', body.isActive);
-    console.log('[PRODUCT UPDATE REQUEST] isActive type:', typeof body.isActive);
-    console.log('[PRODUCT UPDATE REQUEST] Body keys:', Object.keys(body));
-
     // Check if product exists
     const existing = await prisma.product.findUnique({
       where: { id: productId }
     });
 
     if (!existing) {
-      console.log(`[PRODUCT UPDATE ERROR] Product ${productId} not found in database`);
       return NextResponse.json(
         { error: 'Product not found' },
         { status: 404 }
       );
     }
-    
-    console.log(`[PRODUCT UPDATE] Current isActive in DB: ${existing.isActive}`);
 
     // If slug is being updated, check for conflicts
     if (body.slug && body.slug !== existing.slug) {
@@ -238,6 +205,29 @@ export async function PUT(
         );
       }
     }
+
+    // Validate wholesale pricing rules if pricing fields are being updated
+    const hasePricingUpdate = 
+      body.basePrice !== undefined || 
+      body.wholesalePrice !== undefined || 
+      body.moq !== undefined ||
+      body.wholesaleTiers !== undefined;
+
+    if (hasePricingUpdate) {
+      const validationResult = validateWholesalePricing({
+        basePrice: body.basePrice !== undefined ? body.basePrice : existing.basePrice,
+        wholesalePrice: body.wholesalePrice !== undefined ? body.wholesalePrice : existing.wholesalePrice,
+        moq: body.moq !== undefined ? body.moq : existing.moq,
+        wholesaleTiers: body.wholesaleTiers || []
+      });
+
+      if (!validationResult.isValid) {
+        return NextResponse.json(
+          formatValidationErrors(validationResult),
+          { status: 400 }
+        );
+      }
+    }
     
     // Build update data object
     const updateData: any = {};
@@ -261,16 +251,12 @@ export async function PUT(
     if (body.categoryId) updateData.categoryId = body.categoryId;
     if (body.isActive !== undefined) {
       updateData.isActive = Boolean(body.isActive);
-      console.log(`[PRODUCT UPDATE] Changing isActive for product ${productId}: ${existing.isActive} → ${body.isActive} (converted to ${Boolean(body.isActive)})`);
     }
     if (body.isFeatured !== undefined) updateData.isFeatured = body.isFeatured;
     if (body.rating !== undefined) updateData.rating = body.rating;
     if (body.reviewCount !== undefined) updateData.reviewCount = body.reviewCount;
     if (body.metaTitle !== undefined) updateData.metaTitle = body.metaTitle;
     if (body.metaDescription !== undefined) updateData.metaDescription = body.metaDescription;
-    
-    console.log('[PRODUCT UPDATE] Update data being sent to Prisma:', JSON.stringify(updateData, null, 2));
-    console.log('[PRODUCT UPDATE] isActive in updateData:', updateData.isActive);
     
     // Update product
     const product = await prisma.product.update({
@@ -281,9 +267,6 @@ export async function PUT(
         wholesaleTiers: true,
       }
     });
-    
-    console.log(`[PRODUCT UPDATE] Product ${productId} updated successfully. isActive = ${product.isActive}`);
-    console.log('[PRODUCT UPDATE] Full product after update:', JSON.stringify({ id: product.id, isActive: product.isActive, updatedAt: product.updatedAt }));
 
     // Get admin user info for logging
     const admin = await prisma.user.findUnique({
@@ -326,9 +309,6 @@ export async function PUT(
       },
       request
     });
-
-    console.log(`[PRODUCT UPDATE] Returning updated product. isActive = ${product.isActive}`);
-    console.log(`[PRODUCT UPDATE] Changes tracked: ${changes.join(', ')}`);
 
     return NextResponse.json({
       success: true,

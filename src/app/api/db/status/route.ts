@@ -1,8 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma, testConnection } from '@/lib/db'
+import { verify } from 'jsonwebtoken'
 
 export async function GET(request: NextRequest) {
   try {
+    // Require admin authentication
+    const authHeader = request.headers.get('authorization');
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7);
+    try {
+      const decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as { userId: string; role: string };
+      
+      if (decoded.role.toUpperCase() !== 'ADMIN' && decoded.role.toUpperCase() !== 'SUPER_ADMIN') {
+        return NextResponse.json(
+          { success: false, error: 'Admin access required' },
+          { status: 403 }
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Invalid token' },
+        { status: 401 }
+      );
+    }
+
     // Test database connection
     const isConnected = await testConnection()
     
@@ -45,8 +73,6 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Database status check failed:', error)
-    
     return NextResponse.json(
       { 
         success: false, 

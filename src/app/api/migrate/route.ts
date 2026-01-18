@@ -18,13 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Run Prisma migrate deploy
-    console.log('Starting database migration...');
     const { stdout, stderr } = await execAsync('npx prisma migrate deploy');
-    
-    console.log('Migration output:', stdout);
-    if (stderr) {
-      console.error('Migration stderr:', stderr);
-    }
 
     return NextResponse.json({
       success: true,

@@ -149,11 +149,15 @@ export async function POST(request: NextRequest) {
 
     for (const item of order.orderItems) {
       const revenue = item.total;
-      const costPerUnit = item.product.costPerUnit || item.product.basePrice || 0;
+      
+      // Use snapshotted values from order item if available (preferred)
+      // Fall back to current product prices only for old orders without snapshots
+      const costPerUnit = item.costPerUnit ?? item.product.costPerUnit ?? item.product.basePrice ?? 0;
       const cost = costPerUnit * item.quantity;
-      const grossProfit = revenue - cost;
+      const grossProfit = item.totalProfit ?? (revenue - cost);
 
-      // Calculate profit distribution
+      // Calculate profit distribution using current product config
+      // (This is for distribution, not recalculation of profit amount)
       const platformProfitPercent = item.product.platformProfitPercentage || 0;
       const sellerCommissionPercent = item.product.sellerCommissionPercentage || 0;
 
@@ -166,16 +170,18 @@ export async function POST(request: NextRequest) {
       totalPlatformProfit += platformProfit + (remainingProfit - sellerProfit);
       totalSellerProfit += sellerProfit;
 
-      // Update order item with profit info
-      await prisma.orderItem.update({
-        where: { id: item.id },
-        data: {
-          costPerUnit,
-          profitPerUnit: grossProfit / item.quantity,
-          totalProfit: grossProfit,
-          profitMargin: (grossProfit / revenue) * 100
-        }
-      });
+      // Only update order item if profit data is missing (don't overwrite historical snapshots)
+      if (item.costPerUnit === null || item.totalProfit === null) {
+        await prisma.orderItem.update({
+          where: { id: item.id },
+          data: {
+            costPerUnit,
+            profitPerUnit: grossProfit / item.quantity,
+            totalProfit: grossProfit,
+            profitMargin: revenue > 0 ? (grossProfit / revenue) * 100 : 0
+          }
+        });
+      }
     }
 
     const grossProfit = totalRevenue - totalCost;

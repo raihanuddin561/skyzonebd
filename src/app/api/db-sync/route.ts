@@ -14,11 +14,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Starting database sync with db push...');
-    
     // Test database connection first
     await prisma.$connect();
-    console.log('✅ Database connected');
 
     // Use Prisma's introspection to check current state
     const tables = await prisma.$queryRaw`
@@ -28,8 +25,6 @@ export async function POST(request: NextRequest) {
       AND table_type = 'BASE TABLE'
       ORDER BY table_name;
     `;
-    
-    console.log('Current database tables:', tables);
 
     return NextResponse.json({
       success: true,
@@ -42,7 +37,6 @@ export async function POST(request: NextRequest) {
       currentTables: tables,
     });
   } catch (error: any) {
-    console.error('Database error:', error);
     return NextResponse.json(
       {
         success: false,
@@ -90,7 +84,7 @@ export async function GET(request: NextRequest) {
       counts.categories = await prisma.category.count();
       counts.orders = await prisma.order.count();
     } catch (e) {
-      console.log('Could not count all tables (some may not exist yet)');
+      // Could not count all tables (some may not exist yet)
     }
 
     await prisma.$disconnect();
