@@ -1,118 +1,119 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { DeletionRequestStatus } from '@prisma/client';
 import { prisma } from '@/lib/db';
-import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 
-// Use shared auth helper
-const verifyAdmin = verifyAdminToken;
-
-// PATCH - Process deletion request (Approve/Reject)
+/**
+ * PATCH /api/admin/data-deletion-requests/[id]
+ * Admin approves or rejects a deletion request
+ * Enforces status transitions: PENDING -> PROCESSING/REJECTED
+ */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    // Require admin authentication
+    const admin = await requireAdmin(request);
 
     const { id } = await params;
-    const body = await request.json();
-    const { action, notes, rejectionReason } = body;
 
-    if (!action || !['approve', 'reject'].includes(action)) {
+    // Parse request body
+    const body = await request.json();
+    const { action, notes } = body;
+
+    // Validate action
+    if (!action || !['approve', 'reject'].includes(action.toLowerCase())) {
       return NextResponse.json(
-        { error: 'Invalid action. Must be "approve" or "reject"' },
+        { error: 'Action must be either "approve" or "reject"' },
         { status: 400 }
       );
     }
 
-    // Get the deletion request
-    const deletionRequest = await prisma.dataDeletionRequest.findUnique({
+    // Fetch existing request
+    const existingRequest = await prisma.dataDeletionRequest.findUnique({
       where: { id },
-      include: { user: true },
     });
 
-    if (!deletionRequest) {
-      return NextResponse.json(
-        { error: 'Deletion request not found' },
-        { status: 404 }
-      );
+    if (!existingRequest) {
+      return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     }
 
-    if (deletionRequest.status !== 'PENDING') {
+    // Enforce status transitions - can only approve/reject PENDING requests
+    if (existingRequest.status !== 'PENDING') {
       return NextResponse.json(
-        { error: `Request already ${deletionRequest.status.toLowerCase()}` },
+        { error: `Cannot ${action.toLowerCase()} request with status ${existingRequest.status}` },
         { status: 400 }
       );
     }
 
-    if (action === 'approve') {
-      // Update request status to PROCESSING
-      await prisma.dataDeletionRequest.update({
+    // Determine new status
+    const newStatus: DeletionRequestStatus = action.toLowerCase() === 'approve' ? 'PROCESSING' : 'REJECTED';
+    const now = new Date();
+
+    // Update request in transaction
+    const updatedRequest = await prisma.$transaction(async (tx) => {
+      // Update the request
+      const updated = await tx.dataDeletionRequest.update({
         where: { id },
         data: {
-          status: 'PROCESSING',
-          processedAt: new Date(),
-          processedBy: auth.userId,
+          status: newStatus,
+          processedBy: admin.id,
+          processedAt: now,
+          ...(action.toLowerCase() === 'reject' && {
+            rejectedAt: now,
+            rejectionReason: notes || 'No reason provided',
+          }),
           notes,
         },
-      });
-
-      // TODO: Implement actual data deletion logic
-      // This should be done carefully to maintain referential integrity
-      // and comply with legal requirements (some data may need to be retained)
-      
-      // For now, we'll just mark as completed
-      // In production, you would:
-      // 1. Anonymize transaction data
-      // 2. Delete personal information
-      // 3. Keep required legal records
-      // 4. Log the deletion
-      
-      await prisma.dataDeletionRequest.update({
-        where: { id },
-        data: {
-          status: 'COMPLETED',
-          completedAt: new Date(),
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+              userType: true,
+            },
+          },
         },
       });
 
-      return NextResponse.json({
-        success: true,
-        message: 'Deletion request approved and processed',
-      });
-
-    } else {
-      // Reject the request
-      await prisma.dataDeletionRequest.update({
-        where: { id },
+      // Create audit log
+      await tx.dataDeletionAuditLog.create({
         data: {
-          status: 'REJECTED',
-          rejectedAt: new Date(),
-          processedBy: auth.userId,
-          rejectionReason,
-          notes,
+          requestId: id,
+          adminId: admin.id,
+          action: action.toUpperCase(),
+          previousStatus: existingRequest.status,
+          newStatus,
+          metadata: {
+            notes,
+            adminName: admin.name,
+            adminEmail: admin.email,
+          },
         },
       });
 
-      return NextResponse.json({
-        success: true,
-        message: 'Deletion request rejected',
-      });
-    }
+      return updated;
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Request ${action.toLowerCase()}d successfully`,
+      request: updatedRequest,
+    });
 
   } catch (error) {
-    console.error('❌ Error processing deletion request:', error);
+    console.error('❌ Error updating deletion request:', error);
+
+    // Handle Response throws from requireAdmin
+    if (error instanceof Response) {
+      return error;
+    }
+
     return NextResponse.json(
-      { 
-        error: 'Failed to process request',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to update deletion request' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -122,10 +123,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    const admin = await requireAdmin(request);
 
     const { id } = await params;
 
@@ -140,6 +138,11 @@ export async function GET(
             phone: true,
             userType: true,
             createdAt: true,
+          },
+        },
+        auditLogs: {
+          orderBy: {
+            timestamp: 'desc',
           },
         },
       },
@@ -159,11 +162,14 @@ export async function GET(
 
   } catch (error) {
     console.error('❌ Error fetching deletion request:', error);
+
+    if (error instanceof Response) {
+      return error;
+    }
+
     return NextResponse.json(
       { error: 'Failed to fetch request' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

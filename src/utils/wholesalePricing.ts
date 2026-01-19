@@ -1,103 +1,33 @@
-// utils/wholesalePricing.ts - Wholesale Pricing Utilities
+// utils/wholesalePricing.ts - DEPRECATED
+// This file is deprecated. Use @/utils/pricing instead.
+// Re-exporting for backward compatibility only.
 
-export interface WholesaleTier {
-  minQuantity: number;
-  maxQuantity: number | null;
-  price: number;
-  discount: number;
-  profitMargin?: number;
-}
+export {
+  type WholesaleTier,
+  type Product,
+  type PriceInfo,
+  type PriceCalculation,
+  calculatePrice,
+  calculateWholesalePrice,
+  findApplicableTier,
+  getWholesaleTiers,
+  getAvailableTiers,
+  calculateCartTotal,
+  calculateBulkSavings,
+  getNextTierBenefit,
+  validateWholesaleOrder,
+  generateWholesaleQuote,
+  getMinimumOrderQuantity,
+  getRecommendedQuantity,
+  calculateBulkDiscount,
+  formatPrice,
+  formatPriceRange,
+  formatDiscount,
+} from './pricing';
 
-export interface WholesaleProduct {
-  id: string;
-  name: string;
-  basePrice: number;
-  wholesalePrice: number;
-  moq: number;
-  stockQuantity: number;
-  platformProfitPercentage: number;
-  wholesaleTiers?: WholesaleTier[];
-}
+// Backward compat type alias
+export type WholesaleProduct = import('./pricing').Product;
 
-export interface PriceCalculation {
-  unitPrice: number;
-  totalPrice: number;
-  quantity: number;
-  appliedTier: WholesaleTier | null;
-  savings: number; // Compared to base price
-  savingsPercentage: number;
-  meetsMinimum: boolean;
-  minimumRequired: number;
-}
-
-/**
- * Calculate price for a wholesale order
- * Following Alibaba-style tiered pricing model
- */
-export function calculateWholesalePrice(
-  product: WholesaleProduct,
-  quantity: number
-): PriceCalculation {
-  const { moq, wholesalePrice, wholesaleTiers = [] } = product;
-
-  // Check if quantity meets MOQ
-  const meetsMinimum = quantity >= moq;
-
-  if (!meetsMinimum) {
-    return {
-      unitPrice: 0,
-      totalPrice: 0,
-      quantity,
-      appliedTier: null,
-      savings: 0,
-      savingsPercentage: 0,
-      meetsMinimum: false,
-      minimumRequired: moq
-    };
-  }
-
-  // Find applicable tier
-  let appliedTier: WholesaleTier | null = null;
-  let unitPrice = wholesalePrice;
-
-  if (wholesaleTiers.length > 0) {
-    // Sort tiers by minQuantity descending to find the best tier
-    const sortedTiers = [...wholesaleTiers].sort((a, b) => b.minQuantity - a.minQuantity);
-    
-    for (const tier of sortedTiers) {
-      const meetsMin = quantity >= tier.minQuantity;
-      const meetsMax = tier.maxQuantity === null || quantity <= tier.maxQuantity;
-      
-      if (meetsMin && meetsMax) {
-        appliedTier = tier;
-        unitPrice = tier.price;
-        break;
-      }
-    }
-  }
-
-  const totalPrice = unitPrice * quantity;
-  const baseTotal = wholesalePrice * quantity;
-  const savings = baseTotal - totalPrice;
-  const savingsPercentage = (savings / baseTotal) * 100;
-
-  return {
-    unitPrice,
-    totalPrice,
-    quantity,
-    appliedTier,
-    savings,
-    savingsPercentage,
-    meetsMinimum: true,
-    minimumRequired: moq
-  };
-}
-
-/**
- * Get all available tiers for display
- * Shows customer how much they can save with larger quantities
- */
-export function getAvailableTiers(
   product: WholesaleProduct
 ): Array<{
   range: string;

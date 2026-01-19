@@ -21,7 +21,7 @@ async function main() {
 
   console.log('✅ Cleaned existing data');
 
-  // Create Admin User
+  // Create Admin User (Wholesale-only platform)
   const hashedPassword = await hash('11admin22', 10);
   const adminUser = await prisma.user.create({
     data: {
@@ -30,24 +30,34 @@ async function main() {
       phone: '+880-1700-000000',
       password: hashedPassword,
       role: 'ADMIN',
-      userType: 'RETAIL',
+      userType: 'WHOLESALE',
       isActive: true,
       isVerified: true,
     },
   });
   console.log('✅ Created admin user');
 
-  // Create Sample Retail User
+  // Create Sample Wholesale User (Small Business)
   const retailUser = await prisma.user.create({
     data: {
       email: 'customer@example.com',
-      name: 'Retail Customer',
+      name: 'Small Business Owner',
       phone: '+880-1711-111111',
+      companyName: 'ABC Retail Store',
       password: hashedPassword,
       role: 'BUYER',
-      userType: 'RETAIL',
+      userType: 'WHOLESALE',
       isActive: true,
       isVerified: true,
+      businessInfo: {
+        create: {
+          companyType: 'Retailer',
+          registrationNumber: 'BD-REG-2024-002',
+          taxId: 'TIN-987654321',
+          verificationStatus: 'APPROVED',
+          verifiedAt: new Date(),
+        },
+      },
     },
   });
 

@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DeletionRequestStatus } from '@prisma/client';
 import { prisma } from '@/lib/db';
-import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
-
-// Use shared auth helper
-const verifyAdmin = verifyAdminToken;
+import { requireAdmin } from '@/lib/auth';
 
 // GET - List all deletion requests (Admin only)
 export async function GET(request: NextRequest) {
   try {
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    const admin = await requireAdmin(request);
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
@@ -43,11 +37,15 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ Error fetching deletion requests:', error);
+
+    // Handle Response throws from requireAdmin
+    if (error instanceof Response) {
+      return error;
+    }
+
     return NextResponse.json(
       { error: 'Failed to fetch requests' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
