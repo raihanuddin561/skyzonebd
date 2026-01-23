@@ -1,26 +1,30 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Products - Shop Wholesale & Retail | SkyzoneBD',
-  description: 'Browse thousands of quality products from verified suppliers across Bangladesh. Best wholesale and retail prices on electronics, fashion, baby products, home goods, and more. Free shipping on bulk orders.',
-  keywords: 'products bangladesh, wholesale products, retail shopping, buy online bangladesh, electronics bd, fashion bd, baby products bd',
+  title: 'All Products - Wholesale Electrical Hardware Bangladesh',
+  description: 'Browse 1000+ wholesale electrical hardware products in Bangladesh. LED lights, bulbs, wires, cables, switches, capacitors, regulators, plugs at factory prices. Bulk orders welcome from verified suppliers.',
+  keywords: 'wholesale products Bangladesh, electrical hardware, LED wholesale, bulk buy, wholesale electronics, electrical supplier Bangladesh, Dhaka wholesale',
+  alternates: {
+    canonical: 'https://skyzonebd.shop/products',
+  },
   openGraph: {
-    title: 'Shop All Products | SkyzoneBD',
-    description: 'Browse thousands of quality products from verified suppliers. Best prices in Bangladesh.',
+    title: 'Shop Wholesale Electrical Hardware - SkyzoneBD',
+    description: 'Browse 1000+ wholesale products at factory prices',
     type: 'website',
+    url: 'https://skyzonebd.shop/products',
     images: [
       {
         url: '/og-products.jpg',
         width: 1200,
         height: 630,
-        alt: 'SkyzoneBD Products',
+        alt: 'SkyzoneBD Wholesale Products',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Shop All Products | SkyzoneBD',
-    description: 'Browse thousands of quality products from verified suppliers. Best prices in Bangladesh.',
+    title: 'Shop Wholesale Electrical Hardware - SkyzoneBD',
+    description: 'Browse 1000+ wholesale products at factory prices',
   },
 };
 

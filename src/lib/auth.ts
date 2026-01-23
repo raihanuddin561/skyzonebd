@@ -165,6 +165,29 @@ export async function requireAdmin(request: NextRequest): Promise<{
 }
 
 /**
+ * Require partner/seller authentication
+ */
+export async function requirePartner(request: NextRequest): Promise<{
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  userType: string;
+  isActive: boolean;
+}> {
+  const user = await requireAuth(request);
+
+  if (user.role !== 'SELLER' && user.role !== 'PARTNER' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+    throw new Response(
+      JSON.stringify({ error: 'Partner/Seller access required' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  return user;
+}
+
+/**
  * Check if user has specific role
  */
 export function hasRole(user: { role: string }, requiredRole: string | string[]): boolean {

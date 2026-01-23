@@ -516,7 +516,7 @@ function StockManagement() {
                           {outOfStockItems.map(item => (
                             <div key={item.id} className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
                               <div className="flex items-center gap-3">
-                                <img src={item.imageUrl} alt={item.productName} className="w-12 h-12 rounded-lg object-cover" />
+                                <img src={item.imageUrl} alt={item.productName} className="w-12 h-12 rounded-lg object-contain bg-white p-1" />
                                 <div>
                                   <div className="font-medium text-gray-900">{item.productName}</div>
                                   <div className="text-sm text-gray-600">SKU: {item.sku}</div>
@@ -544,7 +544,7 @@ function StockManagement() {
                           {lowStockItems.map(item => (
                             <div key={item.id} className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center justify-between">
                               <div className="flex items-center gap-3">
-                                <img src={item.imageUrl} alt={item.productName} className="w-12 h-12 rounded-lg object-cover" />
+                                <img src={item.imageUrl} alt={item.productName} className="w-12 h-12 rounded-lg object-contain bg-white p-1" />
                                 <div>
                                   <div className="font-medium text-gray-900">{item.productName}</div>
                                   <div className="text-sm text-gray-600">

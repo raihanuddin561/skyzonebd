@@ -109,6 +109,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         { name: 'Users', icon: '👥', path: '/admin/users' },
         { name: 'B2B Verification', icon: '✓', path: '/admin/verification' },
         { name: 'RFQ Requests', icon: '📝', path: '/admin/rfq' },
+        { name: 'Data Deletion', icon: '🗑️', path: '/admin/data-deletion-requests' },
       ]
     },
     {

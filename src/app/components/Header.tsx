@@ -114,6 +114,13 @@ export default function Header() {
                   >
                     My Orders
                   </Link>
+                  <Link
+                    href="/data-deletion"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer border-t"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    Delete My Data
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="block w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-gray-100 cursor-pointer"
@@ -235,6 +242,13 @@ export default function Header() {
                       onClick={() => setShowMobileMenu(false)}
                     >
                       My Orders
+                    </Link>
+                    <Link
+                      href="/data-deletion"
+                      className="block px-4 py-3 text-gray-700 hover:bg-gray-100 border-t"
+                      onClick={() => setShowMobileMenu(false)}
+                    >
+                      Delete My Data
                     </Link>
                     <button
                       onClick={handleLogout}

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '../components/Header';
 import ProtectedRoute from '../components/ProtectedRoute';
+import Head from 'next/head';
 
 interface Order {
   id: number;

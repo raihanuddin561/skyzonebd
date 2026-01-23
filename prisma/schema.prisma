@@ -48,6 +48,7 @@ model User {
   permissions          UserPermission[] // Granular permissions for this user
   sales                Sale[] // Sales where this user is the customer
   salesEntered         Sale[]                @relation("SaleEnteredBy") // Sales entered by this admin
+  reviews              Review[] // Product reviews by this user
 
   @@map("users")
 }
@@ -295,6 +296,7 @@ model Product {
   inventoryLogs  InventoryLog[] // Track inventory changes
   profitReports  ProfitReport[] // Profit analysis per product
   sales          Sale[] // Sales records for this product
+  reviews        Review[] // Product reviews
 
   @@map("products")
 }
@@ -379,7 +381,12 @@ model Order {
   payments      Payment[]
   profitReports ProfitReport[]
   sales         Sale[] // Sales generated from this order
+  reviews       Review[] // Reviews for products in this order
 
+  @@index([status, createdAt])
+  @@index([status, updatedAt])
+  @@index([userId, status])
+  @@index([createdAt])
   @@map("orders")
 }
 
@@ -403,6 +410,8 @@ model OrderItem {
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
 
+  @@index([productId, createdAt])
+  @@index([orderId, productId])
   @@map("order_items")
 }
 
@@ -1178,4 +1187,56 @@ model DataDeletionAuditLog {
   @@index([adminId])
   @@index([action])
   @@map("data_deletion_audit_logs")
+}
+
+// Product Reviews - Only verified purchasers can review
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String
+  orderId   String // Link to order for verification
+  
+  // Review content
+  rating    Int // 1-5 stars
+  title     String? // Review headline
+  comment   String // Review text
+  images    String[] @default([]) // Optional review images
+  
+  // Verification
+  isVerifiedPurchase Boolean @default(true) // Verified purchaser
+  purchaseDate       DateTime? // When they bought the product
+  
+  // Moderation
+  status       ReviewStatus @default(PENDING) // PENDING, APPROVED, HIDDEN, REJECTED
+  moderatedBy  String? // Admin who moderated
+  moderatedAt  DateTime?
+  moderationNote String? // Admin note for moderation decision
+  
+  // Helpfulness tracking
+  helpfulCount   Int @default(0) // How many found it helpful
+  notHelpfulCount Int @default(0)
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, productId, orderId]) // One review per user per product per order
+  @@index([productId])
+  @@index([userId])
+  @@index([status])
+  @@index([rating])
+  @@index([createdAt])
+  @@map("reviews")
+}
+
+enum ReviewStatus {
+  PENDING   // Awaiting moderation
+  APPROVED  // Published and visible
+  HIDDEN    // Hidden by moderator but not deleted
+  REJECTED  // Rejected by moderator
 }

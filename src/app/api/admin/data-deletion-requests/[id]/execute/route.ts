@@ -80,14 +80,12 @@ export async function POST(
       // Addresses
       await tx.address.deleteMany({ where: { userId } });
 
-      // RFQs (keep for audit, but anonymize)
+      // RFQs (keep for audit, but anonymize user reference)
       await tx.rFQ.updateMany({
         where: { userId },
         data: {
-          companyName: 'Anonymized',
-          contactPerson: 'Anonymized',
-          email: anonymizedEmail,
-          phone: null,
+          subject: 'Anonymized Request',
+          message: 'User data removed',
         },
       });
 
@@ -99,11 +97,11 @@ export async function POST(
 
       // Products created by user
       // Decision: Keep products but transfer ownership or mark as deleted
-      // For now, we'll just disassociate them
+      // Products created by user (disassociate seller)
       await tx.product.updateMany({
-        where: { createdBy: userId },
+        where: { sellerId: userId },
         data: {
-          createdBy: null, // or transfer to a system admin
+          sellerId: null, // Remove seller association
         },
       });
 

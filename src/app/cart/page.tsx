@@ -7,11 +7,14 @@ import Link from 'next/link';
 import { useState } from 'react';
 import Header from '../components/Header';
 import { toast } from 'react-toastify';
+import ImageZoomLightbox from '@/components/common/ImageZoomLightbox';
+import QuantityInput from '@/components/common/QuantityInput';
 
 export default function CartPage() {
   const { items, removeFromCart, updateQuantity, clearCart, getTotalItems, getTotalPrice } = useCart();
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Debug: Log cart items
   console.log('Cart page - Cart items:', items, 'Count:', items.length);
@@ -86,15 +89,24 @@ export default function CartPage() {
               {items.map((item) => (
                 <div key={item.product.id} className="bg-white border rounded-lg p-3 sm:p-4 shadow-sm">
                   <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                    {/* Product Image */}
-                    <div className="flex-shrink-0">
-                      <Image
+                    {/* Product Image with Zoom */}
+                    <div 
+                      className="flex-shrink-0 bg-gray-50 rounded-lg overflow-hidden cursor-pointer group relative"
+                      onClick={() => setLightboxImage(item.product.imageUrl)}
+                    >
+                      <img
                         src={item.product.imageUrl}
                         alt={item.product.name}
-                        width={120}
-                        height={120}
-                        className="w-full sm:w-24 h-32 sm:h-24 object-cover rounded"
+                        className="w-full sm:w-24 h-32 sm:h-24 object-contain p-2 transition-transform group-hover:scale-110"
                       />
+                      {/* Zoom indicator */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <div className="bg-white/90 rounded-full p-1.5">
+                          <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                          </svg>
+                        </div>
+                      </div>
                     </div>
                     
                     {/* Product Details */}
@@ -120,56 +132,15 @@ export default function CartPage() {
                       
                       {/* Quantity Controls and Actions */}
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mt-3">
-                        {/* Quantity Controls with +/- Buttons */}
-                        <div className="flex items-center">
-                          <span className="text-xs sm:text-sm text-gray-600 mr-2">Qty:</span>
-                          <div className="flex items-center border-2 border-gray-300 rounded-lg overflow-hidden shadow-sm">
-                            {/* Decrease Button */}
-                            <button
-                              onClick={() => {
-                                const minQty = (user && user.userType === 'WHOLESALE') ? (item.product.minOrderQuantity || 1) : 1;
-                                const newQty = Math.max(item.quantity - 1, minQty);
-                                handleQuantityChange(item.product.id, newQty, item.product.minOrderQuantity || 1);
-                              }}
-                              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-gray-50 hover:bg-blue-50 active:bg-blue-100 text-gray-700 hover:text-blue-600 transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:text-gray-700 group"
-                              disabled={item.quantity <= ((user && user.userType === 'WHOLESALE') ? (item.product.minOrderQuantity || 1) : 1)}
-                              aria-label="Decrease quantity"
-                            >
-                              <svg 
-                                className="w-4 h-4 sm:w-5 sm:h-5" 
-                                fill="none" 
-                                stroke="currentColor" 
-                                viewBox="0 0 24 24"
-                                strokeWidth="3"
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
-                              </svg>
-                            </button>
-                            
-                            {/* Quantity Display */}
-                            <div className="w-14 sm:w-16 h-9 sm:h-10 flex items-center justify-center bg-white text-gray-900 font-bold text-base sm:text-lg border-x-2 border-gray-300">
-                              {item.quantity}
-                            </div>
-                            
-                            {/* Increase Button */}
-                            <button
-                              onClick={() => {
-                                handleQuantityChange(item.product.id, item.quantity + 1, item.product.minOrderQuantity || 1);
-                              }}
-                              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-gray-50 hover:bg-blue-50 active:bg-blue-100 text-gray-700 hover:text-blue-600 transition-all duration-200 cursor-pointer group"
-                              aria-label="Increase quantity"
-                            >
-                              <svg 
-                                className="w-4 h-4 sm:w-5 sm:h-5" 
-                                fill="none" 
-                                stroke="currentColor" 
-                                viewBox="0 0 24 24"
-                                strokeWidth="3"
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                              </svg>
-                            </button>
-                          </div>
+                        {/* Quantity Input with validation */}
+                        <div className="flex-1 sm:flex-initial">
+                          <QuantityInput
+                            value={item.quantity}
+                            onChange={(newQty) => handleQuantityChange(item.product.id, newQty, item.product.minOrderQuantity || 1)}
+                            min={(user && user.userType === 'WHOLESALE') ? (item.product.minOrderQuantity || 1) : 1}
+                            max={item.product.stock || undefined}
+                            showLabel={false}
+                          />
                         </div>
                         
                         {/* Remove Button */}
@@ -251,6 +222,18 @@ export default function CartPage() {
           </div>
         </div>
       </div>
+
+      {/* Image Zoom Lightbox */}
+      {lightboxImage && (
+        <ImageZoomLightbox
+          images={[lightboxImage]}
+          currentIndex={0}
+          onClose={() => setLightboxImage(null)}
+          onNext={() => {}}
+          onPrevious={() => {}}
+          alt="Product image"
+        />
+      )}
     </main>
   );
 }

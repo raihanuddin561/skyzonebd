@@ -8,9 +8,21 @@ interface LogOptions {
   metadata?: Record<string, any>;
 }
 
+interface LogEntry {
+  timestamp: string;
+  level: LogLevel;
+  message: string;
+  context?: string;
+  metadata?: Record<string, any>;
+  userId?: string;
+  requestId?: string;
+}
+
 class Logger {
   private isProduction = process.env.NODE_ENV === 'production';
   private isDevelopment = process.env.NODE_ENV === 'development';
+  private logs: LogEntry[] = [];
+  private maxLogs = 1000; // Keep last 1000 logs in memory
 
   /**
    * Debug level logging - only in development
@@ -66,6 +78,22 @@ class Logger {
 
     const logMessage = `${prefix} ${message}`;
 
+    // Store log entry
+    const entry: LogEntry = {
+      timestamp,
+      level,
+      message,
+      context: options?.context,
+      metadata: options?.metadata,
+    };
+
+    this.logs.push(entry);
+    
+    // Keep only last maxLogs entries
+    if (this.logs.length > this.maxLogs) {
+      this.logs.shift();
+    }
+
     switch (level) {
       case 'debug':
         console.log(logMessage, options?.metadata || '');
@@ -103,6 +131,55 @@ class Logger {
       });
     }
   }
+
+  /**
+   * Log authentication attempt
+   */
+  logAuth(userId: string, success: boolean, method: string) {
+    const level = success ? 'info' : 'warn';
+    const message = success ? 'Authentication successful' : 'Authentication failed';
+    
+    this[level](message, {
+      context: 'Auth',
+      metadata: { userId, method }
+    });
+  }
+
+  /**
+   * Log security event
+   */
+  logSecurity(event: string, severity: 'low' | 'medium' | 'high', metadata?: Record<string, any>) {
+    const level = severity === 'high' ? 'error' : severity === 'medium' ? 'warn' : 'info';
+    
+    this[level](`Security event: ${event}`, {
+      context: 'Security',
+      metadata: { ...metadata, severity }
+    });
+  }
+
+  /**
+   * Log business event
+   */
+  logBusiness(event: string, metadata?: Record<string, any>) {
+    this.info(event, {
+      context: 'Business',
+      metadata
+    });
+  }
+
+  /**
+   * Get recent logs (for debugging)
+   */
+  getRecentLogs(count: number = 100): LogEntry[] {
+    return this.logs.slice(-count);
+  }
+
+  /**
+   * Clear logs
+   */
+  clearLogs() {
+    this.logs = [];
+  }
 }
 
 // Export singleton instance
@@ -124,3 +201,16 @@ export const logWarning = (message: string, context?: string) => {
 export const logDebug = (message: string, metadata?: Record<string, any>, context?: string) => {
   logger.debug(message, { context, metadata });
 };
+
+export const logAuth = (userId: string, success: boolean, method: string) => {
+  logger.logAuth(userId, success, method);
+};
+
+export const logSecurity = (event: string, severity: 'low' | 'medium' | 'high', metadata?: Record<string, any>) => {
+  logger.logSecurity(event, severity, metadata);
+};
+
+export const logBusiness = (event: string, metadata?: Record<string, any>) => {
+  logger.logBusiness(event, metadata);
+};
+

@@ -10,7 +10,7 @@ export interface WholesaleTier {
 }
 
 export interface Product {
-  id: string;
+  id: string | number;
   name: string;
   wholesalePrice: number;
   moq: number;
@@ -356,7 +356,7 @@ export function generateWholesaleQuote(
   taxRate: number = 0
 ): {
   items: Array<{
-    productId: string;
+    productId: string | number;
     productName: string;
     quantity: number;
     unitPrice: number;

@@ -2,10 +2,12 @@
 
 import React, { createContext, useContext, useReducer, useEffect, useState, ReactNode } from 'react';
 import { CartItem, Product, CartContextType } from '@/types/cart';
+import { toast } from 'react-toastify';
 
 // Cart Actions
 type CartAction =
   | { type: 'ADD_TO_CART'; payload: { product: Product; quantity: number } }
+  | { type: 'BULK_ADD_TO_CART'; payload: { items: CartItem[] } }
   | { type: 'REMOVE_FROM_CART'; payload: { productId: string | number } }
   | { type: 'UPDATE_QUANTITY'; payload: { productId: string | number; quantity: number } }
   | { type: 'CLEAR_CART' }
@@ -32,6 +34,28 @@ function cartReducer(state: CartItem[], action: CartAction): CartItem[] {
         // Add new item to cart
         return [...state, { product, quantity }];
       }
+    }
+    
+    case 'BULK_ADD_TO_CART': {
+      const newItems = action.payload.items;
+      const newState = [...state];
+      
+      newItems.forEach(newItem => {
+        const existingIndex = newState.findIndex(item => item.product.id === newItem.product.id);
+        
+        if (existingIndex >= 0) {
+          // Update existing item quantity
+          newState[existingIndex] = {
+            ...newState[existingIndex],
+            quantity: newState[existingIndex].quantity + newItem.quantity
+          };
+        } else {
+          // Add new item
+          newState.push(newItem);
+        }
+      });
+      
+      return newState;
     }
     
     case 'REMOVE_FROM_CART': {
@@ -104,6 +128,45 @@ export function CartProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'ADD_TO_CART', payload: { product, quantity } });
   };
 
+  const addBulkToCart = async (items: { productId: string; quantity: number }[]) => {
+    try {
+      const response = await fetch('/api/cart/bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ items }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Dispatch bulk add action
+        dispatch({ type: 'BULK_ADD_TO_CART', payload: { items: data.cartItems } });
+
+        // Show success message
+        const { totalProducts, totalItems } = data.summary;
+        toast.success(`Added ${totalItems} items (${totalProducts} products) to cart`);
+
+        // Show any partial errors
+        if (data.errors && data.errors.length > 0) {
+          data.errors.forEach((error: string) => {
+            toast.warning(error);
+          });
+        }
+
+        return { success: true, data };
+      } else {
+        toast.error(data.error || 'Failed to add items to cart');
+        return { success: false, error: data.error };
+      }
+    } catch (error) {
+      console.error('Error adding bulk items to cart:', error);
+      toast.error('Failed to add items to cart');
+      return { success: false, error: 'Network error' };
+    }
+  };
+
   const removeFromCart = (productId: string | number) => {
     dispatch({ type: 'REMOVE_FROM_CART', payload: { productId } });
   };
@@ -127,6 +190,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const value: CartContextType = {
     items,
     addToCart,
+    addBulkToCart,
     removeFromCart,
     updateQuantity,
     clearCart,

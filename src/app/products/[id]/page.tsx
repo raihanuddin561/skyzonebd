@@ -11,6 +11,8 @@ import { Product } from '@/types/cart';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-toastify';
+import ImageZoomLightbox from '@/components/common/ImageZoomLightbox';
+import QuantityInput from '@/components/common/QuantityInput';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -425,61 +427,15 @@ export default function ProductDetailPage() {
               {product.availability === 'in_stock' || product.availability === 'limited' ? (
                 <>
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Quantity {(user && user.userType === 'WHOLESALE' && product.minOrderQuantity && product.minOrderQuantity > 0) ? `(Min: ${product.minOrderQuantity})` : ''}
-                      </label>
-                      <div className="flex items-center border-2 border-gray-300 rounded-lg overflow-hidden shadow-sm">
-                        {/* Decrease Button */}
-                        <button
-                          onClick={() => {
-                            const minQty = (user && user.userType === 'WHOLESALE' && product.minOrderQuantity) ? product.minOrderQuantity : 1;
-                            const newQty = Math.max(quantity - 1, minQty);
-                            handleQuantityChange(newQty);
-                          }}
-                          disabled={quantity <= ((user && user.userType === 'WHOLESALE' && product.minOrderQuantity) ? product.minOrderQuantity : 1)}
-                          className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-gray-50 hover:bg-blue-50 active:bg-blue-100 text-gray-700 hover:text-blue-600 transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:text-gray-700"
-                          aria-label="Decrease quantity"
-                        >
-                          <svg 
-                            className="w-5 h-5 sm:w-6 sm:h-6" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                            strokeWidth="3"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
-                          </svg>
-                        </button>
-                        
-                        {/* Quantity Display */}
-                        <div className="w-16 sm:w-20 h-10 sm:h-12 flex items-center justify-center bg-white text-gray-900 font-bold text-base sm:text-lg border-x-2 border-gray-300">
-                          {quantity}
-                        </div>
-                        
-                        {/* Increase Button */}
-                        <button
-                          onClick={() => {
-                            const newQty = quantity + 1;
-                            if (product.stock && newQty <= product.stock) {
-                              handleQuantityChange(newQty);
-                            }
-                          }}
-                          disabled={product.stock ? quantity >= product.stock : false}
-                          className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-gray-50 hover:bg-blue-50 active:bg-blue-100 text-gray-700 hover:text-blue-600 transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:text-gray-700"
-                          aria-label="Increase quantity"
-                        >
-                          <svg 
-                            className="w-5 h-5 sm:w-6 sm:h-6" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                            strokeWidth="3"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                          </svg>
-                        </button>
-                      </div>
+                    <div className="flex-1 w-full sm:w-auto">
+                      <QuantityInput
+                        value={quantity}
+                        onChange={handleQuantityChange}
+                        min={(user && user.userType === 'WHOLESALE' && product.minOrderQuantity) ? product.minOrderQuantity : 1}
+                        max={product.stock || undefined}
+                        label={`Quantity ${(user && user.userType === 'WHOLESALE' && product.minOrderQuantity && product.minOrderQuantity > 0) ? `(Min: ${product.minOrderQuantity})` : ''}`}
+                        showLabel={true}
+                      />
                     </div>
                     <div className="flex-1 w-full sm:w-auto">
                       <p className="text-sm text-gray-600 mb-1">Total Price</p>
@@ -759,79 +715,16 @@ export default function ProductDetailPage() {
         )}
       </div>
 
-      {/* Image Modal/Lightbox */}
+      {/* Image Zoom Lightbox */}
       {showImageModal && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
-          onClick={() => setShowImageModal(false)}
-        >
-          <button
-            onClick={() => setShowImageModal(false)}
-            className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
-          >
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-
-          {/* Previous Button */}
-          {getProductImages().length > 1 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                prevImage();
-              }}
-              className="absolute left-4 text-white hover:text-gray-300 bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-70 transition-all"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-          )}
-
-          {/* Image */}
-          <div 
-            className="relative max-w-6xl max-h-[90vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Product Title - Clickable */}
-            <div className="absolute top-4 left-4 right-16 z-10">
-              <Link
-                href={`/products/${product.id}`}
-                className="inline-block bg-black bg-opacity-70 text-white px-6 py-3 rounded-lg text-lg font-semibold hover:bg-opacity-90 transition-all"
-                onClick={() => setShowImageModal(false)}
-              >
-                {product.name}
-              </Link>
-            </div>
-
-            <Image
-              src={getProductImages()[modalImageIndex]}
-              alt={`${product.name} - Image ${modalImageIndex + 1}`}
-              width={1200}
-              height={900}
-              className="max-h-[90vh] w-auto object-contain"
-            />
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-4 py-2 rounded-full text-sm">
-              {modalImageIndex + 1} / {getProductImages().length}
-            </div>
-          </div>
-
-          {/* Next Button */}
-          {getProductImages().length > 1 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                nextImage();
-              }}
-              className="absolute right-4 text-white hover:text-gray-300 bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-70 transition-all"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          )}
-        </div>
+        <ImageZoomLightbox
+          images={getProductImages()}
+          currentIndex={modalImageIndex}
+          onClose={() => setShowImageModal(false)}
+          onNext={nextImage}
+          onPrevious={prevImage}
+          alt={product.name}
+        />
       )}
     </main>
   );

@@ -63,7 +63,9 @@ describe('Stock Management Calculations', () => {
       const daysUntilStockout = Math.floor(
         (result.estimatedStockoutDate!.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
       );
-      expect(daysUntilStockout).toBeCloseTo(20, 0);
+      // Allow 1 day tolerance for timing differences
+      expect(daysUntilStockout).toBeGreaterThanOrEqual(19);
+      expect(daysUntilStockout).toBeLessThanOrEqual(20);
     });
 
     it('should suggest reorder quantity meeting MOQ', () => {

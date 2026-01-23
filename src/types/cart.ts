@@ -44,6 +44,7 @@ export interface CartItem {
 export interface CartContextType {
   items: CartItem[];
   addToCart: (product: Product, quantity: number) => void;
+  addBulkToCart: (items: { productId: string; quantity: number }[]) => Promise<{ success: boolean; data?: any; error?: string }>;
   removeFromCart: (productId: string | number) => void;
   updateQuantity: (productId: string | number, quantity: number) => void;
   clearCart: () => void;

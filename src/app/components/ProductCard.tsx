@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Product } from '@/types/cart';
 import { toast } from 'react-toastify';
+import ImageZoomLightbox from '@/components/common/ImageZoomLightbox';
+import QuantityInput from '@/components/common/QuantityInput';
+import RFQButton from '@/components/rfq/RFQButton';
 
 interface ProductCardProps {
   product: Product;
@@ -24,6 +26,8 @@ export default function ProductCard({ product }: ProductCardProps) {
   const [quantity, setQuantity] = useState(effectiveMinQty);
   const [isAdding, setIsAdding] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [showLightbox, setShowLightbox] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   // Fix hydration by ensuring client-side rendering
   useEffect(() => {
@@ -58,9 +62,15 @@ export default function ProductCard({ product }: ProductCardProps) {
     }
   };
 
-  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newQuantity = parseInt(e.target.value) || effectiveMinQty;
+  const handleQuantityChange = (newQuantity: number) => {
     setQuantity(Math.max(newQuantity, effectiveMinQty));
+  };
+
+  const handleImageClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLightboxIndex(0);
+    setShowLightbox(true);
   };
 
   return (
@@ -80,18 +90,28 @@ export default function ProductCard({ product }: ProductCardProps) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
         </svg>
       </button>
-
-      <Link href={`/products/${product.id}`} className="block">
-        <div className="relative overflow-hidden rounded-lg mb-3">
-          <Image
-            src={product.imageUrl}
-            alt={product.name}
-            width={300}
-            height={200}
-            className="w-full h-36 sm:h-40 lg:h-44 object-cover cursor-pointer transition-transform duration-300 group-hover:scale-110"
-          />
-        </div>
-      </Link>
+      
+      {/* Product Image with Zoom */}
+      <div className="relative overflow-hidden rounded-lg mb-3 bg-gray-50">
+        <Link href={`/products/${product.id}`} className="block">
+          <div className="relative w-full h-36 sm:h-40 lg:h-44 flex items-center justify-center group/image">
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="w-full h-full object-contain p-2 cursor-pointer transition-transform duration-300 group-hover:scale-105"
+              onClick={handleImageClick}
+            />
+            {/* Zoom indicator on hover */}
+            <div className="absolute inset-0 bg-black/0 group-hover/image:bg-black/10 transition-all duration-300 flex items-center justify-center opacity-0 group-hover/image:opacity-100">
+              <div className="bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg">
+                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </Link>
+      </div>
       
       <Link href={`/products/${product.id}`} className="hover:text-blue-600 transition-colors">
         <h4 className="text-sm sm:text-base font-semibold mb-2 cursor-pointer text-gray-900 line-clamp-2 min-h-[2.5rem] sm:min-h-[3rem]">
@@ -125,27 +145,23 @@ export default function ProductCard({ product }: ProductCardProps) {
         </p>
         {product.rating && (
           <div className="flex items-center">
-            <span className="text-yellow-400 text-sm">★</span>
-            <span className="text-xs sm:text-sm text-gray-600 ml-1">{product.rating}</span>
+            <span className="text-yellow-400 mr-1">★</span>
+            <span className="text-xs sm:text-sm text-gray-600">{product.rating}</span>
           </div>
         )}
       </div>
-      <p className="text-xs text-gray-500 mb-3 truncate">{product.companyName}</p>
       
-      {/* Quantity Input - Only show if product is available */}
+      {/* Quantity Input */}
       {(product.availability === 'in_stock' || product.availability === 'limited') && (
         <div className="mb-3">
-          <label htmlFor={`quantity-${product.id}`} className="block text-xs sm:text-sm text-gray-600 mb-1.5 font-medium">
-            Quantity {(user && user.userType === 'WHOLESALE' && product.minOrderQuantity && product.minOrderQuantity > 0) ? `(Min: ${product.minOrderQuantity})` : ''}
-          </label>
-          <input
-            id={`quantity-${product.id}`}
-            type="number"
-            min={effectiveMinQty}
+          <QuantityInput
             value={quantity}
             onChange={handleQuantityChange}
-            className="w-full px-3 py-2 sm:py-2.5 border border-gray-300 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-text transition-all"
-            suppressHydrationWarning
+            min={effectiveMinQty}
+            max={product.stock || undefined}
+            label={`Quantity ${(user && user.userType === 'WHOLESALE' && product.minOrderQuantity && product.minOrderQuantity > 0) ? `(Min: ${product.minOrderQuantity})` : ''}`}
+            showLabel={true}
+            className="w-full"
           />
         </div>
       )}
@@ -153,29 +169,39 @@ export default function ProductCard({ product }: ProductCardProps) {
       {/* Add to Cart Button - Only show if product is available */}
       {product.availability === 'in_stock' || product.availability === 'limited' ? (
         <>
-          <button
-            onClick={handleAddToCart}
-            disabled={isAdding}
-            className="w-full bg-blue-600 text-white py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg text-sm sm:text-base font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer touch-manipulation shadow-sm hover:shadow-md active:scale-95"
-            suppressHydrationWarning
-          >
-            {isAdding ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Adding...
-              </span>
-            ) : (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                Add to Cart
-              </span>
-            )}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleAddToCart}
+              disabled={isAdding}
+              className="flex-1 bg-blue-600 text-white py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg text-sm sm:text-base font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer touch-manipulation shadow-sm hover:shadow-md active:scale-95"
+              suppressHydrationWarning
+            >
+              {isAdding ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Adding...
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  Add to Cart
+                </span>
+              )}
+            </button>
+            
+            {/* RFQ Button for wholesale users */}
+            <RFQButton 
+              product={product} 
+              userType={user?.userType as 'WHOLESALE' | 'RETAIL' | null}
+              variant="icon"
+              className="flex-shrink-0"
+            />
+          </div>
           
           {/* Total Price Preview */}
           <p className="text-xs sm:text-sm text-gray-600 mt-2 text-center font-medium">
@@ -191,7 +217,31 @@ export default function ProductCard({ product }: ProductCardProps) {
             Out of Stock
           </button>
           <p className="text-xs sm:text-sm text-red-600 mt-2 font-medium">Currently Unavailable</p>
+          
+          {/* RFQ Button for out of stock items (wholesale only) */}
+          {user?.userType === 'WHOLESALE' && (
+            <div className="mt-2">
+              <RFQButton 
+                product={product} 
+                userType={user.userType}
+                variant="secondary"
+                className="w-full text-sm"
+              />
+            </div>
+          )}
         </div>
+      )}
+
+      {/* Image Zoom Lightbox */}
+      {showLightbox && (
+        <ImageZoomLightbox
+          images={[product.imageUrl]}
+          currentIndex={lightboxIndex}
+          onClose={() => setShowLightbox(false)}
+          onNext={() => setLightboxIndex(0)}
+          onPrevious={() => setLightboxIndex(0)}
+          alt={product.name}
+        />
       )}
     </div>
   );

@@ -1,231 +1,328 @@
+/**
+ * Admin Analytics API
+ * Provides comprehensive analytics for admin dashboard
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/auth';
 
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    // Get query parameters for date filtering
-    const searchParams = request.nextUrl.searchParams;
-    const range = searchParams.get('range') || '7d';
-
-    // Convert range to days
-    let daysAgo = 7;
-    if (range === '30d') daysAgo = 30;
-    else if (range === '90d') daysAgo = 90;
-    else if (range === '1y') daysAgo = 365;
-
+    const admin = await requireAdmin(req);
+    
+    const { searchParams } = new URL(req.url);
+    const period = searchParams.get('period') || '30'; // days
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - daysAgo);
-
-    // Get total orders and revenue
-    const orders = await prisma.order.findMany({
-      where: {
-        createdAt: {
-          gte: startDate,
+    startDate.setDate(startDate.getDate() - parseInt(period));
+    
+    // Parallel queries for performance
+    const [
+      totalOrders,
+      ordersInPeriod,
+      revenueData,
+      profitData,
+      returns,
+      topProducts,
+      topProfitableProducts,
+      partnerPerformance,
+      recentOrders,
+      ordersByStatus
+    ] = await Promise.all([
+      // Total orders count
+      prisma.order.count(),
+      
+      // Orders in period
+      prisma.order.count({
+        where: {
+          createdAt: { gte: startDate }
+        }
+      }),
+      
+      // Revenue metrics (GMV)
+      prisma.order.aggregate({
+        where: {
+          status: { notIn: ['CANCELLED'] },
+          createdAt: { gte: startDate }
         },
-      },
-      select: {
-        total: true,
-        status: true,
-        createdAt: true,
-      },
-    });
-
-    const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
-    const totalOrders = orders.length;
-    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-
-    // Calculate previous period for comparison
-    const prevStartDate = new Date(startDate);
-    prevStartDate.setDate(prevStartDate.getDate() - daysAgo);
-    const prevOrders = await prisma.order.findMany({
-      where: {
-        createdAt: {
-          gte: prevStartDate,
-          lt: startDate,
-        },
-      },
-      select: {
-        total: true,
-      },
-    });
-
-    const prevRevenue = prevOrders.reduce((sum, order) => sum + (order.total || 0), 0);
-    const revenueGrowth = prevRevenue > 0 
-      ? parseFloat(((totalRevenue - prevRevenue) / prevRevenue * 100).toFixed(1))
-      : 0;
-
-    const ordersGrowth = prevOrders.length > 0
-      ? parseFloat(((totalOrders - prevOrders.length) / prevOrders.length * 100).toFixed(1))
-      : 0;
-
-    const prevAverageOrderValue = prevOrders.length > 0 
-      ? prevOrders.reduce((sum, order) => sum + order.total, 0) / prevOrders.length 
-      : 0;
-    const averageOrderValueGrowth = prevAverageOrderValue > 0
-      ? parseFloat(((averageOrderValue - prevAverageOrderValue) / prevAverageOrderValue * 100).toFixed(1))
-      : 0;
-
-    // Get customer stats
-    const totalCustomers = await prisma.user.count({
-      where: {
-        role: 'BUYER',
-        createdAt: {
-          gte: startDate,
-        },
-      },
-    });
-
-    const prevCustomers = await prisma.user.count({
-      where: {
-        role: 'BUYER',
-        createdAt: {
-          gte: prevStartDate,
-          lt: startDate,
-        },
-      },
-    });
-
-    const customerGrowth = prevCustomers > 0
-      ? parseFloat(((totalCustomers - prevCustomers) / prevCustomers * 100).toFixed(1))
-      : 0;
-
-    // Get order status distribution
-    const ordersByStatus = await prisma.order.groupBy({
-      by: ['status'],
-      where: {
-        createdAt: {
-          gte: startDate,
-        },
-      },
-      _count: {
-        status: true,
-      },
-    });
-
-    const orderDistribution = ordersByStatus.map(item => ({
-      status: item.status,
-      count: item._count.status,
-      percentage: totalOrders > 0 ? ((item._count.status / totalOrders) * 100).toFixed(1) : '0',
-    }));
-
-    // Get top selling products
-    const topProducts = await prisma.orderItem.groupBy({
-      by: ['productId'],
-      _sum: {
-        quantity: true,
-        total: true,
-      },
-      orderBy: {
         _sum: {
-          quantity: 'desc',
+          total: true,
+          subtotal: true,
+          shipping: true,
+          platformProfit: true
         },
-      },
-      take: 10,
-    });
-
-    // Fetch product details for top products
-    const productIds = topProducts.map(item => item.productId);
-    const products = await prisma.product.findMany({
+        _count: true
+      }),
+      
+      // Profit metrics
+      prisma.order.aggregate({
+        where: {
+          status: { notIn: ['CANCELLED'] },
+          createdAt: { gte: startDate }
+        },
+        _sum: {
+          grossProfit: true,
+          platformProfit: true
+        }
+      }),
+      
+      // Returns/Refunds
+      prisma.order.count({
+        where: {
+          status: 'CANCELLED',
+          createdAt: { gte: startDate }
+        }
+      }),
+      
+      // Top selling products
+      prisma.orderItem.groupBy({
+        by: ['productId'],
+        where: {
+          order: {
+            status: { notIn: ['CANCELLED'] },
+            createdAt: { gte: startDate }
+          }
+        },
+        _sum: {
+          quantity: true,
+          total: true
+        },
+        _count: true,
+        orderBy: {
+          _sum: {
+            quantity: 'desc'
+          }
+        },
+        take: 10
+      }),
+      
+      // Top profitable products
+      prisma.orderItem.groupBy({
+        by: ['productId'],
+        where: {
+          order: {
+            status: { notIn: ['CANCELLED'] },
+            createdAt: { gte: startDate }
+          }
+        },
+        _sum: {
+          totalProfit: true,
+          total: true,
+          quantity: true
+        },
+        orderBy: {
+          _sum: {
+            totalProfit: 'desc'
+          }
+        },
+        take: 10
+      }),
+      
+      // Partner performance
+      prisma.user.findMany({
+        where: {
+          role: 'PARTNER',
+          products: {
+            some: {
+              orderItems: {
+                some: {
+                  order: {
+                    createdAt: { gte: startDate }
+                  }
+                }
+              }
+            }
+          }
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          _count: {
+            select: {
+              products: true
+            }
+          }
+        },
+        take: 10
+      }),
+      
+      // Recent orders
+      prisma.order.findMany({
+        where: {
+          createdAt: { gte: startDate }
+        },
+        select: {
+          id: true,
+          orderNumber: true,
+          status: true,
+          total: true,
+          createdAt: true,
+          user: {
+            select: {
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: 10
+      }),
+      
+      // Orders by status
+      prisma.order.groupBy({
+        by: ['status'],
+        where: {
+          createdAt: { gte: startDate }
+        },
+        _count: true
+      })
+    ]);
+    
+    // Get product details for top products
+    const topProductIds = topProducts.map(p => p.productId);
+    const topProfitableIds = topProfitableProducts.map(p => p.productId);
+    const allProductIds = [...new Set([...topProductIds, ...topProfitableIds])];
+    
+    const productDetails = await prisma.product.findMany({
       where: {
-        id: {
-          in: productIds,
-        },
+        id: { in: allProductIds }
       },
       select: {
         id: true,
         name: true,
         imageUrl: true,
-        category: {
+        wholesalePrice: true,
+        seller: {
           select: {
-            name: true,
-          },
-        },
-      },
+            name: true
+          }
+        }
+      }
     });
-
-    const topSellingProducts = topProducts.map(item => {
-      const product = products.find(p => p.id === item.productId);
+    
+    const productMap = new Map(productDetails.map(p => [p.id, p]));
+    
+    // Get partner revenue details
+    const partnerRevenue = await Promise.all(
+      partnerPerformance.map(async (partner) => {
+        const revenue = await prisma.orderItem.aggregate({
+          where: {
+            product: {
+              sellerId: partner.id
+            },
+            order: {
+              status: { notIn: ['CANCELLED'] },
+              createdAt: { gte: startDate }
+            }
+          },
+          _sum: {
+            total: true,
+            totalProfit: true
+          },
+          _count: true
+        });
+        
+        return {
+          id: partner.id,
+          name: partner.name,
+          email: partner.email,
+          productCount: partner._count.products,
+          orders: revenue._count,
+          revenue: revenue._sum.total || 0,
+          payout: 0, // sellerPayout not in OrderItem schema
+          profit: revenue._sum.totalProfit || 0
+        };
+      })
+    );
+    
+    // Format top selling products
+    const topSellingFormatted = topProducts.map(item => {
+      const product = productMap.get(item.productId);
       return {
-        id: item.productId,
-        name: product?.name || 'Unknown Product',
-        category: product?.category?.name || 'Uncategorized',
+        productId: item.productId,
+        name: product?.name || 'Unknown',
+        imageUrl: product?.imageUrl,
+        seller: product?.seller?.name || 'Unknown',
         unitsSold: item._sum.quantity || 0,
         revenue: item._sum.total || 0,
-        imageUrl: product?.imageUrl || '',
+        orders: item._count
       };
     });
-
-    // Daily revenue data for chart (last 7-30 days based on range)
-    const chartDays = Math.min(daysAgo, 30);
-    const dailyRevenue = [];
-    for (let i = chartDays - 1; i >= 0; i--) {
-      const dayStart = new Date();
-      dayStart.setDate(dayStart.getDate() - i);
-      dayStart.setHours(0, 0, 0, 0);
-      
-      const dayEnd = new Date(dayStart);
-      dayEnd.setHours(23, 59, 59, 999);
-
-      const dayOrders = await prisma.order.findMany({
-        where: {
-          createdAt: {
-            gte: dayStart,
-            lte: dayEnd,
-          },
-        },
-        select: {
-          total: true,
-        },
-      });
-
-      const dayRevenue = dayOrders.reduce((sum, order) => sum + order.total, 0);
-      
-      dailyRevenue.push({
-        date: dayStart.toISOString().split('T')[0],
-        revenue: dayRevenue,
-        orders: dayOrders.length,
-      });
-    }
-
+    
+    // Format top profitable products
+    const topProfitableFormatted = topProfitableProducts.map(item => {
+      const product = productMap.get(item.productId);
+      return {
+        productId: item.productId,
+        name: product?.name || 'Unknown',
+        imageUrl: product?.imageUrl,
+        seller: product?.seller?.name || 'Unknown',
+        unitsSold: item._sum.quantity || 0,
+        revenue: item._sum.total || 0,
+        profit: item._sum.totalProfit || 0
+      };
+    });
+    
+    // Calculate growth (compare to previous period)
+    const previousStartDate = new Date(startDate);
+    previousStartDate.setDate(previousStartDate.getDate() - parseInt(period));
+    
+    const previousRevenue = await prisma.order.aggregate({
+      where: {
+        status: { notIn: ['CANCELLED'] },
+        createdAt: {
+          gte: previousStartDate,
+          lt: startDate
+        }
+      },
+      _sum: {
+        total: true
+      }
+    });
+    
+    const revenueGrowth = previousRevenue._sum.total
+      ? ((((revenueData._sum.total || 0) - (previousRevenue._sum.total || 0)) / (previousRevenue._sum.total || 1)) * 100)
+      : 0;
+    
     return NextResponse.json({
       success: true,
-      data: {
-        overview: {
-          totalRevenue: {
-            value: totalRevenue,
-            formatted: `৳${totalRevenue.toLocaleString()}`,
-            growth: revenueGrowth,
-          },
-          totalOrders: {
-            value: totalOrders,
-            growth: ordersGrowth,
-          },
-          averageOrderValue: {
-            value: averageOrderValue,
-            formatted: `৳${averageOrderValue.toFixed(2)}`,
-            growth: averageOrderValueGrowth,
-          },
-          newCustomers: {
-            value: totalCustomers,
-            growth: customerGrowth,
-          },
-        },
-        orderDistribution,
-        topSellingProducts,
-        dailyRevenue,
-        period: {
-          range,
-          days: daysAgo,
-          startDate: startDate.toISOString(),
-          endDate: new Date().toISOString(),
-        },
+      period: parseInt(period),
+      overview: {
+        gmv: revenueData._sum.total || 0,
+        revenue: revenueData._sum.subtotal || 0,
+        profit: profitData._sum.grossProfit || 0,
+        fees: profitData._sum.platformProfit || 0,
+        orders: ordersInPeriod,
+        totalOrders: totalOrders,
+        returns: returns,
+        averageOrderValue: ordersInPeriod > 0 ? (revenueData._sum.total || 0) / ordersInPeriod : 0,
+        revenueGrowth: parseFloat(revenueGrowth.toFixed(2))
       },
+      ordersByStatus: ordersByStatus.map(item => ({
+        status: item.status,
+        count: item._count
+      })),
+      topSellingProducts: topSellingFormatted,
+      topProfitableProducts: topProfitableFormatted,
+      partnerPerformance: partnerRevenue.sort((a, b) => b.revenue - a.revenue),
+      recentOrders: recentOrders.map(order => ({
+        id: order.id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        amount: order.total,
+        customer: order.user?.name || 'Guest',
+        date: order.createdAt
+      }))
     });
-  } catch (error) {
-    console.error('Error fetching analytics:', error);
+    
+  } catch (error: any) {
+    console.error('Admin analytics error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch analytics data' },
-      { status: 500 }
+      { error: error.message || 'Failed to fetch analytics' },
+      { status: error.message?.includes('Unauthorized') ? 401 : 500 }
     );
   }
 }

@@ -223,7 +223,7 @@ export const ENV_CONFIG = {
     LOG_LEVEL: 'debug',
   },
   production: {
-    API_BASE_URL: 'https://api.skyzonebd.com',
+    API_BASE_URL: 'https://skyzonebd.shop',
     DEBUG: false,
     LOG_LEVEL: 'error',
   },
