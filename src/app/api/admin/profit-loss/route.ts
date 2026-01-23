@@ -15,6 +15,8 @@ import { checkPermission } from '@/middleware/permissionMiddleware';
  * Requires PROFIT_LOSS_VIEW permission
  */
 export async function GET(request: NextRequest) {
+  const notices: string[] = [];
+
   try {
     // Check permission
     const permCheck = await checkPermission(request, 'PROFIT_LOSS_VIEW', 'view');
@@ -29,18 +31,26 @@ export async function GET(request: NextRequest) {
     
     if (!year) {
       return NextResponse.json(
-        { success: false, error: 'Year parameter is required' },
+        { success: false, error: 'Year parameter is required', notices: ['Missing year parameter'] },
         { status: 400 }
       );
     }
     
     const yearNum = parseInt(year);
     
+    if (isNaN(yearNum)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid year parameter', notices: ['Year must be a valid number'] },
+        { status: 400 }
+      );
+    }
+    
     // Year-to-Date Report
     if (type === 'ytd') {
       const ytdReport = await calculateYTDProfit(yearNum);
       return NextResponse.json({
         success: true,
+        notices,
         data: ytdReport,
         type: 'ytd'
       });
@@ -60,6 +70,7 @@ export async function GET(request: NextRequest) {
       
       return NextResponse.json({
         success: true,
+        notices,
         data: trendData,
         type: 'trend'
       });
@@ -68,12 +79,20 @@ export async function GET(request: NextRequest) {
     // Monthly Report
     if (!month) {
       return NextResponse.json(
-        { success: false, error: 'Month parameter is required for monthly report' },
+        { success: false, error: 'Month parameter is required for monthly report', notices: ['Missing month parameter'] },
         { status: 400 }
       );
     }
     
     const monthNum = parseInt(month);
+    
+    if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid month parameter', notices: ['Month must be between 1 and 12'] },
+        { status: 400 }
+      );
+    }
+    
     const report = await calculateComprehensiveProfit({
       month: monthNum,
       year: yearNum
@@ -84,6 +103,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       success: true,
+      notices,
       data: report,
       type: 'monthly'
     });
@@ -93,7 +113,8 @@ export async function GET(request: NextRequest) {
       { 
         success: false, 
         error: 'Failed to generate report',
-        details: error.message 
+        details: error?.message || 'Unknown error',
+        notices: notices.length > 0 ? notices : ['Server error occurred']
       },
       { status: 500 }
     );

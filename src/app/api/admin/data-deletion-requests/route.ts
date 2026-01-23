@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DeletionRequestStatus } from '@prisma/client';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 
 // GET - List all deletion requests (Admin only)

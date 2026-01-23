@@ -9,6 +9,8 @@ import { requireAdmin } from '@/lib/auth';
  * Get profit reports with filtering
  */
 export async function GET(request: NextRequest) {
+  const notices: string[] = [];
+
   try {
     // Require admin authentication
     await requireAdmin(request);
@@ -61,6 +63,10 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    if (reports.length === 0) {
+      notices.push('No profit reports found for the specified period');
+    }
+
     // Calculate totals
     const totals = reports.reduce((acc, report) => ({
       revenue: acc.revenue + report.revenue,
@@ -86,6 +92,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      notices,
       reports,
       summary: {
         ...totals,
@@ -97,7 +104,12 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching profit reports:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch profit reports' },
+      { 
+        success: false, 
+        error: 'Failed to fetch profit reports',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        notices: ['Server error occurred']
+      },
       { status: 500 }
     );
   }
@@ -108,6 +120,8 @@ export async function GET(request: NextRequest) {
  * Generate profit report for an order
  */
 export async function POST(request: NextRequest) {
+  const notices: string[] = [];
+
   try {
     // Require admin authentication
     await requireAdmin(request);
@@ -148,12 +162,17 @@ export async function POST(request: NextRequest) {
     let totalSellerProfit = 0;
 
     for (const item of order.orderItems) {
-      const revenue = item.total;
+      const revenue = item.total || 0;
       
       // Use snapshotted values from order item if available (preferred)
       // Fall back to current product prices only for old orders without snapshots
       const costPerUnit = item.costPerUnit ?? item.product.costPerUnit ?? item.product.basePrice ?? 0;
-      const cost = costPerUnit * item.quantity;
+      
+      if (!costPerUnit || costPerUnit === 0) {
+        notices.push(`Order item ${item.id} missing costPerUnit - using 0 for calculation`);
+      }
+      
+      const cost = costPerUnit * (item.quantity || 0);
       const grossProfit = item.totalProfit ?? (revenue - cost);
 
       // Calculate profit distribution using current product config
@@ -176,7 +195,7 @@ export async function POST(request: NextRequest) {
           where: { id: item.id },
           data: {
             costPerUnit,
-            profitPerUnit: grossProfit / item.quantity,
+            profitPerUnit: grossProfit / (item.quantity || 1),
             totalProfit: grossProfit,
             profitMargin: revenue > 0 ? (grossProfit / revenue) * 100 : 0
           }
@@ -186,7 +205,7 @@ export async function POST(request: NextRequest) {
 
     const grossProfit = totalRevenue - totalCost;
     const netProfit = grossProfit; // Simplified, could subtract other expenses
-    const profitMargin = (netProfit / totalRevenue) * 100;
+    const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
     // Create profit report
     const report = await prisma.profitReport.create({
@@ -199,9 +218,9 @@ export async function POST(request: NextRequest) {
         netProfit,
         profitMargin,
         platformProfit: totalPlatformProfit,
-        platformProfitPercent: (totalPlatformProfit / grossProfit) * 100,
+        platformProfitPercent: grossProfit > 0 ? (totalPlatformProfit / grossProfit) * 100 : 0,
         sellerProfit: totalSellerProfit,
-        sellerProfitPercent: (totalSellerProfit / grossProfit) * 100,
+        sellerProfitPercent: grossProfit > 0 ? (totalSellerProfit / grossProfit) * 100 : 0,
         reportPeriod: 'daily',
         reportDate: new Date()
       }
@@ -221,13 +240,19 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      notices,
       report
     });
 
   } catch (error) {
     console.error('Error generating profit report:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to generate profit report' },
+      { 
+        success: false, 
+        error: 'Failed to generate profit report',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        notices: ['Server error occurred']
+      },
       { status: 500 }
     );
   }

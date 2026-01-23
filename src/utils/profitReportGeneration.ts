@@ -2,6 +2,7 @@
 // Auto-generate profit reports when orders are delivered
 
 import { prisma } from '@/lib/prisma';
+import { createOrderLedgerEntries } from '@/lib/financialLedger';
 
 /**
  * Auto-generate profit report for a delivered order
@@ -134,6 +135,24 @@ export async function autoGenerateProfitReport(orderId: string): Promise<{
         profitMargin
       }
     });
+
+    // Create financial ledger entries (double-entry bookkeeping)
+    try {
+      await createOrderLedgerEntries({
+        id: order.id,
+        orderNumber: order.orderNumber,
+        total: totalRevenue,
+        userId: order.userId,
+        guestName: order.guestName,
+        orderItems: order.orderItems.map(item => ({
+          quantity: item.quantity,
+          costPerUnit: item.costPerUnit ?? item.product.costPerUnit ?? item.product.basePrice ?? 0,
+        })),
+      });
+    } catch (ledgerError) {
+      // Log error but don't fail the profit report generation
+      console.error('Failed to create ledger entries:', ledgerError);
+    }
 
     return {
       success: true,

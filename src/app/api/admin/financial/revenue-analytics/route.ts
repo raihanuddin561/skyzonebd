@@ -15,6 +15,8 @@ import { startOfDay, startOfWeek, startOfMonth, format, addDays, addWeeks, addMo
 type GroupBy = 'day' | 'week' | 'month';
 
 export async function GET(request: NextRequest) {
+  const notices: string[] = [];
+
   try {
     // Authenticate admin
     await requireAdmin(request);
@@ -62,6 +64,10 @@ export async function GET(request: NextRequest) {
         createdAt: 'asc'
       }
     });
+    
+    if (orders.length === 0) {
+      notices.push('No delivered orders in the selected period');
+    }
     
     // Group orders by time period
     const grouped = new Map<string, {
@@ -253,6 +259,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       success: true,
+      notices,
       data: {
         timeSeries: timeSeriesData,
         summary: {
@@ -301,7 +308,8 @@ export async function GET(request: NextRequest) {
       { 
         success: false, 
         error: 'Failed to fetch revenue analytics',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        notices: ['Server error occurred']
       },
       { status: 500 }
     );

@@ -12,6 +12,8 @@ import { requireAdmin } from '@/lib/auth';
 import { calculateDateRange, formatCurrency } from '@/lib/financialCalculator';
 
 export async function GET(request: NextRequest) {
+  const notices: string[] = [];
+
   try {
     // Authenticate admin
     await requireAdmin(request);
@@ -57,8 +59,12 @@ export async function GET(request: NextRequest) {
       }
     });
     
+    if (deliveredOrders.length === 0) {
+      notices.push('No delivered orders in the selected period');
+    }
+    
     // Calculate revenue components
-    const totalRevenue = deliveredOrders.reduce((sum, o) => sum + o.total, 0);
+    const totalRevenue = deliveredOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     const subtotalRevenue = deliveredOrders.reduce((sum, o) => sum + o.subtotal, 0);
     const shippingRevenue = deliveredOrders.reduce((sum, o) => sum + (o.shipping || 0), 0);
     const discountsGiven = 0; // No discount field in Order model
@@ -66,13 +72,22 @@ export async function GET(request: NextRequest) {
     // === COGS CALCULATION ===
     let totalCOGS = 0;
     let totalUnits = 0;
+    let missingCostCount = 0;
     
     deliveredOrders.forEach(order => {
       order.orderItems.forEach(item => {
-        totalCOGS += (item.costPerUnit || 0) * item.quantity;
-        totalUnits += item.quantity;
+        const costPerUnit = item.costPerUnit || 0;
+        if (!costPerUnit || costPerUnit === 0) {
+          missingCostCount++;
+        }
+        totalCOGS += costPerUnit * (item.quantity || 0);
+        totalUnits += item.quantity || 0;
       });
     });
+    
+    if (missingCostCount > 0) {
+      notices.push(`${missingCostCount} order items missing costPerUnit - COGS may be inaccurate`);
+    }
     
     // === OPERATIONAL COSTS ===
     const operationalCosts = await prisma.operationalCost.findMany({
@@ -91,7 +106,11 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    const totalOperationalCosts = operationalCosts.reduce((sum, c) => sum + c.amount, 0);
+    if (operationalCosts.length === 0) {
+      notices.push('No operational costs recorded for the selected period');
+    }
+    
+    const totalOperationalCosts = operationalCosts.reduce((sum, c) => sum + (c.amount || 0), 0);
     
     // Group operational costs by category
     const costsByCategory = operationalCosts.reduce((acc, cost) => {
@@ -155,6 +174,7 @@ export async function GET(request: NextRequest) {
     // Build response based on format
     const response: any = {
       success: true,
+      notices,
       data: {
         summary: {
           totalRevenue,
@@ -263,7 +283,8 @@ export async function GET(request: NextRequest) {
       { 
         success: false, 
         error: 'Failed to fetch platform P&L',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        notices: notices.length > 0 ? notices : ['Server error occurred']
       },
       { status: 500 }
     );

@@ -279,6 +279,11 @@ model Product {
   samplePrice            Float? // Price per sample unit
   customizationAvailable Boolean @default(false) // Can be customized
 
+  // Tax Configuration
+  taxRate         Float?  // Tax rate percentage (e.g., 15 for 15%)
+  taxInclusive    Boolean @default(false) // Is wholesalePrice tax-inclusive?
+  taxCategory     String? // Standard, Reduced, Zero, Exempt
+
   // SEO
   metaTitle       String?
   metaDescription String?
@@ -297,6 +302,7 @@ model Product {
   profitReports  ProfitReport[] // Profit analysis per product
   sales          Sale[] // Sales records for this product
   reviews        Review[] // Product reviews
+  stockLots      StockLot[] // Stock lots for FIFO/WAC costing
 
   @@map("products")
 }
@@ -382,6 +388,7 @@ model Order {
   profitReports ProfitReport[]
   sales         Sale[] // Sales generated from this order
   reviews       Review[] // Reviews for products in this order
+  ledgerEntries FinancialLedger[] // Financial ledger entries for this order
 
   @@index([status, createdAt])
   @@index([status, updatedAt])
@@ -419,19 +426,39 @@ model OrderItem {
 model Payment {
   id            String        @id @default(cuid())
   orderId       String
+  
+  // Payment Details
   amount        Float
   method        PaymentMethod
   status        PaymentStatus @default(PENDING)
-  transactionId String?
-  gateway       String? // bKash, Nagad, etc.
+  
+  // Gateway Information
+  transactionId String?       @unique
+  gateway       String? // bKash, Nagad, Bank, etc.
   gatewayRef    String? // Gateway transaction reference
+  gatewayResponse Json? // Full gateway response for audit
+  
+  // Timestamps
+  paidAt        DateTime?     // When payment was received
+  confirmedAt   DateTime?     // When payment was confirmed
+  
+  // People
+  receivedBy    String?       // Admin/employee who received payment
+  approvedBy    String?       // Admin who approved payment
+  
+  // Metadata
   notes         String?
+  attachmentUrl String?       // Receipt/proof of payment
+  
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   // Relations
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  @@index([orderId])
+  @@index([status])
+  @@index([paidAt])
   @@map("payments")
 }
 
@@ -1239,4 +1266,141 @@ enum ReviewStatus {
   APPROVED  // Published and visible
   HIDDEN    // Hidden by moderator but not deleted
   REJECTED  // Rejected by moderator
+}
+
+// Financial Ledger Enums
+enum LedgerSourceType {
+  ORDER          // Revenue from customer order
+  EXPENSE        // Operational expense
+  SALARY         // Employee salary payment
+  ADJUSTMENT     // Manual correction/adjustment
+  REFUND         // Customer refund
+  PURCHASE       // Inventory purchase
+  RETURN         // Customer return
+  FEE            // Platform/transaction fees
+  COMMISSION     // Partner commission payout
+  INVESTMENT     // Capital investment
+  WITHDRAWAL     // Capital withdrawal
+  TAX            // Tax payment
+  UTILITY        // Utility bills
+  RENT           // Rent payment
+  MARKETING      // Marketing expenses
+  SHIPPING       // Shipping costs
+  OTHER          // Miscellaneous
+}
+
+enum LedgerDirection {
+  DEBIT          // Money out (expenses, costs)
+  CREDIT         // Money in (revenue, income)
+}
+
+// Financial Ledger - Append-Only Audit Log
+model FinancialLedger {
+  id              String               @id @default(cuid())
+  
+  // Transaction Source
+  sourceType      LedgerSourceType     // Type of transaction
+  sourceId        String               // Reference ID
+  sourceName      String?              // Human-readable reference
+  
+  // Financial Data
+  amount          Float                // Always positive
+  direction       LedgerDirection      // DEBIT or CREDIT
+  currency        String               @default("BDT")
+  
+  // Categorization
+  category        String?
+  subcategory     String?
+  
+  // Parties
+  partyId         String?
+  partyName       String?
+  partyType       String?
+  
+  // Metadata
+  description     String?
+  notes           String?
+  metadata        Json?
+  
+  // Audit
+  createdAt       DateTime             @default(now())
+  createdBy       String?
+  fiscalYear      Int?
+  fiscalMonth     Int?
+  
+  // Reconciliation
+  isReconciled    Boolean              @default(false)
+  reconciledAt    DateTime?
+  reconciledBy    String?
+  
+  // Relations
+  orderId         String?
+  order           Order?               @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  
+  @@index([sourceType])
+  @@index([sourceId])
+  @@index([direction])
+  @@index([createdAt])
+  @@index([fiscalYear, fiscalMonth])
+  @@index([orderId])
+  @@index([isReconciled])
+  @@map("financial_ledger")
+}
+// Stock Lot Tracking for FIFO/WAC Costing
+model StockLot {
+  id              String   @id @default(cuid())
+  productId       String
+  
+  // Purchase/Restock Details
+  lotNumber       String   // Auto-generated or manual
+  purchaseDate    DateTime @default(now())
+  expiryDate      DateTime? // For perishable goods
+  
+  // Cost Information
+  quantityReceived Int      // Original quantity
+  quantityRemaining Int     // Current available
+  costPerUnit      Float    // Buying cost per unit
+  totalCost        Float    // Total purchase cost
+  
+  // Supplier Information
+  supplierId       String?
+  supplierName     String?
+  purchaseOrderRef String?  // PO reference
+  
+  // Warehouse
+  warehouseId      String   @default("default")
+  
+  // Metadata
+  notes            String?
+  createdBy        String   // User who created restock entry
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  // Relations
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  allocations      StockAllocation[] // Track which orders consumed this lot
+  
+  @@index([productId])
+  @@index([purchaseDate])
+  @@index([lotNumber])
+  @@map("stock_lots")
+}
+
+// Stock Allocation Tracking (Audit Trail for COGS)
+model StockAllocation {
+  id          String   @id @default(cuid())
+  lotId       String
+  orderId     String
+  orderItemId String
+  quantity    Int      // Quantity allocated from this lot
+  costPerUnit Float    // Cost at time of allocation (snapshot)
+  allocatedAt DateTime @default(now())
+  
+  // Relations
+  lot         StockLot  @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  
+  @@index([lotId])
+  @@index([orderId])
+  @@index([orderItemId])
+  @@map("stock_allocations")
 }

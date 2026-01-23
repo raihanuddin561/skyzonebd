@@ -13,6 +13,8 @@ import { calculateDateRange, formatCurrency, calculatePercentageChange } from '@
 import { getPaginationParams, createPaginationResponse } from '@/lib/paginationHelper';
 
 export async function GET(request: NextRequest) {
+  const notices: string[] = [];
+
   try {
     // Authenticate admin
     await requireAdmin(request);
@@ -49,6 +51,10 @@ export async function GET(request: NextRequest) {
         createdAt: true
       }
     });
+    
+    if (allPartners.length === 0) {
+      notices.push('No partners found in the system');
+    }
     
     // Calculate metrics for each partner
     const partnerMetrics = await Promise.all(
@@ -237,6 +243,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       success: true,
+      notices,
       data: {
         partners: enrichedPartners,
         summary: {
@@ -280,7 +287,8 @@ export async function GET(request: NextRequest) {
       { 
         success: false, 
         error: 'Failed to fetch partner comparison',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        notices: ['Server error occurred']
       },
       { status: 500 }
     );

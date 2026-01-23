@@ -9,6 +9,8 @@ import { requireAdmin } from '@/lib/auth';
  * Get comprehensive profit dashboard data
  */
 export async function GET(request: NextRequest) {
+  const notices: string[] = [];
+
   try {
     // Require admin authentication
     await requireAdmin(request);
@@ -27,11 +29,19 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    if (sales.length === 0) {
+      notices.push('No sales data available for the current month');
+    }
+
     // Calculate total revenue
-    const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+    const totalRevenue = sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
     
-    // Calculate COGS (Cost of Goods Sold)
-    const cogs = sales.reduce((sum, sale) => sum + (sale.costPrice || 0) * sale.quantity, 0);
+    // Calculate COGS (Cost of Goods Sold) - treat missing costPrice as 0
+    const missingCostPrice = sales.filter(s => !s.costPrice || s.costPrice === 0);
+    if (missingCostPrice.length > 0) {
+      notices.push(`${missingCostPrice.length} sales missing costPrice - COGS calculation may be inaccurate`);
+    }
+    const cogs = sales.reduce((sum, sale) => sum + ((sale.costPrice || 0) * (sale.quantity || 0)), 0);
 
     // Get all operational costs for current month
     const costs = await prisma.operationalCost.findMany({
@@ -43,7 +53,11 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const totalOperationalCosts = costs.reduce((sum, cost) => sum + cost.amount, 0);
+    if (costs.length === 0) {
+      notices.push('No operational costs recorded for the current month');
+    }
+
+    const totalOperationalCosts = costs.reduce((sum, cost) => sum + (cost.amount || 0), 0);
     
     // Get salary costs
     const salaries = await prisma.salary.findMany({
@@ -53,7 +67,11 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const totalSalaries = salaries.reduce((sum, salary) => sum + salary.netSalary, 0);
+    if (salaries.length === 0) {
+      notices.push('No salary data recorded for the current month');
+    }
+
+    const totalSalaries = salaries.reduce((sum, salary) => sum + (salary.netSalary || 0), 0);
 
     // Calculate total costs
     const totalCosts = cogs + totalOperationalCosts + totalSalaries;
@@ -223,6 +241,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      notices,
       stats,
       revenueBreakdown: {
         directSales: sales.filter(s => s.saleType === 'DIRECT').reduce((sum, s) => sum + s.totalAmount, 0),
@@ -246,7 +265,12 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch dashboard data' },
+      { 
+        success: false, 
+        error: 'Failed to fetch dashboard data',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        notices: notices.length > 0 ? notices : ['Server error occurred']
+      },
       { status: 500 }
     );
   }

@@ -14,6 +14,8 @@ import { getPaginationParams, createPaginationResponse } from '@/lib/paginationH
 import { differenceInDays } from 'date-fns';
 
 export async function GET(request: NextRequest) {
+  const notices: string[] = [];
+
   try {
     // Authenticate admin
     await requireAdmin(request);
@@ -62,6 +64,10 @@ export async function GET(request: NextRequest) {
         }
       }
     });
+    
+    if (distributions.length === 0) {
+      notices.push('No outstanding payouts found for the specified criteria');
+    }
     
     // Enrich distributions with calculated fields
     const enrichedDistributions = distributions.map(dist => {
@@ -160,6 +166,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       success: true,
+      notices,
       data: {
         distributions: filteredDistributions,
         summary: {
@@ -194,7 +201,8 @@ export async function GET(request: NextRequest) {
       { 
         success: false, 
         error: 'Failed to fetch outstanding payouts',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        notices: ['Server error occurred']
       },
       { status: 500 }
     );

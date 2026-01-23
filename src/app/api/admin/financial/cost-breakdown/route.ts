@@ -16,6 +16,8 @@ import { startOfDay, startOfWeek, startOfMonth, format } from 'date-fns';
 type GroupBy = 'day' | 'week' | 'month';
 
 export async function GET(request: NextRequest) {
+  const notices: string[] = [];
+
   try {
     // Authenticate admin
     await requireAdmin(request);
@@ -72,10 +74,15 @@ export async function GET(request: NextRequest) {
     // Calculate COGS by product category
     const cogsByCategory = new Map<string, number>();
     let totalCOGS = 0;
+    let missingCostCount = 0;
     
     deliveredOrders.forEach(order => {
       order.orderItems.forEach(item => {
-        const cost = (item.costPerUnit || 0) * item.quantity;
+        const costPerUnit = item.costPerUnit || 0;
+        if (!costPerUnit || costPerUnit === 0) {
+          missingCostCount++;
+        }
+        const cost = costPerUnit * (item.quantity || 0);
         const categoryName = item.product?.category?.name || 'Uncategorized';
         
         cogsByCategory.set(
@@ -86,6 +93,14 @@ export async function GET(request: NextRequest) {
         totalCOGS += cost;
       });
     });
+    
+    if (deliveredOrders.length === 0) {
+      notices.push('No delivered orders in the selected period');
+    }
+    
+    if (missingCostCount > 0) {
+      notices.push(`${missingCostCount} order items missing costPerUnit - COGS may be inaccurate`);
+    }
     
     // === OPERATIONAL COSTS ===
     const whereClause: any = {
@@ -117,6 +132,10 @@ export async function GET(request: NextRequest) {
         date: 'desc'
       }
     });
+    
+    if (operationalCosts.length === 0) {
+      notices.push('No operational costs recorded for the selected period');
+    }
     
     // Calculate total operational costs
     const totalOperationalCosts = operationalCosts.reduce((sum, c) => sum + c.amount, 0);
@@ -312,6 +331,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       success: true,
+      notices,
       data: {
         summary: {
           totalCosts,
@@ -367,7 +387,8 @@ export async function GET(request: NextRequest) {
       { 
         success: false, 
         error: 'Failed to fetch cost breakdown',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        notices: ['Server error occurred']
       },
       { status: 500 }
     );
