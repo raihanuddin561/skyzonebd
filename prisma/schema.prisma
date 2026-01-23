@@ -49,6 +49,8 @@ model User {
   sales                Sale[] // Sales where this user is the customer
   salesEntered         Sale[]                @relation("SaleEnteredBy") // Sales entered by this admin
   reviews              Review[] // Product reviews by this user
+  manualSalesAsCustomer ManualSalesEntry[]  @relation("ManualSalesCustomer") // Manual sales where this user is the customer
+  manualSalesEntered    ManualSalesEntry[]  @relation("SaleEnteredBy") // Manual sales entered by this admin
 
   @@map("users")
 }
@@ -303,6 +305,7 @@ model Product {
   sales          Sale[] // Sales records for this product
   reviews        Review[] // Product reviews
   stockLots      StockLot[] // Stock lots for FIFO/WAC costing
+  manualSalesItems ManualSalesItem[] // Manual sales entries
 
   @@map("products")
 }
@@ -1286,6 +1289,7 @@ enum LedgerSourceType {
   RENT           // Rent payment
   MARKETING      // Marketing expenses
   SHIPPING       // Shipping costs
+  MANUAL_SALE    // Manual sales entry
   OTHER          // Miscellaneous
 }
 
@@ -1403,4 +1407,95 @@ model StockAllocation {
   @@index([orderId])
   @@index([orderItemId])
   @@map("stock_allocations")
+}
+
+// Manual Sales Entry - For recording offline/external sales
+model ManualSalesEntry {
+  id              String   @id @default(cuid())
+  
+  // Sale Information
+  saleDate        DateTime // Date of actual sale
+  referenceNumber String?  // Invoice/Receipt number
+  saleType        String   @default("OFFLINE") // OFFLINE, PHONE_ORDER, WHOLESALE_DIRECT, etc.
+  
+  // Customer Information (Optional)
+  customerId      String?
+  customerName    String?
+  customerPhone   String?
+  customerCompany String?
+  
+  // Financial Summary
+  subtotal        Float    @default(0)
+  discount        Float    @default(0)
+  tax             Float    @default(0)
+  shipping        Float    @default(0)
+  total           Float    // Total sale amount
+  totalCost       Float    // Total cost (COGS)
+  totalProfit     Float    // Calculated profit
+  profitMargin    Float    // Profit percentage
+  
+  // Payment Details
+  paymentMethod   String?  // CASH, BANK_TRANSFER, MOBILE_PAYMENT, etc.
+  paymentStatus   String   @default("PAID") // PAID, PENDING, PARTIAL
+  amountPaid      Float?   // If partial payment
+  
+  // Inventory Impact
+  adjustInventory Boolean  @default(true) // Whether to reduce stock
+  inventoryAdjusted Boolean @default(false) // Has stock been adjusted
+  
+  // Metadata
+  notes           String?
+  attachments     String[] // Receipt images, invoices, etc.
+  
+  // Audit
+  enteredBy       String   // Admin who entered this sale
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  customer        User?               @relation("ManualSalesCustomer", fields: [customerId], references: [id], onDelete: SetNull)
+  items           ManualSalesItem[]
+  enteredByUser   User                @relation("SaleEnteredBy", fields: [enteredBy], references: [id], onDelete: Restrict)
+  
+  @@index([saleDate])
+  @@index([customerId])
+  @@index([enteredBy])
+  @@index([saleType])
+  @@index([createdAt])
+  @@map("manual_sales_entries")
+}
+
+// Manual Sales Items - Products sold in manual entry
+model ManualSalesItem {
+  id              String   @id @default(cuid())
+  saleEntryId     String
+  
+  // Product Information
+  productId       String
+  productName     String   // Snapshot at time of sale
+  productSku      String?  // Snapshot at time of sale
+  
+  // Quantity & Pricing
+  quantity        Int      // Quantity sold
+  unitPrice       Float    // Selling price per unit
+  costPerUnit     Float    // Cost price per unit (for profit calc)
+  
+  // Calculations
+  subtotal        Float    // quantity × unitPrice
+  discount        Float    @default(0) // Item-level discount
+  total           Float    // subtotal - discount
+  totalCost       Float    // quantity × costPerUnit
+  profit          Float    // total - totalCost
+  profitMargin    Float    // (profit / total) × 100
+  
+  // Metadata
+  notes           String?
+  
+  // Relations
+  saleEntry       ManualSalesEntry @relation(fields: [saleEntryId], references: [id], onDelete: Cascade)
+  product         Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  
+  @@index([saleEntryId])
+  @@index([productId])
+  @@map("manual_sales_items")
 }

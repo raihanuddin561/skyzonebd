@@ -472,32 +472,245 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             {/* Shipping Information */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="p-4 sm:p-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Shipping Information</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Delivery Status</h2>
               </div>
               
-              <div className="p-4 sm:p-6 space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Shipping Address</h3>
-                  <p className="text-sm text-gray-600 whitespace-pre-line">{order.shippingAddress}</p>
-                </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Billing Address</h3>
-                  <p className="text-sm text-gray-600 whitespace-pre-line">{order.billingAddress}</p>
+              <div className="p-4 sm:p-6">
+                {/* Order Timeline */}
+                <div className="space-y-4 mb-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        ['PENDING', 'CONFIRMED', 'PROCESSING', 'PACKED', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED'].includes(order.status)
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-300 text-gray-500'
+                      }`}>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      {!['CANCELLED', 'RETURNED'].includes(order.status) && (
+                        <div className="w-0.5 h-12 bg-gray-300"></div>
+                      )}
+                    </div>
+                    <div className="flex-1 pt-2">
+                      <h3 className="text-sm font-semibold text-gray-900">Order Confirmed</h3>
+                      <p className="text-xs text-gray-500 mt-1">{new Date(order.createdAt).toLocaleString()}</p>
+                    </div>
+                  </div>
+
+                  {order.status !== 'CANCELLED' && order.status !== 'PENDING' && (
+                    <div className="flex items-start gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          ['PROCESSING', 'PACKED', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED'].includes(order.status)
+                            ? 'bg-green-500 text-white'
+                            : 'bg-gray-300 text-gray-500'
+                        }`}>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <div className="w-0.5 h-12 bg-gray-300"></div>
+                      </div>
+                      <div className="flex-1 pt-2">
+                        <h3 className="text-sm font-semibold text-gray-900">Processing</h3>
+                        <p className="text-xs text-gray-500 mt-1">Order is being prepared</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {order.status !== 'CANCELLED' && ['SHIPPED', 'IN_TRANSIT', 'DELIVERED'].includes(order.status) && (
+                    <div className="flex items-start gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          ['SHIPPED', 'IN_TRANSIT', 'DELIVERED'].includes(order.status)
+                            ? 'bg-green-500 text-white'
+                            : order.status === 'SHIPPED' ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-500'
+                        }`}>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                          </svg>
+                        </div>
+                        <div className="w-0.5 h-12 bg-gray-300"></div>
+                      </div>
+                      <div className="flex-1 pt-2">
+                        <h3 className="text-sm font-semibold text-gray-900">
+                          {order.status === 'SHIPPED' ? '🚚 Shipped' : '🚚 In Transit'}
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {order.status === 'SHIPPED' ? 'Package has been shipped' : 'On the way to you'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {order.status !== 'CANCELLED' && (
+                    <div className="flex items-start gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          order.status === 'DELIVERED'
+                            ? 'bg-green-500 text-white'
+                            : 'bg-gray-300 text-gray-500'
+                        }`}>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="flex-1 pt-2">
+                        <h3 className={`text-sm font-semibold ${
+                          order.status === 'DELIVERED' ? 'text-green-600' : 'text-gray-900'
+                        }`}>
+                          {order.status === 'DELIVERED' ? '✓ Delivered' : 'Delivery Pending'}
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {order.status === 'DELIVERED' 
+                            ? `Delivered on ${new Date(order.updatedAt).toLocaleDateString()}`
+                            : 'Estimated delivery: 3-5 business days'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {order.status === 'CANCELLED' && (
+                    <div className="flex items-start gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-500 text-white">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="flex-1 pt-2">
+                        <h3 className="text-sm font-semibold text-red-600">Order Cancelled</h3>
+                        <p className="text-xs text-gray-500 mt-1">This order has been cancelled</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {order.notes && (
+                {/* Address Information */}
+                <div className="space-y-4 pt-4 border-t border-gray-200">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Order Notes</h3>
-                    <p className="text-sm text-gray-600 whitespace-pre-line">{order.notes}</p>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Shipping Address</h3>
+                    <p className="text-sm text-gray-600 whitespace-pre-line">{order.shippingAddress}</p>
                   </div>
-                )}
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Billing Address</h3>
+                    <p className="text-sm text-gray-600 whitespace-pre-line">{order.billingAddress}</p>
+                  </div>
+
+                  {order.notes && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">Order Notes</h3>
+                      <p className="text-sm text-gray-600 whitespace-pre-line">{order.notes}</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Payment Status Card - For All Users */}
+            {order.paymentStatus !== 'PAID' && (
+              <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border-l-4 border-yellow-500 rounded-lg shadow-sm overflow-hidden">
+                <div className="p-4 sm:p-6">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="flex-shrink-0">
+                      <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-yellow-900 mb-1">
+                        Payment {order.paymentStatus === 'PENDING' ? 'Pending' : 'Partially Paid'}
+                      </h3>
+                      <p className="text-sm text-yellow-800">
+                        {order.paymentStatus === 'PENDING' 
+                          ? 'No payment received yet' 
+                          : 'Additional payment required'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 mb-4">
+                    <div className="flex justify-between items-center p-3 bg-white rounded-lg">
+                      <span className="text-sm font-medium text-gray-600">Order Total</span>
+                      <span className="text-lg font-bold text-gray-900">৳{order.total.toLocaleString()}</span>
+                    </div>
+                    
+                    {order.paymentStatus === 'PARTIAL' && (
+                      <>
+                        <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                          <span className="text-sm font-medium text-green-700">Amount Paid</span>
+                          <span className="text-lg font-semibold text-green-600">
+                            ৳{((order.total || 0) * 0.6).toLocaleString()} {/* Placeholder - will be dynamic */}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg border-2 border-red-200">
+                          <span className="text-sm font-bold text-red-700">Outstanding Due</span>
+                          <span className="text-xl font-bold text-red-600">
+                            ৳{((order.total || 0) * 0.4).toLocaleString()} {/* Placeholder - will be dynamic */}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    
+                    {order.paymentStatus === 'PENDING' && (
+                      <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg border-2 border-red-200">
+                        <span className="text-sm font-bold text-red-700">Amount Due</span>
+                        <span className="text-xl font-bold text-red-600">৳{order.total.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => toast.info('Payment gateway integration coming soon! Please contact admin to process payment.')}
+                      className="w-full px-4 py-3 text-sm font-bold rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 transition-all transform hover:scale-[1.02] shadow-md"
+                    >
+                      💳 Make Payment
+                    </button>
+                    
+                    <p className="text-xs text-center text-gray-600 mt-2">
+                      Or contact us to arrange payment: <br/>
+                      <span className="font-semibold text-gray-800">📞 +880-XXX-XXXXXX</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Payment Confirmed Card */}
+            {order.paymentStatus === 'PAID' && (
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-l-4 border-green-500 rounded-lg shadow-sm overflow-hidden">
+                <div className="p-4 sm:p-6">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0">
+                      <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-green-900 mb-1">✓ Payment Confirmed</h3>
+                      <p className="text-sm text-green-800 mb-3">Full payment received</p>
+                      <div className="p-3 bg-white rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-600">Amount Paid</span>
+                          <span className="text-lg font-bold text-green-600">৳{order.total.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Customer Information */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="p-4 sm:p-6 border-b border-gray-200">
