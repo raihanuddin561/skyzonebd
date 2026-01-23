@@ -3,6 +3,7 @@ import { verify, JwtPayload } from 'jsonwebtoken';
 import { logActivity } from '@/lib/activityLogger';
 import { prisma } from '@/lib/db';
 import { autoGenerateProfitReport } from '@/utils/profitReportGeneration';
+import { calculateItemPrice, validateCustomerDiscount } from '@/utils/pricingEngine';
 
 interface DecodedToken extends JwtPayload {
   userId: string;
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
     let userId = null;
     let guestData = null;
     let customerDiscount = 0; // Customer's special discount percentage
+    let user = null; // Store user info for later use
 
     // Check if user is authenticated
     const authHeader = request.headers.get('authorization');
@@ -57,11 +59,12 @@ export async function POST(request: NextRequest) {
         userId = decoded.userId;
         
         // Get customer discount if user is logged in
-        const user = await prisma.user.findUnique({
+        user = await prisma.user.findUnique({
           where: { id: userId },
           select: { 
             discountPercent: true,
-            discountValidUntil: true 
+            discountValidUntil: true,
+            discountReason: true
           }
         });
         
@@ -93,40 +96,33 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    // Calculate order totals
-    const subtotal = items.reduce((sum: number, item: OrderItem) => 
-      sum + (item.price * item.quantity), 0);
-    
-    // Apply customer discount if applicable
-    const discountAmount = customerDiscount > 0 ? (subtotal * customerDiscount / 100) : 0;
-    const subtotalAfterDiscount = subtotal - discountAmount;
-    
-    // Only add charges if configured by admin (via env vars)
-    const shippingCharge = process.env.SHIPPING_CHARGE ? parseFloat(process.env.SHIPPING_CHARGE) : 0;
-    const taxRate = process.env.TAX_RATE ? parseFloat(process.env.TAX_RATE) : 0;
-    
-    const shipping = shippingCharge;
-    const tax = subtotalAfterDiscount * taxRate;
-    const total = subtotalAfterDiscount + shipping + tax;
-    
     // Generate order number
     const orderNumber = `ORD-${Date.now()}`;
     
-    // Verify all products exist in database before creating order
+    // SERVER-SIDE PRICING ENFORCEMENT
+    // Fetch all products with tiers and recalculate prices using pricing engine
+    const productDataMap = new Map();
+    const pricingResults = [];
+    
     for (const item of items) {
-      const productExists = await prisma.product.findUnique({
+      const product = await prisma.product.findUnique({
         where: { id: item.productId.toString() },
         select: { 
           id: true, 
           name: true, 
+          wholesalePrice: true,
+          moq: true,
           stockQuantity: true,
           basePrice: true,
           costPerUnit: true,
-          platformProfitPercentage: true
+          platformProfitPercentage: true,
+          wholesaleTiers: {
+            orderBy: { minQuantity: 'asc' }
+          }
         }
       });
       
-      if (!productExists) {
+      if (!product) {
         console.error(`❌ Product not found in database: ${item.productId}`);
         const isNumericId = typeof item.productId === 'number' || !isNaN(Number(item.productId));
         const errorMsg = isNumericId 
@@ -140,30 +136,69 @@ export async function POST(request: NextRequest) {
       }
       
       // Check stock availability
-      if (productExists.stockQuantity < item.quantity) {
+      if (product.stockQuantity < item.quantity) {
         return NextResponse.json(
-          { success: false, error: `Insufficient stock for ${productExists.name}. Available: ${productExists.stockQuantity}` },
+          { success: false, error: `Insufficient stock for ${product.name}. Available: ${product.stockQuantity}` },
           { status: 400 }
         );
       }
+      
+      // Validate customer discount
+      const discountValidation = validateCustomerDiscount(
+        customerDiscount || 0,
+        user?.discountValidUntil || null
+      );
+      
+      // Calculate correct price using pricing engine (SERVER IS SOURCE OF TRUTH)
+      const priceInfo = calculateItemPrice({
+        product: {
+          id: product.id,
+          name: product.name,
+          wholesalePrice: product.wholesalePrice,
+          moq: product.moq || 1, // Default to 1 if not set
+          wholesaleTiers: product.wholesaleTiers.map(tier => ({
+            minQuantity: tier.minQuantity,
+            maxQuantity: tier.maxQuantity,
+            price: tier.price,
+            discount: tier.discount,
+            profitMargin: tier.profitMargin ?? undefined
+          }))
+        },
+        quantity: item.quantity,
+        customerDiscount: discountValidation.applicablePercent,
+        customerDiscountValid: discountValidation.isValid
+      });
+      
+      if (!priceInfo.meetsMinimum) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: `${product.name} does not meet minimum order quantity of ${priceInfo.minimumRequired} units` 
+          },
+          { status: 400 }
+        );
+      }
+      
+      productDataMap.set(item.productId.toString(), {
+        product,
+        priceInfo
+      });
+      
+      pricingResults.push(priceInfo);
     }
     
-    // Fetch product profit data for snapshotting
-    const productProfitData = new Map();
-    for (const item of items) {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId.toString() },
-        select: {
-          id: true,
-          basePrice: true,
-          costPerUnit: true,
-          platformProfitPercentage: true
-        }
-      });
-      if (product) {
-        productProfitData.set(item.productId.toString(), product);
-      }
-    }
+    // Calculate order totals using pricing engine results
+    const subtotal = pricingResults.reduce((sum, info) => sum + info.subtotalBeforeDiscount, 0);
+    const totalCustomerDiscount = pricingResults.reduce((sum, info) => sum + info.customerDiscountAmount, 0);
+    const subtotalAfterDiscount = pricingResults.reduce((sum, info) => sum + info.finalTotal, 0);
+    
+    // Only add charges if configured by admin (via env vars)
+    const shippingCharge = process.env.SHIPPING_CHARGE ? parseFloat(process.env.SHIPPING_CHARGE) : 0;
+    const taxRate = process.env.TAX_RATE ? parseFloat(process.env.TAX_RATE) : 0;
+    
+    const shipping = shippingCharge;
+    const tax = subtotalAfterDiscount * taxRate;
+    const total = subtotalAfterDiscount + shipping + tax;
     
     // Create order in database and deduct stock in a single transaction
     const order = await prisma.$transaction(async (tx) => {
@@ -187,23 +222,31 @@ export async function POST(request: NextRequest) {
           notes: notes || undefined,
           orderItems: {
             create: items.map((item: OrderItem) => {
-              const productProfit = productProfitData.get(item.productId.toString());
-              const costPerUnit = productProfit?.costPerUnit || productProfit?.basePrice || 0;
-              const profitPerUnit = item.price - costPerUnit;
+              const data = productDataMap.get(item.productId.toString());
+              const { product, priceInfo } = data;
+              
+              // Calculate profit based on ACTUAL final price
+              const costPerUnit = product.costPerUnit || product.basePrice || 0;
+              const profitPerUnit = priceInfo.finalUnitPrice - costPerUnit;
               const totalProfit = profitPerUnit * item.quantity;
-              const itemTotal = item.price * item.quantity;
-              const profitMargin = itemTotal > 0 ? (totalProfit / itemTotal) * 100 : 0;
+              const profitMargin = priceInfo.finalTotal > 0 
+                ? (totalProfit / priceInfo.finalTotal) * 100 
+                : 0;
               
               return {
                 productId: item.productId.toString(),
                 quantity: item.quantity,
-                price: item.price,
-                total: itemTotal,
-                // Snapshot profit configuration
+                price: priceInfo.finalUnitPrice, // Use calculated price, not client price
+                total: priceInfo.finalTotal,
+                // Snapshot profit configuration (HIDDEN FROM CUSTOMERS)
                 costPerUnit: costPerUnit,
                 profitPerUnit: profitPerUnit,
                 totalProfit: totalProfit,
-                profitMargin: profitMargin
+                profitMargin: profitMargin,
+                // Store original & tier info for audit
+                originalPrice: priceInfo.basePrice,
+                discountApplied: priceInfo.totalSavings / item.quantity,
+                finalPrice: priceInfo.finalUnitPrice
               };
             })
           }
@@ -230,6 +273,17 @@ export async function POST(request: NextRequest) {
       }
       
       return newOrder;
+    });
+    
+    // Log order creation activity
+    await logActivity({
+      userId: userId || 'guest',
+      userName: guestData?.name || 'Customer',
+      action: 'CREATE',
+      entityType: 'Order',
+      entityId: order.id,
+      entityName: order.orderNumber,
+      description: `Order created for ${order.orderItems.length} items. Total: ৳${total.toFixed(2)}${customerDiscount > 0 ? ` (${customerDiscount}% customer discount applied)` : ''}`
     });
     
     // Format response to match frontend expectations

@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '../components/Header';
 import ProtectedRoute from '../components/ProtectedRoute';
-import Head from 'next/head';
+import { OrderListSkeleton } from '@/components/ui/Skeleton';
+import { EmptyOrdersState, EmptySearchState } from '@/components/ui/EmptyState';
+import { NetworkErrorState } from '@/components/ui/ErrorState';
 
 interface Order {
   id: number;
@@ -13,6 +15,7 @@ interface Order {
   items: any[];
   total: number;
   status: string;
+  paymentStatus?: string;
   createdAt: string;
   shippingAddress: string;
   paymentMethod: string;
@@ -22,7 +25,9 @@ export default function OrdersPage() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed' | 'shipped' | 'delivered'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchOrders();
@@ -31,6 +36,7 @@ export default function OrdersPage() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
+      setError(null);
       const token = localStorage.getItem('token');
       
       if (!token) {
@@ -59,6 +65,7 @@ export default function OrdersPage() {
           items: order.items,
           total: order.total,
           status: order.status,
+          paymentStatus: order.paymentStatus,
           createdAt: order.createdAt,
           shippingAddress: order.shippingAddress || 'Not provided',
           paymentMethod: order.paymentMethod
@@ -66,44 +73,73 @@ export default function OrdersPage() {
         
         setOrders(transformedOrders);
       }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
+    } catch (err) {
+      console.error('Error fetching orders:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch orders');
     } finally {
       setLoading(false);
     }
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
+      case 'processing':
       case 'confirmed':
         return 'bg-blue-100 text-blue-800';
       case 'shipped':
         return 'bg-purple-100 text-purple-800';
       case 'delivered':
         return 'bg-green-100 text-green-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPaymentStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'paid':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'failed':
+        return 'bg-red-100 text-red-800';
+      case 'partial':
+        return 'bg-orange-100 text-orange-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case 'pending':
         return '⏳';
+      case 'processing':
       case 'confirmed':
         return '✅';
       case 'shipped':
         return '🚚';
       case 'delivered':
         return '📦';
+      case 'cancelled':
+        return '❌';
       default:
         return '❓';
     }
   };
 
-  const filteredOrders = filter === 'all' ? orders : orders.filter(order => order.status === filter);
+  // Filter and search logic
+  const filteredOrders = orders.filter(order => {
+    const matchesFilter = filter === 'all' || order.status?.toLowerCase() === filter;
+    const matchesSearch = !searchQuery || 
+      order.orderId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.items?.some(item => item.name?.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesFilter && matchesSearch;
+  });
 
   return (
     <ProtectedRoute>
