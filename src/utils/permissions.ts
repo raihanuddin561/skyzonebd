@@ -1,8 +1,6 @@
 // utils/permissions.ts - Permission Management Utilities
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '@/lib/prisma';
 
 export type PermissionAction = 'view' | 'create' | 'edit' | 'delete' | 'approve' | 'export';
 

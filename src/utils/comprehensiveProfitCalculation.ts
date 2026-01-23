@@ -1,9 +1,7 @@
 // utils/comprehensiveProfitCalculation.ts
 // Comprehensive Profit & Loss Calculation with all costs included
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '@/lib/prisma';
 
 /**
  * Calculate comprehensive profit for a specific period
