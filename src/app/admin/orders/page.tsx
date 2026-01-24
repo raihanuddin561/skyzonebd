@@ -117,10 +117,13 @@ export default function OrdersManagement() {
   const getPaymentStatusBadge = (status: string) => {
     const badges: { [key: string]: { class: string; text: string } } = {
       pending: { class: 'bg-yellow-100 text-yellow-800', text: 'Pending' },
+      pending_verification: { class: 'bg-orange-100 text-orange-800', text: 'Pending Verification' },
       paid: { class: 'bg-green-100 text-green-800', text: 'Paid' },
       failed: { class: 'bg-red-100 text-red-800', text: 'Failed' },
+      partial: { class: 'bg-blue-100 text-blue-800', text: 'Partial' },
+      refunded: { class: 'bg-gray-100 text-gray-800', text: 'Refunded' },
     };
-    return badges[status] || badges.pending;
+    return badges[status.toLowerCase()] || badges.pending;
   };
 
   const getCustomerTypeBadge = (type: string) => {
@@ -298,6 +301,7 @@ export default function OrdersManagement() {
     processing: orders.filter(o => o.status === 'processing').length,
     shipped: orders.filter(o => o.status === 'shipped').length,
     delivered: orders.filter(o => o.status === 'delivered').length,
+    pendingVerification: orders.filter(o => o.paymentStatus.toLowerCase() === 'pending_verification').length,
   };
 
   return (
@@ -331,7 +335,7 @@ export default function OrdersManagement() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -339,6 +343,15 @@ export default function OrdersManagement() {
               <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
             </div>
             <span className="text-3xl">⏳</span>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-orange-300 p-4 bg-orange-50">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-orange-700 font-medium">Payment Verification</p>
+              <p className="text-2xl font-bold text-orange-600">{stats.pendingVerification}</p>
+            </div>
+            <span className="text-3xl">⚠️</span>
           </div>
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
@@ -404,6 +417,7 @@ export default function OrdersManagement() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Payments</option>
+              <option value="pending_verification">⚠️ Pending Verification</option>
               <option value="paid">Paid</option>
               <option value="pending">Pending</option>
               <option value="failed">Failed</option>

@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
       billingAddress, 
       paymentMethod, 
       notes,
+      paymentReference, // Transaction ID for manual payments (bKash, Bank Transfer)
       // Guest checkout fields
       guestInfo
     } = body;
@@ -43,6 +44,17 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Shipping address, billing address, and payment method are required' },
         { status: 400 }
       );
+    }
+
+    // Validate payment reference for manual payment methods
+    const manualPaymentMethods = ['bkash', 'bank_transfer'];
+    if (manualPaymentMethods.includes(paymentMethod.toLowerCase())) {
+      if (!paymentReference || paymentReference.trim().length < 5) {
+        return NextResponse.json(
+          { success: false, error: 'Transaction ID / Reference number is required for this payment method (minimum 5 characters)' },
+          { status: 400 }
+        );
+      }
     }
 
     let userId = null;
@@ -202,6 +214,11 @@ export async function POST(request: NextRequest) {
     
     // Create order in database and deduct stock in a single transaction
     const order = await prisma.$transaction(async (tx) => {
+      // Determine payment status based on payment method
+      const manualPaymentMethods = ['bkash', 'bank_transfer'];
+      const isManualPayment = manualPaymentMethods.includes(paymentMethod.toLowerCase());
+      const initialPaymentStatus: 'PENDING_VERIFICATION' | 'PENDING' = isManualPayment ? 'PENDING_VERIFICATION' : 'PENDING';
+      
       // Create order with order items
       const newOrder = await tx.order.create({
         data: {
@@ -215,8 +232,9 @@ export async function POST(request: NextRequest) {
           shipping,
           total,
           status: 'PENDING',
-          paymentStatus: 'PENDING',
+          paymentStatus: initialPaymentStatus as any,
           paymentMethod,
+          paymentReference: (paymentReference || undefined) as any,
           shippingAddress,
           billingAddress,
           notes: notes || undefined,
@@ -276,6 +294,9 @@ export async function POST(request: NextRequest) {
     });
     
     // Log order creation activity
+    const isManualPayment = ['bkash', 'bank_transfer'].includes(paymentMethod.toLowerCase());
+    const paymentInfo = isManualPayment ? ` | Payment: ${paymentMethod.toUpperCase()} (TrxID: ${paymentReference}) - Pending Verification` : '';
+    
     await logActivity({
       userId: userId || 'guest',
       userName: guestData?.name || 'Customer',
@@ -283,7 +304,7 @@ export async function POST(request: NextRequest) {
       entityType: 'Order',
       entityId: order.id,
       entityName: order.orderNumber,
-      description: `Order created for ${order.orderItems.length} items. Total: ৳${total.toFixed(2)}${customerDiscount > 0 ? ` (${customerDiscount}% customer discount applied)` : ''}`
+      description: `Order created for ${items.length} items. Total: ৳${total.toFixed(2)}${customerDiscount > 0 ? ` (${customerDiscount}% customer discount applied)` : ''}${paymentInfo}`
     });
     
     // Format response to match frontend expectations
@@ -292,12 +313,12 @@ export async function POST(request: NextRequest) {
       orderId: order.orderNumber,
       userId: order.userId,
       guestInfo: guestData,
-      items: order.orderItems.map(item => ({
+      items: items.map((item: OrderItem) => ({
         productId: item.productId,
-        name: item.product.name,
+        name: item.name,
         price: item.price,
         quantity: item.quantity,
-        total: item.total
+        total: item.price * item.quantity
       })),
       shippingAddress: order.shippingAddress,
       billingAddress: order.billingAddress,

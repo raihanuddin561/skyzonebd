@@ -361,6 +361,13 @@ model Order {
   paymentStatus PaymentStatus @default(PENDING)
   paymentMethod String
 
+  // Manual Payment Fields (bKash, Bank Transfer, etc.)
+  paymentReference   String? // Transaction ID / Reference number submitted by customer
+  paymentProofUrl    String? // Optional screenshot/proof upload URL
+  paymentVerifiedAt  DateTime? // When admin verified the payment
+  paymentVerifiedBy  String? // Admin user ID who verified
+  paymentNotes       String? // Admin notes / rejection reason
+
   // Cancellation
   cancelledAt        DateTime?
   cancelledBy        String? // userId of who cancelled (admin or customer)
@@ -554,6 +561,7 @@ enum OrderStatus {
 
 enum PaymentStatus {
   PENDING
+  PENDING_VERIFICATION // Manual payment submitted, awaiting admin confirmation
   PAID
   PARTIAL
   FAILED
@@ -1498,4 +1506,41 @@ model ManualSalesItem {
   @@index([saleEntryId])
   @@index([productId])
   @@map("manual_sales_items")
+}
+
+// Payment Configuration for Manual Payments
+model PaymentConfig {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Payment Method Type
+  type        String   // BKASH, BANK_TRANSFER, NAGAD, ROCKET, etc.
+  
+  // Display Settings
+  name        String   // Display name (e.g., "bKash Merchant Account")
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0) // Display order
+  
+  // bKash/Mobile Banking Fields
+  accountNumber    String?  // Mobile number or account number
+  accountName      String?  // Account holder name
+  accountType      String?  // Personal/Merchant/Agent
+  
+  // Bank Transfer Fields
+  bankName         String?
+  branchName       String?
+  routingNumber    String?
+  
+  // Additional Info
+  instructions     String?  @db.Text // Custom instructions for customers
+  logoUrl          String?  // Optional logo/icon
+  
+  // Admin tracking
+  createdBy   String?  // Admin user ID
+  updatedBy   String?  // Admin user ID
+  
+  @@index([type])
+  @@index([isActive])
+  @@map("payment_configs")
 }

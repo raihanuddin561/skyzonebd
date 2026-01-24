@@ -31,6 +31,11 @@ interface Order {
   shippingAddress: string;
   billingAddress: string;
   paymentMethod: string;
+  paymentReference: string | null;
+  paymentProofUrl: string | null;
+  paymentVerifiedAt: string | null;
+  paymentVerifiedBy: string | null;
+  paymentNotes: string | null;
   notes: string | null;
   subtotal: number;
   shipping: number;
@@ -246,6 +251,56 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
+  const handleVerifyPayment = async (status: 'PAID' | 'FAILED') => {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+      toast.error('Only admins can verify payments');
+      return;
+    }
+
+    const note = prompt(
+      status === 'PAID' 
+        ? 'Optional note (e.g., verified with bank):' 
+        : 'Reason for rejection (required):'
+    );
+    
+    if (status === 'FAILED' && !note) {
+      toast.error('Please provide a reason for rejection');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to mark this payment as ${status}?`)) {
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      const token = localStorage.getItem('token');
+
+      const response = await fetch(`/api/admin/orders/${orderId}/verify-payment`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status, note: note || undefined })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success(`Payment ${status === 'PAID' ? 'verified successfully' : 'marked as failed'}`);
+        fetchOrderDetails(); // Refresh data
+      } else {
+        toast.error(result.error || 'Failed to verify payment');
+      }
+    } catch (error) {
+      console.error('Error verifying payment:', error);
+      toast.error('Failed to verify payment');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const statusColors: { [key: string]: string } = {
       'PENDING': 'bg-yellow-100 text-yellow-800',
@@ -255,6 +310,18 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       'DELIVERED': 'bg-green-100 text-green-800',
       'CANCELLED': 'bg-red-100 text-red-800',
       'RETURNED': 'bg-orange-100 text-orange-800',
+    };
+    return statusColors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getPaymentStatusColor = (status: string) => {
+    const statusColors: { [key: string]: string } = {
+      'PENDING': 'bg-yellow-100 text-yellow-800',
+      'PENDING_VERIFICATION': 'bg-orange-100 text-orange-800',
+      'PAID': 'bg-green-100 text-green-800',
+      'FAILED': 'bg-red-100 text-red-800',
+      'PARTIAL': 'bg-blue-100 text-blue-800',
+      'REFUNDED': 'bg-gray-100 text-gray-800',
     };
     return statusColors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -328,10 +395,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <span className={`inline-flex px-4 py-2 text-sm font-semibold rounded-full ${getStatusColor(order.status)}`}>
                 {order.status}
               </span>
-              <span className={`inline-flex px-4 py-2 text-sm font-semibold rounded-full ${
-                order.paymentStatus === 'PAID' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-              }`}>
-                Payment: {order.paymentStatus}
+              <span className={`inline-flex px-4 py-2 text-sm font-semibold rounded-full ${getPaymentStatusColor(order.paymentStatus)}`}>
+                Payment: {order.paymentStatus === 'PENDING_VERIFICATION' ? 'Pending Verification' : order.paymentStatus}
               </span>
             </div>
           </div>
@@ -711,6 +776,82 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             )}
 
+            {/* Payment Verification Section - For Manual Payments (Admin Only) */}
+            {order.paymentStatus === 'PENDING_VERIFICATION' && 
+             (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+              <div className="bg-gradient-to-br from-orange-50 to-yellow-50 border-l-4 border-orange-500 rounded-lg shadow-sm overflow-hidden">
+                <div className="p-4 sm:p-6">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="flex-shrink-0">
+                      <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-orange-900 mb-1">
+                        ⚠️ Payment Verification Required
+                      </h3>
+                      <p className="text-sm text-orange-800 mb-3">
+                        Customer has submitted payment details. Please verify before processing the order.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Payment Details */}
+                  <div className="bg-white rounded-lg p-4 mb-4 space-y-3">
+                    <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+                      <span className="text-sm font-medium text-gray-600">Payment Method</span>
+                      <span className="text-sm font-bold text-gray-900 uppercase">
+                        {order.paymentMethod.replace('_', ' ')}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+                      <span className="text-sm font-medium text-gray-600">Transaction ID / Reference</span>
+                      <span className="text-sm font-mono font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded">
+                        {order.paymentReference || 'N/A'}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-600">Amount to Verify</span>
+                      <span className="text-lg font-bold text-orange-600">৳{order.total.toLocaleString()}</span>
+                    </div>
+                    
+                    {order.paymentNotes && (
+                      <div className="pt-3 border-t border-gray-200">
+                        <p className="text-xs text-gray-500 mb-1">Admin Notes</p>
+                        <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">{order.paymentNotes}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Verification Actions */}
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => handleVerifyPayment('PAID')}
+                      disabled={updating}
+                      className="w-full px-4 py-3 text-sm font-bold rounded-lg bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 transition-all transform hover:scale-[1.02] shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {updating ? 'Processing...' : '✓ Verify & Mark as PAID'}
+                    </button>
+                    
+                    <button
+                      onClick={() => handleVerifyPayment('FAILED')}
+                      disabled={updating}
+                      className="w-full px-4 py-3 text-sm font-bold rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 transition-all transform hover:scale-[1.02] shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {updating ? 'Processing...' : '✗ Reject Payment'}
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-center text-orange-700 mt-3">
+                    <strong>Important:</strong> Please verify the transaction with your {order.paymentMethod === 'bkash' ? 'bKash' : 'bank'} account before confirming.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Customer Information */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="p-4 sm:p-6 border-b border-gray-200">
@@ -784,6 +925,33 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     {order.paymentMethod.replace('_', ' ')}
                   </p>
                 </div>
+                
+                {/* Show payment reference if available */}
+                {order.paymentReference && (
+                  <div className="pt-3 border-t border-gray-200">
+                    <p className="text-xs text-gray-500 mb-1">Transaction Reference</p>
+                    <p className="text-sm font-mono font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block">
+                      {order.paymentReference}
+                    </p>
+                    {order.paymentStatus === 'PENDING_VERIFICATION' && (
+                      <p className="text-xs text-orange-600 mt-1">⏳ Awaiting admin verification</p>
+                    )}
+                    {order.paymentVerifiedAt && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✓ Verified on {new Date(order.paymentVerifiedAt).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {order.paymentNotes && (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                  <div className="pt-3 border-t border-gray-200">
+                    <p className="text-xs text-gray-500 mb-1">Payment Notes (Admin)</p>
+                    <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                      {order.paymentNotes}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -8,6 +8,21 @@ import { useRouter } from 'next/navigation';
 import Header from '../components/Header';
 import { toast } from 'react-toastify';
 
+interface PaymentConfig {
+  id: string;
+  type: string;
+  name: string;
+  accountNumber?: string;
+  accountName?: string;
+  accountType?: string;
+  bankName?: string;
+  branchName?: string;
+  routingNumber?: string;
+  instructions?: string;
+  logoUrl?: string;
+  priority: number;
+}
+
 export default function CheckoutPage() {
   const { items, getTotalItems, getTotalPrice, clearCart, isLoaded } = useCart();
   const { user } = useAuth();
@@ -17,11 +32,13 @@ export default function CheckoutPage() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [checkoutType, setCheckoutType] = useState<'guest' | 'user'>('guest');
+  const [paymentConfigs, setPaymentConfigs] = useState<PaymentConfig[]>([]);
   const [orderData, setOrderData] = useState({
     shippingAddress: '',
     billingAddress: '',
     paymentMethod: 'bank_transfer',
-    notes: ''
+    notes: '',
+    paymentReference: '' // Transaction ID for manual payments
   });
   const [guestInfo, setGuestInfo] = useState({
     name: '',
@@ -29,6 +46,22 @@ export default function CheckoutPage() {
     mobile: '',
     companyName: ''
   });
+
+  // Fetch payment configurations
+  useEffect(() => {
+    const fetchPaymentConfigs = async () => {
+      try {
+        const response = await fetch('/api/payment-config');
+        const result = await response.json();
+        if (result.success) {
+          setPaymentConfigs(result.data);
+        }
+      } catch (error) {
+        console.error('Error fetching payment configs:', error);
+      }
+    };
+    fetchPaymentConfigs();
+  }, []);
 
   // Update checkout type when user changes
   useEffect(() => {
@@ -61,6 +94,18 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Validate payment reference for manual payment methods
+    if ((orderData.paymentMethod === 'bkash' || orderData.paymentMethod === 'bank_transfer') && !orderData.paymentReference) {
+      toast.error('Please enter the transaction ID / reference number');
+      return;
+    }
+
+    // Validate payment reference format
+    if (orderData.paymentReference && orderData.paymentReference.length < 5) {
+      toast.error('Transaction ID must be at least 5 characters');
+      return;
+    }
+
     // For guest checkout, validate required fields
     if (checkoutType === 'guest' && !user) {
       if (!guestInfo.name || !guestInfo.mobile) {
@@ -90,6 +135,7 @@ export default function CheckoutPage() {
         billingAddress: orderData.billingAddress,
         paymentMethod: orderData.paymentMethod,
         notes: orderData.notes,
+        paymentReference: orderData.paymentReference || undefined, // Include transaction ID
         ...(checkoutType === 'guest' && { guestInfo })
       };
 
@@ -169,7 +215,13 @@ export default function CheckoutPage() {
         localStorage.setItem('lastOrderTotal', order.total.toString());
         localStorage.setItem('lastOrderId', order.orderId);
         
-        toast.success('Order placed successfully!');
+        // Show different success messages based on payment method
+        if (orderData.paymentMethod === 'bkash' || orderData.paymentMethod === 'bank_transfer') {
+          toast.success('Order submitted! Payment verification pending.', { autoClose: 5000 });
+        } else {
+          toast.success('Order placed successfully!');
+        }
+        
         setIsProcessing(false);
         
         // Redirect to order confirmation page FIRST
@@ -419,38 +471,185 @@ export default function CheckoutPage() {
                   </div>
                   
                   {/* Payment Instructions */}
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                    {orderData.paymentMethod === 'bank_transfer' && (
-                      <div className="text-sm text-gray-700">
-                        <h4 className="font-medium mb-2">Bank Transfer Details:</h4>
-                        <p><strong>Bank:</strong> Dutch Bangla Bank</p>
-                        <p><strong>Account:</strong> SkyzoneBD Ltd.</p>
-                        <p><strong>Account No:</strong> 1234567890</p>
-                        <p><strong>Routing:</strong> 090260724</p>
-                      </div>
-                    )}
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                    {orderData.paymentMethod === 'bank_transfer' && (() => {
+                      const bankConfig = paymentConfigs.find(c => c.type === 'BANK_TRANSFER');
+                      return (
+                        <div className="space-y-3">
+                          <div className="text-sm text-gray-700">
+                            <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                              🏦 Bank Transfer Instructions
+                            </h4>
+                            {bankConfig ? (
+                              <>
+                                <div className="bg-white p-3 rounded-md space-y-2 mb-3">
+                                  {bankConfig.bankName && (
+                                    <p className="flex justify-between"><span className="font-medium">Bank Name:</span> <span>{bankConfig.bankName}</span></p>
+                                  )}
+                                  {bankConfig.accountName && (
+                                    <p className="flex justify-between"><span className="font-medium">Account Name:</span> <span>{bankConfig.accountName}</span></p>
+                                  )}
+                                  {bankConfig.accountNumber && (
+                                    <p className="flex justify-between"><span className="font-medium">Account Number:</span> <span className="font-mono">{bankConfig.accountNumber}</span></p>
+                                  )}
+                                  {bankConfig.routingNumber && (
+                                    <p className="flex justify-between"><span className="font-medium">Routing Number:</span> <span className="font-mono">{bankConfig.routingNumber}</span></p>
+                                  )}
+                                  {bankConfig.branchName && (
+                                    <p className="flex justify-between"><span className="font-medium">Branch:</span> <span>{bankConfig.branchName}</span></p>
+                                  )}
+                                </div>
+                                {bankConfig.instructions && (
+                                  <div className="bg-blue-50 border border-blue-200 rounded-md p-2 mb-3">
+                                    <p className="text-xs text-blue-800">{bankConfig.instructions}</p>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="bg-white p-3 rounded-md mb-3">
+                                <p className="text-gray-500">Bank transfer details not configured. Please contact support.</p>
+                              </div>
+                            )}
+                            <div className="bg-amber-50 border border-amber-200 rounded-md p-2 mb-3">
+                              <p className="text-xs text-amber-800">
+                                ⚠️ <strong>Important:</strong> After transferring, please enter your bank transaction reference below.
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <label htmlFor="bankTransferRef" className="block text-sm font-semibold text-gray-900 mb-2">
+                              Bank Transaction Reference / ID *
+                            </label>
+                            <input
+                              id="bankTransferRef"
+                              name="paymentReference"
+                              type="text"
+                              value={orderData.paymentReference}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Enter transaction reference number"
+                              required
+                              minLength={5}
+                            />
+                            <p className="text-xs text-gray-500 mt-1">This will help us verify your payment quickly.</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    
+                    {orderData.paymentMethod === 'bkash' && (() => {
+                      const bkashConfig = paymentConfigs.find(c => c.type === 'BKASH');
+                      return (
+                        <div className="space-y-3">
+                          <div className="text-sm text-gray-700">
+                            <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                              📱 bKash Payment Instructions
+                            </h4>
+                            {bkashConfig ? (
+                              <>
+                                <div className="bg-white p-3 rounded-md space-y-2 mb-3">
+                                  {bkashConfig.accountType && (
+                                    <p className="flex justify-between"><span className="font-medium">bKash Type:</span> <span className="text-pink-600 font-semibold">{bkashConfig.accountType}</span></p>
+                                  )}
+                                  {bkashConfig.accountNumber && (
+                                    <p className="flex justify-between"><span className="font-medium">Account Number:</span> <span className="font-mono text-lg">{bkashConfig.accountNumber}</span></p>
+                                  )}
+                                  {bkashConfig.accountName && (
+                                    <p className="flex justify-between"><span className="font-medium">Account Name:</span> <span>{bkashConfig.accountName}</span></p>
+                                  )}
+                                  <p className="flex justify-between"><span className="font-medium">Amount to Send:</span> <span className="text-green-600 font-bold">৳{getTotalPrice().toLocaleString()}</span></p>
+                                </div>
+                                {bkashConfig.instructions ? (
+                                  <div className="bg-blue-50 border border-blue-200 rounded-md p-2 mb-3">
+                                    <p className="text-xs text-blue-800 whitespace-pre-wrap">{bkashConfig.instructions}</p>
+                                  </div>
+                                ) : (
+                                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
+                                    <p className="text-xs text-blue-900 font-medium mb-2">📋 How to Pay:</p>
+                                    <ol className="text-xs text-blue-800 space-y-1 ml-4 list-decimal">
+                                      <li>Go to bKash menu on your phone</li>
+                                      <li>Select "Send Money" or "Payment"</li>
+                                      <li>Enter account number: <strong>{bkashConfig.accountNumber}</strong></li>
+                                      <li>Enter amount: <strong>৳{getTotalPrice().toLocaleString()}</strong></li>
+                                      <li>Complete the payment</li>
+                                      <li>Enter the Transaction ID below</li>
+                                    </ol>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="bg-white p-3 rounded-md mb-3">
+                                <p className="text-gray-500">bKash payment details not configured. Please contact support.</p>
+                              </div>
+                            )}
+                            <div className="bg-amber-50 border border-amber-200 rounded-md p-2 mb-3">
+                              <p className="text-xs text-amber-800">
+                                ⚠️ <strong>Important:</strong> Please enter the exact Transaction ID you received from bKash.
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <label htmlFor="bkashTrxId" className="block text-sm font-semibold text-gray-900 mb-2">
+                              bKash Transaction ID (TrxID) *
+                            </label>
+                            <input
+                              id="bkashTrxId"
+                              name="paymentReference"
+                              type="text"
+                              value={orderData.paymentReference}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border-2 border-pink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 font-mono"
+                              placeholder="e.g., 9AB12CD34E"
+                              required
+                              minLength={5}
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              You can find this in your bKash transaction history or SMS.
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    
                     {orderData.paymentMethod === 'cash_on_delivery' && (
                       <div className="text-sm text-gray-700">
-                        <h4 className="font-medium mb-2">Cash on Delivery:</h4>
-                        <p>• Pay in cash when your order is delivered</p>
-                        <p>• Additional COD charge: ৳50</p>
-                        <p>• Available in Dhaka metropolitan area only</p>
+                        <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                          💵 Cash on Delivery
+                        </h4>
+                        <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                          <p className="mb-1">✓ Pay in cash when your order is delivered</p>
+                          <p className="mb-1">✓ Additional COD charge: <strong>৳50</strong></p>
+                          <p className="mb-1">✓ Available in Dhaka metropolitan area only</p>
+                          <p className="text-xs text-green-700 mt-2">Please keep exact change ready for smooth delivery.</p>
+                        </div>
                       </div>
                     )}
-                    {(orderData.paymentMethod === 'bkash' || orderData.paymentMethod === 'nagad' || orderData.paymentMethod === 'rocket') && (
+                    
+                    {(orderData.paymentMethod === 'nagad' || orderData.paymentMethod === 'rocket') && (
                       <div className="text-sm text-gray-700">
-                        <h4 className="font-medium mb-2">Mobile Banking:</h4>
-                        <p>• You will receive payment instructions after placing the order</p>
-                        <p>• Payment must be completed within 30 minutes</p>
-                        <p>• Transaction fee may apply as per your mobile banking provider</p>
+                        <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                          📱 {orderData.paymentMethod === 'nagad' ? 'Nagad' : 'Rocket'} Payment
+                        </h4>
+                        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                          <p className="mb-1">• You will receive detailed payment instructions after placing the order</p>
+                          <p className="mb-1">• Payment must be completed within 30 minutes</p>
+                          <p className="text-xs text-blue-700 mt-2">Transaction fee may apply as per your provider.</p>
+                        </div>
                       </div>
                     )}
+                    
                     {orderData.paymentMethod === 'credit_card' && (
                       <div className="text-sm text-gray-700">
-                        <h4 className="font-medium mb-2">Credit Card Payment:</h4>
-                        <p>• Secure payment through SSL encryption</p>
-                        <p>• Accepts Visa, MasterCard, American Express</p>
-                        <p>• No additional charges for card payments</p>
+                        <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                          💳 Credit Card Payment
+                        </h4>
+                        <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
+                          <p className="mb-1">✓ Secure payment through SSL encryption</p>
+                          <p className="mb-1">✓ Accepts Visa, MasterCard, American Express</p>
+                          <p className="text-xs text-purple-700 mt-2">No additional charges for card payments.</p>
+                        </div>
                       </div>
                     )}
                   </div>
