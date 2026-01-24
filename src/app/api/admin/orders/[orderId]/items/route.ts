@@ -8,7 +8,7 @@ const verifyAdmin = verifyAdminToken;
 // PATCH - Update order items (Admin only - for PENDING orders)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
     // Verify admin access
@@ -17,7 +17,7 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: auth.error }, { status: 401 });
     }
 
-    const { id: orderId } = await params;
+    const { orderId } = await params;
     const body = await request.json();
     const { items } = body; // Array of { productId, quantity, price }
 
