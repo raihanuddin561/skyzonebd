@@ -38,6 +38,8 @@ class ApiService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
+      console.log('🔄 API Request:', url); // Debug log
+
       const response = await fetch(url, {
         ...requestOptions,
         signal: controller.signal,
@@ -46,16 +48,36 @@ class ApiService {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new ApiError(response.status, response.statusText);
+        // Try to get error details from response
+        let errorDetails = response.statusText;
+        try {
+          const errorData = await response.json();
+          errorDetails = errorData.error || errorData.message || errorDetails;
+        } catch (e) {
+          // Response body is not JSON
+        }
+        throw new ApiError(response.status, errorDetails);
       }
 
       const data = await response.json();
       return data;
     } catch (error) {
+      console.error('❌ API Request failed:', url, error); // Debug log
+      
       if (error instanceof ApiError) {
         throw error;
       }
-      throw new ApiError(500, 'Network error occurred');
+      
+      // Better error messages for different scenarios
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new ApiError(408, 'Request timeout');
+      }
+      
+      if (error instanceof TypeError) {
+        throw new ApiError(0, 'Network error - Check internet connection or CORS settings');
+      }
+      
+      throw new ApiError(500, error instanceof Error ? error.message : 'Unknown network error');
     }
   }
 

@@ -2,8 +2,9 @@
 
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8081',
-  API_VERSION: '/api/v1',
+  // Use empty string for same-origin requests
+  BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || '',
+  API_VERSION: '', // Routes already start with /api
   TIMEOUT: 30000, // 30 seconds
 };
 

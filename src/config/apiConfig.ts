@@ -2,10 +2,11 @@
 
 // API Configuration
 export const API_CONFIG = {
+  // Use empty string for same-origin requests (works for both dev and production)
   BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || '',
-  API_VERSION: '/api', // Next.js API routes are at /api
+  API_VERSION: '', // Not needed since routes already start with /api
   TIMEOUT: 30000, // 30 seconds
-  USE_STATIC_DATA: process.env.NODE_ENV === 'development' ? true : false, // Toggle between static and API data
+  USE_STATIC_DATA: false, // Always use API in production
 };
 
 // API Endpoints
@@ -144,7 +145,11 @@ export const API_ENDPOINTS = {
 
 // Helper function to build complete API URL
 export const buildApiUrl = (endpoint: string, params?: Record<string, string | number>): string => {
-  let url = `${API_CONFIG.BASE_URL}${API_CONFIG.API_VERSION}${endpoint}`;
+  // Ensure endpoint starts with / and doesn't have double slashes
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  
+  // If BASE_URL is empty, use same-origin (relative path)
+  let url = API_CONFIG.BASE_URL ? `${API_CONFIG.BASE_URL}${cleanEndpoint}` : cleanEndpoint;
   
   // Replace path parameters
   if (params) {
