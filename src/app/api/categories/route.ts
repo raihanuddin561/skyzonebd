@@ -52,8 +52,6 @@ export async function GET(request: NextRequest) {
       { success: false, error: 'Failed to fetch categories' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -148,8 +146,6 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to create category', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -217,7 +213,5 @@ export async function DELETE(request: NextRequest) {
       { error: 'Failed to delete categories', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
