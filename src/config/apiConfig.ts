@@ -13,133 +13,133 @@ export const API_CONFIG = {
 export const API_ENDPOINTS = {
   // Authentication endpoints
   AUTH: {
-    LOGIN: '/auth/login',
-    REGISTER: '/auth/register',
-    LOGOUT: '/auth/logout',
-    REFRESH: '/auth/refresh',
-    FORGOT_PASSWORD: '/auth/forgot-password',
-    RESET_PASSWORD: '/auth/reset-password',
-    VERIFY_EMAIL: '/auth/verify-email',
-    PROFILE: '/auth/profile',
+    LOGIN: '/api/auth/login',
+    REGISTER: '/api/auth/register',
+    LOGOUT: '/api/auth/logout',
+    REFRESH: '/api/auth/refresh',
+    FORGOT_PASSWORD: '/api/auth/forgot-password',
+    RESET_PASSWORD: '/api/auth/reset-password',
+    VERIFY_EMAIL: '/api/auth/verify-email',
+    PROFILE: '/api/auth/profile',
   },
 
   // User endpoints
   USER: {
-    GET_PROFILE: '/user/profile',
-    UPDATE_PROFILE: '/user/profile',
-    CHANGE_PASSWORD: '/user/profile/password',
-    UPLOAD_AVATAR: '/user/avatar',
-    GET_ORDERS: '/user/orders',
-    GET_WISHLIST: '/user/wishlist',
-    DELETE_ACCOUNT: '/user/delete',
+    GET_PROFILE: '/api/user/profile',
+    UPDATE_PROFILE: '/api/user/profile',
+    CHANGE_PASSWORD: '/api/user/profile/password',
+    UPLOAD_AVATAR: '/api/user/avatar',
+    GET_ORDERS: '/api/user/orders',
+    GET_WISHLIST: '/api/user/wishlist',
+    DELETE_ACCOUNT: '/api/user/delete',
   },
 
   // Product endpoints
   PRODUCTS: {
-    GET_ALL: '/products',
-    GET_BY_ID: '/products/:id',
-    SEARCH: '/products/search',
-    GET_BY_CATEGORY: '/products/category/:category',
-    GET_CATEGORIES: '/products/categories',
-    GET_FEATURED: '/products?featured=true', // Query param instead of path
-    GET_RELATED: '/products/:id/related',
-    GET_REVIEWS: '/products/:id/reviews',
-    ADD_REVIEW: '/products/:id/reviews',
-    GET_SPECIFICATIONS: '/products/:id/specifications',
+    GET_ALL: '/api/products',
+    GET_BY_ID: '/api/products/:id',
+    SEARCH: '/api/products/search',
+    GET_BY_CATEGORY: '/api/products/category/:category',
+    GET_CATEGORIES: '/api/products/categories',
+    GET_FEATURED: '/api/products?featured=true', // Query param instead of path
+    GET_RELATED: '/api/products/:id/related',
+    GET_REVIEWS: '/api/products/:id/reviews',
+    ADD_REVIEW: '/api/products/:id/reviews',
+    GET_SPECIFICATIONS: '/api/products/:id/specifications',
   },
 
   // Company/Seller endpoints
   COMPANIES: {
-    GET_ALL: '/companies',
-    GET_BY_ID: '/companies/:id',
-    GET_PRODUCTS: '/companies/:id/products',
-    GET_PROFILE: '/companies/profile',
-    UPDATE_PROFILE: '/companies/profile',
-    VERIFY_COMPANY: '/companies/verify',
+    GET_ALL: '/api/companies',
+    GET_BY_ID: '/api/companies/:id',
+    GET_PRODUCTS: '/api/companies/:id/products',
+    GET_PROFILE: '/api/companies/profile',
+    UPDATE_PROFILE: '/api/companies/profile',
+    VERIFY_COMPANY: '/api/companies/verify',
   },
 
   // Cart endpoints
   CART: {
-    GET_CART: '/cart',
-    ADD_ITEM: '/cart/add',
-    UPDATE_ITEM: '/cart/update',
-    REMOVE_ITEM: '/cart/remove',
-    CLEAR_CART: '/cart/clear',
-    GET_COUNT: '/cart/count',
-    GET_TOTAL: '/cart/total',
+    GET_CART: '/api/cart',
+    ADD_ITEM: '/api/cart/add',
+    UPDATE_ITEM: '/api/cart/update',
+    REMOVE_ITEM: '/api/cart/remove',
+    CLEAR_CART: '/api/cart/clear',
+    GET_COUNT: '/api/cart/count',
+    GET_TOTAL: '/api/cart/total',
   },
 
   // Wishlist endpoints
   WISHLIST: {
-    GET_WISHLIST: '/wishlist',
-    ADD_ITEM: '/wishlist/add',
-    REMOVE_ITEM: '/wishlist/remove',
-    CLEAR_WISHLIST: '/wishlist/clear',
-    GET_COUNT: '/wishlist/count',
+    GET_WISHLIST: '/api/wishlist',
+    ADD_ITEM: '/api/wishlist/add',
+    REMOVE_ITEM: '/api/wishlist/remove',
+    CLEAR_WISHLIST: '/api/wishlist/clear',
+    GET_COUNT: '/api/wishlist/count',
   },
 
   // Order endpoints
   ORDERS: {
-    CREATE_ORDER: '/orders',
-    GET_ORDERS: '/orders',
-    GET_ORDER_BY_ID: '/orders/:id',
-    UPDATE_ORDER_STATUS: '/orders/:id/status',
-    CANCEL_ORDER: '/orders/:id/cancel',
-    GET_ORDER_HISTORY: '/orders/history',
-    TRACK_ORDER: '/orders/:id/track',
+    CREATE_ORDER: '/api/orders',
+    GET_ORDERS: '/api/orders',
+    GET_ORDER_BY_ID: '/api/orders/:id',
+    UPDATE_ORDER_STATUS: '/api/orders/:id/status',
+    CANCEL_ORDER: '/api/orders/:id/cancel',
+    GET_ORDER_HISTORY: '/api/orders/history',
+    TRACK_ORDER: '/api/orders/:id/track',
   },
 
   // Category endpoints
   CATEGORIES: {
-    GET_ALL: '/categories',
-    GET_BY_ID: '/categories/:id',
-    GET_PRODUCTS: '/categories/:id/products',
-    GET_SUBCATEGORIES: '/categories/:id/subcategories',
+    GET_ALL: '/api/categories',
+    GET_BY_ID: '/api/categories/:id',
+    GET_PRODUCTS: '/api/categories/:id/products',
+    GET_SUBCATEGORIES: '/api/categories/:id/subcategories',
   },
 
   // Search endpoints
   SEARCH: {
-    PRODUCTS: '/search/products',
-    COMPANIES: '/search/companies',
-    SUGGESTIONS: '/search/suggestions',
-    POPULAR: '/search/popular',
+    PRODUCTS: '/api/search/products',
+    COMPANIES: '/api/search/companies',
+    SUGGESTIONS: '/api/search/suggestions',
+    POPULAR: '/api/search/popular',
   },
 
   // File upload endpoints
   UPLOAD: {
-    PRODUCT_IMAGE: '/upload/product-image',
-    COMPANY_LOGO: '/upload/company-logo',
-    USER_AVATAR: '/upload/user-avatar',
-    BULK_PRODUCTS: '/upload/bulk-products',
+    PRODUCT_IMAGE: '/api/upload/product-image',
+    COMPANY_LOGO: '/api/upload/company-logo',
+    USER_AVATAR: '/api/upload/user-avatar',
+    BULK_PRODUCTS: '/api/upload/bulk-products',
   },
 
   // Analytics endpoints
   ANALYTICS: {
-    PRODUCT_VIEWS: '/analytics/product-views',
-    POPULAR_PRODUCTS: '/analytics/popular-products',
-    SEARCH_TRENDS: '/analytics/search-trends',
-    SALES_REPORT: '/analytics/sales-report',
+    PRODUCT_VIEWS: '/api/analytics/product-views',
+    POPULAR_PRODUCTS: '/api/analytics/popular-products',
+    SEARCH_TRENDS: '/api/analytics/search-trends',
+    SALES_REPORT: '/api/analytics/sales-report',
   },
 
   // Notification endpoints
   NOTIFICATIONS: {
-    GET_ALL: '/notifications',
-    MARK_READ: '/notifications/:id/read',
-    MARK_ALL_READ: '/notifications/mark-all-read',
-    GET_UNREAD_COUNT: '/notifications/unread-count',
-    DELETE: '/notifications/:id',
+    GET_ALL: '/api/notifications',
+    MARK_READ: '/api/notifications/:id/read',
+    MARK_ALL_READ: '/api/notifications/mark-all-read',
+    GET_UNREAD_COUNT: '/api/notifications/unread-count',
+    DELETE: '/api/notifications/:id',
   },
 
   // Settings endpoints
   SETTINGS: {
-    GET_SETTINGS: '/settings',
-    UPDATE_SETTINGS: '/settings',
-    GET_PAYMENT_METHODS: '/settings/payment-methods',
-    UPDATE_PAYMENT_METHOD: '/settings/payment-methods',
-    GET_SHIPPING_ADDRESSES: '/settings/shipping-addresses',
-    ADD_SHIPPING_ADDRESS: '/settings/shipping-addresses',
-    UPDATE_SHIPPING_ADDRESS: '/settings/shipping-addresses/:id',
-    DELETE_SHIPPING_ADDRESS: '/settings/shipping-addresses/:id',
+    GET_SETTINGS: '/api/settings',
+    UPDATE_SETTINGS: '/api/settings',
+    GET_PAYMENT_METHODS: '/api/settings/payment-methods',
+    UPDATE_PAYMENT_METHOD: '/api/settings/payment-methods',
+    GET_SHIPPING_ADDRESSES: '/api/settings/shipping-addresses',
+    ADD_SHIPPING_ADDRESS: '/api/settings/shipping-addresses',
+    UPDATE_SHIPPING_ADDRESS: '/api/settings/shipping-addresses/:id',
+    DELETE_SHIPPING_ADDRESS: '/api/settings/shipping-addresses/:id',
   },
 };
 
