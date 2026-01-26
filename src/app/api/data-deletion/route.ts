@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateUser } from '@/lib/auth';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 // POST - Create a new data deletion request (Customer)
 export async function POST(request: NextRequest) {
   try {

@@ -3,6 +3,12 @@ import { emailService } from '@/lib/email';
 import { logInfo, logError } from '@/lib/logger';
 import { prisma } from '@/lib/db';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

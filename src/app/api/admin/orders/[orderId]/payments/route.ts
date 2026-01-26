@@ -9,6 +9,12 @@ import { requireAdmin } from '@/lib/auth';
 import { recordPayment, calculateOrderDue, getOrderPayments } from '@/services/paymentService';
 import { logActivity } from '@/lib/activityLogger';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 /**
  * POST /api/admin/orders/[orderId]/payments
  * Record a payment for an order

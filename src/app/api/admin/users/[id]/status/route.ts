@@ -5,6 +5,12 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { UserRole, isSuperAdmin, isAdmin } from '@/types/roles';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 /**
  * PATCH /api/admin/users/[id]/status
  * Toggle user active status (Admin or Super Admin)

@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 export async function GET() {
   return NextResponse.json({
     NODE_ENV: process.env.NODE_ENV,

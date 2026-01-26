@@ -3,6 +3,12 @@ import { verify, JwtPayload } from 'jsonwebtoken';
 import { logActivity } from '@/lib/activityLogger';
 import { prisma } from '@/lib/db';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 interface DecodedToken extends JwtPayload {
   userId: string;
   role: string;

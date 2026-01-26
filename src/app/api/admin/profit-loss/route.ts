@@ -7,6 +7,11 @@ import {
   getProfitTrend,
   calculateYTDProfit 
 } from '@/utils/comprehensiveProfitCalculation';
+
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
 import { checkPermission } from '@/middleware/permissionMiddleware';
 
 /**

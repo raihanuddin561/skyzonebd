@@ -10,6 +10,12 @@ import { prisma } from '@/lib/prisma';
 import { requirePartner } from '@/lib/auth';
 import { getPaginationParams, createPaginationResponse } from '@/lib/paginationHelper';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 export async function GET(request: NextRequest) {
   try {
     // Authenticate partner

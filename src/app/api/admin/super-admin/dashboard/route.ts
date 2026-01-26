@@ -6,6 +6,12 @@ import { requireAuth } from '@/lib/auth';
 import { isSuperAdmin } from '@/types/roles';
 import { UserRole } from '@/types/roles';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 /**
  * GET /api/admin/super-admin/dashboard
  * Super admin dashboard data

@@ -5,6 +5,11 @@ import { prisma } from '@/lib/db';
 import { autoGenerateProfitReport } from '@/utils/profitReportGeneration';
 import { calculateItemPrice, validateCustomerDiscount } from '@/utils/pricingEngine';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
 interface DecodedToken extends JwtPayload {
   userId: string;
   role: string;

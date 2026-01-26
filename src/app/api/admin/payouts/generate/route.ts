@@ -11,6 +11,12 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { startOfDay, endOfDay } from 'date-fns';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 export async function POST(request: NextRequest) {
   try {
     // Authenticate admin

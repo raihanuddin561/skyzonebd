@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revokeAllPermissions } from '@/utils/permissions';
 import { checkPermission } from '@/middleware/permissionMiddleware';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 /**
  * DELETE /api/admin/permissions/revoke-all?userId=xxx
  * Revoke all permissions from a user

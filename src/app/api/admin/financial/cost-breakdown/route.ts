@@ -13,6 +13,12 @@ import { calculateDateRange, formatCurrency, calculatePercentageChange } from '@
 import { getPaginationParams, createPaginationResponse } from '@/lib/paginationHelper';
 import { startOfDay, startOfWeek, startOfMonth, format } from 'date-fns';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 type GroupBy = 'day' | 'week' | 'month';
 
 export async function GET(request: NextRequest) {

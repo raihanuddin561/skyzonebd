@@ -3,6 +3,12 @@ import { prisma } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { verify } from 'jsonwebtoken';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 export async function POST(request: Request) {
   try {
     // Only allow in development OR with SUPER_ADMIN role

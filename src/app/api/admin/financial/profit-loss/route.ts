@@ -11,6 +11,12 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { calculateDateRange, formatCurrency } from '@/lib/financialCalculator';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 export async function GET(request: NextRequest) {
   const notices: string[] = [];
 

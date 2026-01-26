@@ -3,6 +3,12 @@ import prisma from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { SaleType } from '@prisma/client';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 // GET - Get all sales (with filters)
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {

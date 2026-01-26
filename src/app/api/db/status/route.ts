@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma, testConnection } from '@/lib/db'
 import { verify } from 'jsonwebtoken'
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 export async function GET(request: NextRequest) {
   try {
     // Require admin authentication

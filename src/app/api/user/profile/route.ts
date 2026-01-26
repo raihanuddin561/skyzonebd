@@ -5,6 +5,12 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 /**
  * GET /api/user/profile
  * Get current user's profile

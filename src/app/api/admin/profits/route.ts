@@ -6,6 +6,11 @@ import {
   getProfitTrends,
 } from '@/utils/partnerProfitDistribution';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;

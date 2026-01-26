@@ -3,6 +3,12 @@ import { DeletionRequestStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 // GET - List all deletion requests (Admin only)
 export async function GET(request: NextRequest) {
   try {

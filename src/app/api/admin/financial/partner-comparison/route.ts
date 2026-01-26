@@ -12,6 +12,12 @@ import { requireAdmin } from '@/lib/auth';
 import { calculateDateRange, formatCurrency, calculatePercentageChange } from '@/lib/financialCalculator';
 import { getPaginationParams, createPaginationResponse } from '@/lib/paginationHelper';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 export async function GET(request: NextRequest) {
   const notices: string[] = [];
 

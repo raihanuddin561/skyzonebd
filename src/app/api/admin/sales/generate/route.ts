@@ -3,6 +3,12 @@ import prisma from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { SaleType } from '@prisma/client';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 // POST - Generate sales from delivered orders
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {

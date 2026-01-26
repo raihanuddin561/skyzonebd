@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verify, JwtPayload } from 'jsonwebtoken';
 import { getActivityStats } from '@/lib/activityLogger';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 interface DecodedToken extends JwtPayload {
   userId: string;
   role: string;

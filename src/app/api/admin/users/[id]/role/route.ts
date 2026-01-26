@@ -6,6 +6,12 @@ import { requireAuth } from '@/lib/auth';
 import { canAssignRoles } from '@/lib/permissions';
 import { UserRole, isSuperAdmin } from '@/types/roles';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 /**
  * PATCH /api/admin/users/[id]/role
  * Update user role (Super Admin only)

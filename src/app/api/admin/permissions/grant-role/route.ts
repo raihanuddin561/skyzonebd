@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { grantRolePermissions } from '@/utils/permissions';
 import { checkPermission } from '@/middleware/permissionMiddleware';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 /**
  * POST /api/admin/permissions/grant-role
  * Grant a predefined role's permissions to a user

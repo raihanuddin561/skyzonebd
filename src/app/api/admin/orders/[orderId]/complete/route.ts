@@ -8,6 +8,12 @@ import { requireAdmin } from '@/lib/auth';
 import { completeOrderDelivery, validateOrderForCompletion } from '@/services/orderFulfillmentService';
 import { logActivity } from '@/lib/activityLogger';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 /**
  * POST /api/admin/orders/[orderId]/complete
  * Complete order delivery and finalize COGS

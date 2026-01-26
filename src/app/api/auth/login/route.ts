@@ -3,6 +3,12 @@ import { sign } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();

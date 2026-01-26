@@ -12,6 +12,12 @@ import { requireAdmin } from '@/lib/auth';
 import { calculateDateRange, formatCurrency, calculatePercentageChange, calculateGrowthRate } from '@/lib/financialCalculator';
 import { startOfDay, startOfWeek, startOfMonth, format, addDays, addWeeks, addMonths } from 'date-fns';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 type GroupBy = 'day' | 'week' | 'month';
 
 export async function GET(request: NextRequest) {

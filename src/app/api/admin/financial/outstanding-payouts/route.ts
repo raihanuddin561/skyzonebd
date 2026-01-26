@@ -13,6 +13,12 @@ import { formatCurrency } from '@/lib/financialCalculator';
 import { getPaginationParams, createPaginationResponse } from '@/lib/paginationHelper';
 import { differenceInDays } from 'date-fns';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 export async function GET(request: NextRequest) {
   const notices: string[] = [];
 

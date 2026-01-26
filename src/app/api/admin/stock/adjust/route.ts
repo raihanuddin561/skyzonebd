@@ -3,6 +3,12 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { validateStockAdjustment } from '@/utils/stockCalculations';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 /**
  * POST /api/admin/stock/adjust
  * Adjust stock levels for a product

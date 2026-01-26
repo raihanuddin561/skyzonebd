@@ -4,6 +4,12 @@ import { requireAuth } from '@/lib/auth';
 import { canOverridePercentage, requireAdmin } from '@/lib/permissions';
 import { UserRole } from '@/types/roles';
 
+// Vercel configuration
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // 60 seconds timeout
+
+
 export async function GET(request: NextRequest) {
   try {
     // Require authentication
