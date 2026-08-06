@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { verify, JwtPayload } from 'jsonwebtoken';
+import { getJwtSecret } from '@/lib/auth';
 import { logActivity } from '@/lib/activityLogger';
 
 // Vercel configuration
@@ -34,7 +35,7 @@ export async function GET(
     const token = authHeader.substring(7);
     let decoded: DecodedToken;
     try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+      decoded = verify(token, getJwtSecret()) as DecodedToken;
     } catch {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },
@@ -126,7 +127,7 @@ export async function PUT(
     const token = authHeader.substring(7);
     let decoded: DecodedToken;
     try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+      decoded = verify(token, getJwtSecret()) as DecodedToken;
     } catch {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },
@@ -188,7 +189,15 @@ export async function PUT(
             }
           }
         },
-        customer: true,
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            companyName: true
+          }
+        },
         enteredByUser: {
           select: {
             id: true,
@@ -246,7 +255,7 @@ export async function DELETE(
     const token = authHeader.substring(7);
     let decoded: DecodedToken;
     try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+      decoded = verify(token, getJwtSecret()) as DecodedToken;
     } catch {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },

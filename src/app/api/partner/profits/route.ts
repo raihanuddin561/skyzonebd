@@ -2,51 +2,14 @@
 // Partner Profits - Detailed profit information
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/prisma';
+import { requirePartner } from '@/lib/auth';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
-
-// Helper to verify partner authentication
-function verifyPartner(request: NextRequest): { 
-  authorized: true; 
-  userId: string; 
-  partnerId?: string;
-} | { 
-  authorized: false; 
-  error: string 
-} {
-  try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return { authorized: false, error: 'No authorization token' };
-    }
-
-    const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { 
-      userId: string; 
-      role: string;
-      partnerId?: string;
-    };
-
-    // Partner role required
-    if (decoded.role.toUpperCase() !== 'PARTNER') {
-      return { authorized: false, error: 'Partner access required' };
-    }
-
-    return { 
-      authorized: true, 
-      userId: decoded.userId,
-      partnerId: decoded.partnerId 
-    };
-  } catch {
-    return { authorized: false, error: 'Invalid token' };
-  }
-}
 
 /**
  * GET /api/partner/profits
@@ -62,37 +25,22 @@ function verifyPartner(request: NextRequest): {
  */
 export async function GET(request: NextRequest) {
   try {
-    const auth = verifyPartner(request);
-    if (!auth.authorized) {
-      return NextResponse.json(
-        { success: false, error: auth.error },
-        { status: 401 }
-      );
-    }
+    const user = await requirePartner(request);
 
-    // Find partner
-    let partner = null;
-    if (auth.partnerId) {
-      partner = await prisma.partner.findUnique({
-        where: { id: auth.partnerId }
-      });
-    } else {
-      partner = await prisma.partner.findFirst({
-        where: { 
-          OR: [
-            { email: (await prisma.user.findUnique({ where: { id: auth.userId }, select: { email: true } }))?.email },
-            { id: auth.userId }
-          ]
-        }
-      });
-    }
-
-    if (!partner) {
-      return NextResponse.json(
-        { success: false, error: 'Partner record not found' },
-        { status: 404 }
-      );
-    }
+    // Find the Partner record for this user. Prefer the explicit userId
+    // link (ADR-008); fall back to matching by email for any Partner rows
+    // that predate the link and haven't been connected yet. A pure SELLER
+    // with no linked Partner row is expected (ADR-008) and no longer 404s —
+    // distribution data is simply empty (Amazon-Style Wholesale Platform
+    // Gap Closure — Phase 4 part 4).
+    const partner = await prisma.partner.findFirst({
+      where: {
+        OR: [
+          { userId: user.id },
+          { email: user.email }
+        ]
+      }
+    });
 
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;
@@ -105,11 +53,11 @@ export async function GET(request: NextRequest) {
 
     const response: any = {
       success: true,
-      partner: {
+      partner: partner ? {
         id: partner.id,
         name: partner.name,
         profitSharePercentage: partner.profitSharePercentage
-      },
+      } : null,
       data: {}
     };
 
@@ -121,8 +69,9 @@ export async function GET(request: NextRequest) {
       }
     } : {};
 
-    // 1. Profit Distributions
-    if (type === 'all' || type === 'distributions') {
+    // 1. Profit Distributions — a Partner-only concept; a seller with no
+    // linked Partner record simply has none (previously 404'd instead).
+    if (partner && (type === 'all' || type === 'distributions')) {
       const distributionWhere: any = {
         partnerId: partner.id,
         ...dateFilter
@@ -180,12 +129,21 @@ export async function GET(request: NextRequest) {
           }
         }
       };
+    } else if (type === 'all' || type === 'distributions') {
+      response.data.distributions = {
+        items: [],
+        summary: { totalCount: 0, totalAmount: 0, byStatus: { pending: 0, approved: 0, paid: 0 }, pagination: { limit, offset, hasMore: false } }
+      };
     }
 
-    // 2. Profit Reports
+    // 2. Profit Reports. ProfitReport.sellerId is populated from
+    // Product.sellerId (a User.id, per profitReportGeneration.ts) — a real
+    // bug here queried `partner.id` instead, a different id space, so this
+    // always returned empty for any real partner (Amazon-Style Wholesale
+    // Platform Gap Closure — Phase 4 part 4).
     if (type === 'all' || type === 'reports') {
       const reportWhere: any = {
-        sellerId: partner.id,
+        sellerId: user.id,
         ...dateFilter
       };
 
@@ -273,6 +231,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(response);
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Partner Profits Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch profit data' },

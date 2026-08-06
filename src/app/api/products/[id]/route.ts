@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
 import { logActivity } from '@/lib/activityLogger';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { validateWholesalePricing, formatValidationErrors } from '@/utils/wholesaleValidation';
-import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
+import { requireAdmin, verifyToken } from '@/lib/auth';
+import { UserRole, isAdmin as isAdminRole } from '@/types/roles';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -11,20 +11,28 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
 
-// Use shared auth helper
-const verifyAdmin = verifyAdminToken;
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id: productId } = await params;
-    
-    // Check if request is from admin (for edit pages)
+
+    // Check if request is from an admin (for edit pages, which need to see
+    // inactive products). Previously this only checked whether the header
+    // *started with* "Bearer " — never verifying the token at all, so any
+    // string prefixed "Bearer " (valid or not) was treated as admin access
+    // and bypassed the isActive filter entirely. Now verifies the token and
+    // checks the actual role (docs/architecture-review/14_Technical_Debt.md §22).
     const authHeader = request.headers.get('authorization');
-    const isAuthenticated = authHeader?.startsWith('Bearer ');
-    
+    let isAdminRequest = false;
+    if (authHeader?.startsWith('Bearer ')) {
+      const decoded = verifyToken(authHeader.substring(7));
+      if (decoded) {
+        isAdminRequest = isAdminRole(decoded.role as UserRole);
+      }
+    }
+
     // Find product by ID or slug
     const product = await prisma.product.findFirst({
       where: {
@@ -32,8 +40,8 @@ export async function GET(
           { id: productId },
           { slug: productId }
         ],
-        // Only filter by isActive for public access (non-authenticated)
-        ...(isAuthenticated ? {} : { isActive: true })
+        // Only filter by isActive for non-admin access
+        ...(isAdminRequest ? {} : { isActive: true })
       },
       include: {
         category: {
@@ -159,14 +167,11 @@ export async function PUT(
 ) {
   try {
     // Verify admin access
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    const auth = await requireAdmin(request);
 
     const { id: productId } = await params;
     const body = await request.json();
-    
+
     // Check if product exists
     const existing = await prisma.product.findUnique({
       where: { id: productId }
@@ -276,7 +281,7 @@ export async function PUT(
 
     // Get admin user info for logging
     const admin = await prisma.user.findUnique({
-      where: { id: auth.userId },
+      where: { id: auth.id },
       select: { name: true }
     });
 
@@ -289,7 +294,7 @@ export async function PUT(
 
     // Log activity
     await logActivity({
-      userId: auth.userId!,
+      userId: auth.id,
       userName: admin?.name || 'Admin',
       action: 'UPDATE',
       entityType: 'Product',
@@ -323,6 +328,9 @@ export async function PUT(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Update Product Error:', error);
     return NextResponse.json(
       { error: 'Failed to update product', details: error instanceof Error ? error.message : 'Unknown error' },
@@ -340,10 +348,7 @@ export async function DELETE(
 ) {
   try {
     // Verify admin access
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    const auth = await requireAdmin(request);
 
     const { id: productId } = await params;
 
@@ -383,13 +388,13 @@ export async function DELETE(
 
     // Get admin user info for logging
     const admin = await prisma.user.findUnique({
-      where: { id: auth.userId },
+      where: { id: auth.id },
       select: { name: true }
     });
 
     // Log activity
     await logActivity({
-      userId: auth.userId!,
+      userId: auth.id,
       userName: admin?.name || 'Admin',
       action: 'DELETE',
       entityType: 'Product',
@@ -409,6 +414,9 @@ export async function DELETE(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Delete Product Error:', error);
     return NextResponse.json(
       { error: 'Failed to delete product', details: error instanceof Error ? error.message : 'Unknown error' },

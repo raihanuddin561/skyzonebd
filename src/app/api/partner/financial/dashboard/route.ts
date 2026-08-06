@@ -22,23 +22,28 @@ export async function GET(request: NextRequest) {
     // Authenticate partner
     const user = await requirePartner(request);
     
-    // Find partner record
+    // Find the Partner record for this user. Prefer the explicit userId
+    // link (ADR-008); fall back to matching by email for any Partner rows
+    // that predate the link and haven't been connected yet. (Previously
+    // matched `{ id: user.id }` instead of `{ userId: user.id }` — Partner.id
+    // and User.id are different id spaces, so that branch never matched a
+    // real link; fixed as part of the Amazon-style gap-closure Phase 0.)
     const partner = await prisma.partner.findFirst({
       where: {
         OR: [
-          { email: user.email },
-          { id: user.id }
+          { userId: user.id },
+          { email: user.email }
         ]
       }
     });
-    
-    if (!partner) {
-      return NextResponse.json(
-        { success: false, error: 'Partner record not found' },
-        { status: 404 }
-      );
-    }
-    
+
+    // A pure SELLER with no linked Partner row no longer 404s — the
+    // revenue/profit/topProducts sections below are scoped to this seller's
+    // own products instead of the whole platform's, and the
+    // partnerShare/distributions sections are zeroed (Amazon-Style
+    // Wholesale Platform Gap Closure — Phase 4 part 4).
+    const sellerScoped = !partner;
+
     // Parse query parameters for date range
     const searchParams = request.nextUrl.searchParams;
     const periodParam = searchParams.get('period') || 'thisMonth';
@@ -78,32 +83,41 @@ export async function GET(request: NextRequest) {
         createdAt: {
           gte: dateRange.startDate,
           lte: dateRange.endDate
-        }
+        },
+        ...(sellerScoped ? { orderItems: { some: { product: { sellerId: user.id } } } } : {})
       },
       select: {
         id: true,
         total: true,
         grossProfit: true,
         orderItems: {
+          where: sellerScoped ? { product: { sellerId: user.id } } : undefined,
           select: {
             quantity: true,
             costPerUnit: true,
-            totalProfit: true
+            totalProfit: true,
+            total: true
           }
         }
       }
     });
-    
-    const currentRevenue = currentOrders.reduce((sum, o) => sum + o.total, 0);
-    const currentProfit = currentOrders.reduce((sum, o) => sum + (o.grossProfit || 0), 0);
+
+    // Seller-scoped: revenue/profit come from this seller's own items only,
+    // since order.total/grossProfit cover every seller on the order.
+    const currentRevenue = sellerScoped
+      ? currentOrders.reduce((sum, o) => sum + o.orderItems.reduce((s, i) => s + i.total, 0), 0)
+      : currentOrders.reduce((sum, o) => sum + o.total, 0);
+    const currentProfit = sellerScoped
+      ? currentOrders.reduce((sum, o) => sum + o.orderItems.reduce((s, i) => s + (i.totalProfit || 0), 0), 0)
+      : currentOrders.reduce((sum, o) => sum + (o.grossProfit || 0), 0);
     const currentOrderCount = currentOrders.length;
-    const currentUnits = currentOrders.reduce((sum, o) => 
+    const currentUnits = currentOrders.reduce((sum, o) =>
       sum + o.orderItems.reduce((itemSum, i) => itemSum + i.quantity, 0), 0
     );
     const currentCosts = currentOrders.reduce((sum, o) =>
       sum + o.orderItems.reduce((itemSum, i) => itemSum + (i.costPerUnit || 0) * i.quantity, 0), 0
     );
-    
+
     // === PREVIOUS PERIOD DATA ===
     const previousOrders = await prisma.order.findMany({
       where: {
@@ -111,69 +125,72 @@ export async function GET(request: NextRequest) {
         createdAt: {
           gte: previousPeriod.startDate,
           lte: previousPeriod.endDate
-        }
+        },
+        ...(sellerScoped ? { orderItems: { some: { product: { sellerId: user.id } } } } : {})
       },
       select: {
         id: true,
         total: true,
-        grossProfit: true
+        grossProfit: true,
+        orderItems: sellerScoped ? { where: { product: { sellerId: user.id } }, select: { total: true, totalProfit: true } } : false
       }
     });
-    
-    const previousRevenue = previousOrders.reduce((sum, o) => sum + o.total, 0);
-    const previousProfit = previousOrders.reduce((sum, o) => sum + (o.grossProfit || 0), 0);
+
+    const previousRevenue = sellerScoped
+      ? previousOrders.reduce((sum, o: any) => sum + o.orderItems.reduce((s: number, i: any) => s + i.total, 0), 0)
+      : previousOrders.reduce((sum, o) => sum + o.total, 0);
+    const previousProfit = sellerScoped
+      ? previousOrders.reduce((sum, o: any) => sum + o.orderItems.reduce((s: number, i: any) => s + (i.totalProfit || 0), 0), 0)
+      : previousOrders.reduce((sum, o) => sum + (o.grossProfit || 0), 0);
     const previousOrderCount = previousOrders.length;
-    
-    // === DISTRIBUTION DATA ===
-    const distributions = await prisma.profitDistribution.findMany({
-      where: {
-        partnerId: partner.id
-      },
-      select: {
-        distributionAmount: true,
-        status: true,
-        createdAt: true
-      }
-    });
-    
+
+    // === DISTRIBUTION DATA === (a Partner-only concept — empty for a
+    // seller with no linked Partner record)
+    const distributions = partner
+      ? await prisma.profitDistribution.findMany({
+          where: { partnerId: partner.id },
+          select: { distributionAmount: true, status: true, createdAt: true }
+        })
+      : [];
+
     const totalPaid = distributions
       .filter(d => d.status === 'PAID')
       .reduce((sum, d) => sum + d.distributionAmount, 0);
-    
+
     const totalApproved = distributions
       .filter(d => d.status === 'APPROVED')
       .reduce((sum, d) => sum + d.distributionAmount, 0);
-    
+
     const totalPending = distributions
       .filter(d => d.status === 'PENDING')
       .reduce((sum, d) => sum + d.distributionAmount, 0);
-    
+
     const outstandingPayouts = totalApproved; // Approved but not yet paid
-    
+
     // Get recent distributions
-    const recentDistributions = await prisma.profitDistribution.findMany({
-      where: {
-        partnerId: partner.id
-      },
-      take: 5,
-      orderBy: {
-        createdAt: 'desc'
-      },
-      select: {
-        id: true,
-        distributionAmount: true,
-        status: true,
-        periodType: true,
-        startDate: true,
-        endDate: true,
-        createdAt: true
-      }
-    });
-    
-    // === TOP PRODUCTS ===
+    const recentDistributions = partner
+      ? await prisma.profitDistribution.findMany({
+          where: { partnerId: partner.id },
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            distributionAmount: true,
+            status: true,
+            periodType: true,
+            startDate: true,
+            endDate: true,
+            createdAt: true
+          }
+        })
+      : [];
+
+    // === TOP PRODUCTS === (seller-scoped to this seller's own products
+    // when there's no linked Partner record)
     const topProducts = await prisma.orderItem.groupBy({
       by: ['productId'],
       where: {
+        ...(sellerScoped ? { product: { sellerId: user.id } } : {}),
         order: {
           status: 'DELIVERED',
           createdAt: {
@@ -231,8 +248,8 @@ export async function GET(request: NextRequest) {
     const currentProfitMargin = currentRevenue > 0 ? (currentProfit / currentRevenue) * 100 : 0;
     const previousProfitMargin = previousRevenue > 0 ? (previousProfit / previousRevenue) * 100 : 0;
     
-    const partnerCurrentShare = currentProfit * (partner.profitSharePercentage / 100);
-    const partnerPreviousShare = previousProfit * (partner.profitSharePercentage / 100);
+    const partnerCurrentShare = partner ? currentProfit * (partner.profitSharePercentage / 100) : 0;
+    const partnerPreviousShare = partner ? previousProfit * (partner.profitSharePercentage / 100) : 0;
     
     // Calculate percentage changes
     const revenueChange = calculatePercentageChange(previousRevenue, currentRevenue);
@@ -262,7 +279,7 @@ export async function GET(request: NextRequest) {
             current: partnerCurrentShare,
             previous: partnerPreviousShare,
             change: partnerShareChange,
-            percentage: partner.profitSharePercentage,
+            percentage: partner?.profitSharePercentage ?? null,
             formatted: formatCurrency(partnerCurrentShare)
           },
           orders: {
@@ -313,7 +330,7 @@ export async function GET(request: NextRequest) {
       },
       meta: {
         generatedAt: new Date().toISOString(),
-        partnerName: partner.name
+        partnerName: partner?.name ?? user.name
       }
     });
     

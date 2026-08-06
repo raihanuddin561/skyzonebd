@@ -28,10 +28,6 @@ model User {
   discountReason     String? // Reason for discount (e.g., "VIP Customer", "Annual Contract")
   discountValidUntil DateTime? // Optional expiration date for discount
 
-  // Profit Sharing Configuration (for sellers/partners)
-  profitSharePercentage Float? // Percentage of profit this seller/partner receives
-  isProfitPartner       Boolean @default(false) // Is this user a profit-sharing partner?
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -51,8 +47,32 @@ model User {
   reviews              Review[] // Product reviews by this user
   manualSalesAsCustomer ManualSalesEntry[]  @relation("ManualSalesCustomer") // Manual sales where this user is the customer
   manualSalesEntered    ManualSalesEntry[]  @relation("SaleEnteredBy") // Manual sales entered by this admin
+  passwordResetTokens   PasswordResetToken[] // Password reset requests for this user
+  partner               Partner? // Optional link if this user account also holds an investor/co-owner Partner record (ADR-008)
+  invoices              Invoice[] // NET30/60/90 invoices where this user is the customer
+  wishlist              Wishlist? // Persistent wishlist (one per user)
+  returns               Return[] // Return requests filed by this user
 
   @@map("users")
+}
+
+// Password Reset Tokens - short-lived, single-use tokens for the
+// forgot-password flow. Only a hash of the token is stored (never the raw
+// value the user receives by email), so a database read/leak alone cannot
+// be used to reset an account's password.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
 // User Permissions - Granular Access Control
@@ -189,6 +209,7 @@ model Address {
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("addresses")
 }
 
@@ -306,7 +327,13 @@ model Product {
   reviews        Review[] // Product reviews
   stockLots      StockLot[] // Stock lots for FIFO/WAC costing
   manualSalesItems ManualSalesItem[] // Manual sales entries
+  purchaseOrderItems PurchaseOrderItem[] // Purchase-order line items for this product
+  wishlistItems WishlistItem[] // Wishlist entries referencing this product
 
+  @@index([categoryId])
+  @@index([sellerId])
+  @@index([isActive])
+  @@index([isFeatured])
   @@map("products")
 }
 
@@ -380,8 +407,8 @@ model Order {
   // Wholesale Specific
   purchaseOrderNumber String? // Customer's PO number
   deliveryDate        DateTime? // Requested delivery date
-  paymentTerms        String? // NET30, NET60, etc.
-  invoiceUrl          String? // Generated invoice PDF URL
+  paymentTerms        PaymentTermsType? // NET30/60/90 — set at order creation from paymentMethod; drives Invoice.dueDate
+  invoiceUrl          String? // Deprecated/unused — superseded by the real Invoice relation below (Amazon-style gap-closure Phase 2 part 3)
 
   // Notes
   notes         String?
@@ -399,6 +426,8 @@ model Order {
   sales         Sale[] // Sales generated from this order
   reviews       Review[] // Reviews for products in this order
   ledgerEntries FinancialLedger[] // Financial ledger entries for this order
+  invoice       Invoice? // NET30/60/90 invoice for this order, if applicable
+  returns       Return[] // Return requests filed against this order
 
   @@index([status, createdAt])
   @@index([status, updatedAt])
@@ -424,8 +453,9 @@ model OrderItem {
   createdAt DateTime @default(now())
 
   // Relations
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product      @relation(fields: [productId], references: [id])
+  returnItems ReturnItem[] // Return requests filed against this line item
 
   @@index([productId, createdAt])
   @@index([orderId, productId])
@@ -485,10 +515,19 @@ model RFQ {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  // Admin's quote response (Amazon-Style Wholesale Platform Gap Closure —
+  // Phase 4 part 3). Previously accepted in the respond API's request body
+  // and then silently discarded — only `status` was ever persisted.
+  quotedPrice     Float?
+  responseMessage String?
+  respondedBy     String? // Admin user id who sent the quote
+  respondedAt     DateTime?
+
   // Relations
   user  User      @relation(fields: [userId], references: [id])
   items RFQItem[]
 
+  @@index([userId])
   @@map("rfqs")
 }
 
@@ -504,6 +543,8 @@ model RFQItem {
   rfq     RFQ     @relation(fields: [rfqId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
 
+  @@index([rfqId])
+  @@index([productId])
   @@map("rfq_items")
 }
 
@@ -752,26 +793,6 @@ model PlatformConfig {
 }
 
 // Warehouse/Location Management (for multi-location inventory)
-model Warehouse {
-  id            String  @id @default(cuid())
-  name          String
-  code          String  @unique // Warehouse code (e.g., WH-DHK-01)
-  address       String
-  city          String
-  country       String  @default("Bangladesh")
-  contactPerson String?
-  contactPhone  String?
-  isActive      Boolean @default(true)
-  isPrimary     Boolean @default(false) // Primary warehouse
-  capacity      Int? // Storage capacity
-  currentLoad   Int? // Current storage utilization
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("warehouses")
-}
-
 // Sales Tracking System - Tracks both direct sales and order-based sales
 model Sale {
   id       String   @id @default(cuid())
@@ -1108,6 +1129,19 @@ model Partner {
   email String? @unique
   phone String?
 
+  // Optional link to a login account (ADR-008). Partner is, and remains,
+  // schema-independent of User — most partners may never need a login at
+  // all. This link exists only for the case where the same real person
+  // both holds an investor/co-owner stake (Partner) AND has a User account
+  // (e.g. to use the partner portal, or because they're also a product
+  // seller via Product.sellerId). Setting it never changes any profit
+  // calculation: net-profit-share (this model) and per-product seller
+  // commission (Product.sellerCommissionPercentage) remain two distinct,
+  // separately-computed payments regardless of whether they land on the
+  // same person.
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   // Profit Share Configuration
   profitSharePercentage Float // Percentage of net profit (0-100)
   isActive              Boolean @default(true)
@@ -1160,6 +1194,7 @@ model ProfitDistribution {
   status           String    @default("PENDING") // PENDING, APPROVED, PAID
   approvedBy       String?
   approvedAt       DateTime?
+  paidBy           String? // Amazon-style gap-closure Phase 3 part 2: who executed the PAID transition — recorded for audit completeness, mirroring approvedBy
   paidAt           DateTime?
   paymentMethod    String?
   paymentReference String?
@@ -1358,6 +1393,54 @@ model FinancialLedger {
   @@index([isReconciled])
   @@map("financial_ledger")
 }
+
+// Amazon-style gap-closure Phase 2 part 3: real invoicing + accounts
+// receivable for NET30/60/90 wholesale orders. Order.paymentTerms is now
+// typed against this same enum (previously a free-text String? that
+// neither order-creation route ever populated).
+enum PaymentTermsType {
+  NET30
+  NET60
+  NET90
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// One invoice per NET-terms order — created at order-creation time when
+// paymentMethod is INVOICE_NET30/60/90. isOverdue/aging is computed on
+// read (dueDate < now, not fully paid), not stored, mirroring the pattern
+// already used for partner-payout aging (admin/financial/outstanding-payouts).
+model Invoice {
+  id            String           @id @default(cuid())
+  invoiceNumber String           @unique
+  orderId       String           @unique
+  customerId    String?
+  issueDate     DateTime         @default(now())
+  dueDate       DateTime
+  paymentTerms  PaymentTermsType
+  amount        Float
+  paidAmount    Float            @default(0)
+  status        InvoiceStatus    @default(UNPAID)
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order    Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customer User? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
 // Stock Lot Tracking for FIFO/WAC Costing
 model StockLot {
   id              String   @id @default(cuid())
@@ -1410,11 +1493,82 @@ model StockAllocation {
   
   // Relations
   lot         StockLot  @relation(fields: [lotId], references: [id], onDelete: Cascade)
-  
+
   @@index([lotId])
   @@index([orderId])
   @@index([orderItemId])
   @@map("stock_allocations")
+}
+
+// Supplier master data (Amazon-style gap-closure Phase 1). Replaces the
+// free-text StockLot.supplierId/supplierName scalars with a real,
+// queryable entity for new restocks — those two fields remain on StockLot
+// unchanged (schema-additive, not a breaking rename) so existing lot rows
+// created before this model existed are unaffected.
+model Supplier {
+  id           String   @id @default(cuid())
+  name         String
+  contactName  String?
+  email        String?
+  phone        String?
+  address      String?
+  paymentTerms String?  // Free text (e.g. "NET30", "COD") — same convention as Order.paymentTerms
+  isActive     Boolean  @default(true)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+
+  @@index([isActive])
+  @@map("suppliers")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+// A purchase order to a supplier. Receiving a PO (fully or partially)
+// creates the corresponding StockLot(s) via the existing addStockLot() —
+// this is the queryable, auditable replacement for today's free-text
+// StockLot.purchaseOrderRef string.
+model PurchaseOrder {
+  id           String              @id @default(cuid())
+  poNumber     String              @unique
+  supplierId   String
+  status       PurchaseOrderStatus @default(DRAFT)
+  expectedDate DateTime?
+  notes        String?
+  createdBy    String
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  supplier     Supplier            @relation(fields: [supplierId], references: [id])
+  items        PurchaseOrderItem[]
+
+  @@index([supplierId])
+  @@index([status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id               String        @id @default(cuid())
+  purchaseOrderId  String
+  productId        String
+  quantityOrdered  Int
+  quantityReceived Int           @default(0)
+  costPerUnit      Float
+
+  purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product          Product       @relation(fields: [productId], references: [id])
+
+  @@index([purchaseOrderId])
+  @@index([productId])
+  @@map("purchase_order_items")
 }
 
 // Manual Sales Entry - For recording offline/external sales
@@ -1543,4 +1697,97 @@ model PaymentConfig {
   @@index([type])
   @@index([isActive])
   @@map("payment_configs")
+}
+
+// Return/Refund workflow (Amazon-Style Wholesale Platform Gap Closure —
+// Phase 4 part 5). Return.status is its own independent state machine —
+// Order.status is deliberately NOT overloaded with return state, since
+// item-level partial returns would conflict with a single order-level
+// status. Approving a return (restock) and refunding it (money movement)
+// are two distinct steps, mirroring Phase 3's maker-checker separation for
+// partner payouts (see ADR-016).
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  REFUNDED
+  CANCELLED
+}
+
+model Return {
+  id           String       @id @default(cuid())
+  returnNumber String       @unique
+  orderId      String
+  userId       String
+  reason       String
+  status       ReturnStatus @default(REQUESTED)
+
+  // Admin decision (approve/reject) — restocking happens here; no money moves.
+  decidedBy       String?
+  decidedAt       DateTime?
+  rejectionReason String?
+
+  // Refund (a distinct second step, only from APPROVED)
+  refundAmount     Float? // Sum of this return's item refundAmounts, set at approval
+  refundedBy       String?
+  refundedAt       DateTime?
+  paymentReference String?
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  order Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User         @relation(fields: [userId], references: [id])
+  items ReturnItem[]
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])
+  @@map("returns")
+}
+
+model ReturnItem {
+  id           String @id @default(cuid())
+  returnId     String
+  orderItemId  String
+  quantity     Int
+  refundAmount Float // Snapshotted from the order item's price at request time
+
+  // Relations
+  return    Return    @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id])
+
+  @@index([returnId])
+  @@index([orderItemId])
+  @@map("return_items")
+}
+
+// Persistent Wishlist (Amazon-Style Wholesale Platform Gap Closure — Phase 4 part 2).
+// One wishlist per user; items are unique per product so re-adding is a no-op.
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items WishlistItem[]
+
+  @@map("wishlists")
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  wishlistId String
+  productId  String
+  createdAt  DateTime @default(now())
+
+  wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([wishlistId, productId])
+  @@index([productId])
+  @@map("wishlist_items")
 }

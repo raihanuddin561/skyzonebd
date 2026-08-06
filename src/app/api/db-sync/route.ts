@@ -1,19 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { timingSafeEqual } from 'crypto';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
+// Fails closed if MIGRATION_SECRET_KEY is unset — see src/app/api/migrate/route.ts
+// for the full rationale (same fix, same shared secret, same fail-closed doctrine
+// as lib/auth.ts's getJwtSecret()). This endpoint discloses table names, column
+// counts, and record counts (users/products/categories/orders), so the same
+// hardcoded-fallback risk applies here even though it doesn't run migrations.
+function isAuthorizedMigrationRequest(authHeader: string | null): boolean {
+  const secretKey = process.env.MIGRATION_SECRET_KEY;
+  if (!secretKey) {
+    console.error('FATAL: MIGRATION_SECRET_KEY is not set. Rejecting all requests to this endpoint until it is configured.');
+    return false;
+  }
+  if (!authHeader) return false;
+  const expected = Buffer.from(`Bearer ${secretKey}`);
+  const actual = Buffer.from(authHeader);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
 
 export async function POST(request: NextRequest) {
   try {
     // Security: Check for authorization header
     const authHeader = request.headers.get('authorization');
-    const secretKey = process.env.MIGRATION_SECRET_KEY || 'your-secret-key-here';
-    
-    if (authHeader !== `Bearer ${secretKey}`) {
+
+    if (!isAuthorizedMigrationRequest(authHeader)) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
@@ -60,9 +76,8 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
-    const secretKey = process.env.MIGRATION_SECRET_KEY || 'your-secret-key-here';
-    
-    if (authHeader !== `Bearer ${secretKey}`) {
+
+    if (!isAuthorizedMigrationRequest(authHeader)) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }

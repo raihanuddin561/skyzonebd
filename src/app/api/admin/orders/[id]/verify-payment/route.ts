@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verify, JwtPayload } from 'jsonwebtoken';
+import { getJwtSecret } from '@/lib/auth';
 import { logActivity } from '@/lib/activityLogger';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -36,7 +37,7 @@ export async function PATCH(
     let decoded: DecodedToken;
 
     try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+      decoded = verify(token, getJwtSecret()) as DecodedToken;
     } catch (error) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized - Invalid token' },

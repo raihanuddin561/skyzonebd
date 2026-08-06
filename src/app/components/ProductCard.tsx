@@ -74,7 +74,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <div className="p-3 sm:p-4 bg-white border rounded-xl shadow hover:shadow-lg transition-all relative group">
+    <div className="card-hover p-3 sm:p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-blue-200 relative group">
       {/* Wishlist Button - Better touch target */}
       <button
         onClick={handleWishlistToggle}

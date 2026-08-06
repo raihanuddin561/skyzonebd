@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/auth';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
-
-// Use shared auth helper
-const verifyAdmin = verifyAdminToken;
 
 // GET - Get all active hero slides (public) or all slides (admin)
 export async function GET(request: NextRequest) {
@@ -53,10 +50,7 @@ export async function GET(request: NextRequest) {
 // POST - Create new hero slide (Admin only)
 export async function POST(request: NextRequest) {
   try {
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    await requireAdmin(request);
 
     const body = await request.json();
     const { title, subtitle, imageUrl, linkUrl, productId, buttonText, position, bgColor, textColor } = body;
@@ -91,6 +85,9 @@ export async function POST(request: NextRequest) {
       message: 'Hero slide created successfully'
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Create Hero Slide Error:', error);
     return NextResponse.json(
       { error: 'Failed to create hero slide' },

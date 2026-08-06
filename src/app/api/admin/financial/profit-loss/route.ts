@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { calculateDateRange, formatCurrency } from '@/lib/financialCalculator';
+import { getFinancialSummary } from '@/lib/financialLedger';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -69,33 +70,42 @@ export async function GET(request: NextRequest) {
       notices.push('No delivered orders in the selected period');
     }
     
-    // Calculate revenue components
-    const totalRevenue = deliveredOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    // Revenue/discount display breakdown (still Order-sourced — this is
+    // presentational detail the ledger doesn't carry per-order).
     const subtotalRevenue = deliveredOrders.reduce((sum, o) => sum + o.subtotal, 0);
     const shippingRevenue = deliveredOrders.reduce((sum, o) => sum + (o.shipping || 0), 0);
     const discountsGiven = 0; // No discount field in Order model
-    
-    // === COGS CALCULATION ===
-    let totalCOGS = 0;
+
     let totalUnits = 0;
     let missingCostCount = 0;
-    
     deliveredOrders.forEach(order => {
       order.orderItems.forEach(item => {
-        const costPerUnit = item.costPerUnit || 0;
-        if (!costPerUnit || costPerUnit === 0) {
-          missingCostCount++;
-        }
-        totalCOGS += costPerUnit * (item.quantity || 0);
+        if (!item.costPerUnit) missingCostCount++;
         totalUnits += item.quantity || 0;
       });
     });
-    
     if (missingCostCount > 0) {
       notices.push(`${missingCostCount} order items missing costPerUnit - COGS may be inaccurate`);
     }
-    
-    // === OPERATIONAL COSTS ===
+
+    // === REVENUE / COGS / OPERATIONAL COSTS — FROM THE LEDGER ===
+    // Amazon-style gap-closure Phase 2 part 2 ("one true ledger"): this
+    // route previously recomputed revenue/COGS/operational costs from
+    // Order/OperationalCost directly — one of five independent formulas.
+    // Now sourced from the same canonical getFinancialSummary every other
+    // profit-calculation consumer uses.
+    const summary = await getFinancialSummary(dateRange.startDate, dateRange.endDate);
+    const totalRevenue = summary.revenue;
+    const totalCOGS = summary.cogs;
+    const totalOperationalCosts = summary.operationalCosts + summary.salaryExpenses;
+    const costsByCategory = summary.operationalCostsByCategory;
+
+    if (Object.keys(costsByCategory).length === 0) {
+      notices.push('No operational costs recorded for the selected period');
+    }
+
+    // Still queried directly for the "operationalCostsList" detailed
+    // breakdown below — informational, not used to derive totals above.
     const operationalCosts = await prisma.operationalCost.findMany({
       where: {
         date: {
@@ -111,22 +121,7 @@ export async function GET(request: NextRequest) {
         date: true
       }
     });
-    
-    if (operationalCosts.length === 0) {
-      notices.push('No operational costs recorded for the selected period');
-    }
-    
-    const totalOperationalCosts = operationalCosts.reduce((sum, c) => sum + (c.amount || 0), 0);
-    
-    // Group operational costs by category
-    const costsByCategory = operationalCosts.reduce((acc, cost) => {
-      if (!acc[cost.category]) {
-        acc[cost.category] = 0;
-      }
-      acc[cost.category] += cost.amount;
-      return acc;
-    }, {} as Record<string, number>);
-    
+
     // === PROFIT DISTRIBUTIONS ===
     const distributions = await prisma.profitDistribution.findMany({
       where: {
@@ -161,16 +156,26 @@ export async function GET(request: NextRequest) {
       .reduce((sum, d) => sum + d.distributionAmount, 0);
     
     // === PROFIT CALCULATIONS ===
+    // grossProfit/operatingProfit are exactly summary.grossProfit/
+    // netProfitBeforeDistribution — recomputed here from the same
+    // already-fetched totals for clarity, not as an independent formula.
     const grossProfit = totalRevenue - totalCOGS;
     const grossProfitMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
-    
+
     const operatingProfit = grossProfit - totalOperationalCosts;
     const operatingProfitMargin = totalRevenue > 0 ? (operatingProfit / totalRevenue) * 100 : 0;
-    
-    const netProfit = operatingProfit - approvedDistributions;
+
+    // netProfit and platformRetainedProfit previously used two different
+    // distribution subsets (approvedDistributions vs. totalDistributions
+    // including PENDING) — a real internal inconsistency. Both now derive
+    // from the ledger's distributionsPaid (only what's actually been
+    // paid — Phase 2 part 1's createCommissionEntry posts only on the
+    // PAID transition), so there is exactly one definition of "what the
+    // platform has actually paid out" feeding both figures.
+    const netProfit = summary.netProfitBeforeDistribution;
     const netProfitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
-    
-    const platformRetainedProfit = operatingProfit - totalDistributions;
+
+    const platformRetainedProfit = summary.platformRetainedProfit;
     
     // === ORDER METRICS ===
     const totalOrders = deliveredOrders.length;
@@ -190,7 +195,7 @@ export async function GET(request: NextRequest) {
           totalOperationalCosts,
           operatingProfit,
           operatingProfitMargin,
-          totalDistributions: approvedDistributions,
+          totalDistributions: summary.distributionsPaid,
           netProfit,
           netProfitMargin,
           platformRetainedProfit,

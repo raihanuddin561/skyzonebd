@@ -6,18 +6,17 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import { toast } from 'react-toastify';
 import ImageZoomLightbox from '@/components/common/ImageZoomLightbox';
 import QuantityInput from '@/components/common/QuantityInput';
+import { getLineTotal } from '@/utils/cartPricing';
 
 export default function CartPage() {
   const { items, removeFromCart, updateQuantity, clearCart, getTotalItems, getTotalPrice } = useCart();
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-
-  // Debug: Log cart items
-  console.log('Cart page - Cart items:', items, 'Count:', items.length);
 
   const handleQuantityChange = (productId: string | number, newQuantity: number, minOrderQuantity: number) => {
     // Only enforce MOQ for wholesale users, guests and retail can order any quantity >= 1
@@ -41,23 +40,24 @@ export default function CartPage() {
         <Header />
         <div className="max-w-4xl mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold mb-8 text-gray-900">Your Cart</h1>
-          
-          <div className="text-center py-16">
-            <div className="mb-4">
-              <svg className="mx-auto h-24 w-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+
+          <div className="text-center py-16 bg-gray-50 rounded-2xl border border-gray-100">
+            <div className="w-24 h-24 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-6">
+              <svg className="h-12 w-12 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold text-gray-600 mb-4">Your cart is empty</h2>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">Your cart is empty</h2>
             <p className="text-gray-500 mb-8">Add some products to get started with your B2B order.</p>
-            <Link 
-              href="/" 
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors cursor-pointer"
+            <Link
+              href="/products"
+              className="inline-block bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-8 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer"
             >
               Continue Shopping
             </Link>
           </div>
         </div>
+        <Footer />
       </main>
     );
   }
@@ -87,7 +87,7 @@ export default function CartPage() {
           <div className="lg:col-span-2">
             <div className="space-y-4">
               {items.map((item) => (
-                <div key={item.product.id} className="bg-white border rounded-lg p-3 sm:p-4 shadow-sm">
+                <div key={item.product.id} className="bg-white border border-gray-100 rounded-xl p-3 sm:p-4 shadow-sm hover:border-blue-200 transition-colors">
                   <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                     {/* Product Image with Zoom */}
                     <div 
@@ -162,7 +162,7 @@ export default function CartPage() {
                       <div className="mt-3 pt-3 border-t border-gray-100">
                         <p className="text-sm sm:text-base text-gray-900">
                           <span className="text-gray-600">Subtotal: </span>
-                          <span className="font-bold text-blue-700">৳{(item.product.price * item.quantity).toLocaleString()}</span>
+                          <span className="font-bold text-blue-700">৳{getLineTotal(item.product, item.quantity).toLocaleString()}</span>
                         </p>
                       </div>
                     </div>
@@ -174,25 +174,25 @@ export default function CartPage() {
 
           {/* Order Summary */}
           <div className="lg:col-span-1">
-            <div className="bg-gray-50 border rounded-lg p-4 sm:p-6 lg:sticky lg:top-4">
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 sm:p-6 lg:sticky lg:top-4 overflow-hidden">
               <h2 className="text-lg sm:text-xl font-semibold mb-4 text-gray-900">Order Summary</h2>
-              
+
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-sm sm:text-base">
                   <span className="text-gray-600">Total Items:</span>
                   <span className="font-semibold text-gray-900">{getTotalItems()}</span>
                 </div>
-                
-                <div className="flex justify-between items-center text-base sm:text-lg font-bold border-t pt-3">
+
+                <div className="flex justify-between items-center text-base sm:text-lg font-bold border-t border-gray-100 pt-3">
                   <span className="text-gray-900">Total Amount:</span>
                   <span className="text-blue-700">৳{getTotalPrice().toLocaleString()}</span>
                 </div>
               </div>
-              
+
               <button
                 onClick={handleProceedToCheckout}
                 disabled={isProcessing}
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer text-sm sm:text-base flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3.5 px-4 rounded-xl font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 transition-all cursor-pointer text-sm sm:text-base flex items-center justify-center gap-2"
               >
                 {isProcessing ? (
                   <>
@@ -211,13 +211,20 @@ export default function CartPage() {
                   </>
                 )}
               </button>
-              
-              <Link 
+
+              <Link
                 href="/"
                 className="block w-full text-center text-blue-600 hover:text-blue-700 font-medium mt-4 cursor-pointer text-sm sm:text-base"
               >
                 ← Continue Shopping
               </Link>
+
+              <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-center gap-2 text-xs text-gray-500">
+                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 10-8 0v4h8z" />
+                </svg>
+                Secure checkout &middot; Verified sellers
+              </div>
             </div>
           </div>
         </div>
@@ -234,6 +241,8 @@ export default function CartPage() {
           alt="Product image"
         />
       )}
+
+      <Footer />
     </main>
   );
 }

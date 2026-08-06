@@ -24,15 +24,16 @@ try {
     console.log('🔧 Running development migrations...');
     execSync('prisma migrate dev --skip-seed', { stdio: 'inherit' });
   } else {
-    // Production/Staging: Use db push to avoid advisory lock issues
-    console.log('🚀 Pushing schema to production database...');
-    try {
-      execSync('prisma db push --skip-generate', { stdio: 'inherit', timeout: 30000 });
-      console.log('✅ Schema push completed successfully!');
-    } catch (pushError) {
-      console.log('⚠️  DB push failed, trying migrate deploy...');
-      execSync('prisma migrate deploy', { stdio: 'inherit', timeout: 30000 });
-    }
+    // Production/Staging: apply only already-committed, reviewed migration
+    // files. `prisma db push` (the previous primary path here) has no
+    // migration history and no rollback — it can silently apply destructive,
+    // unreviewed schema changes straight from whatever schema.prisma happens
+    // to be checked out, against the live database, on every single build.
+    // `migrate deploy` only ever applies migrations that already exist as
+    // committed files, so a bad schema change gets caught by whoever forgot
+    // to write the migration, not by the production database eating it.
+    console.log('🚀 Applying committed migrations to the database...');
+    execSync('prisma migrate deploy', { stdio: 'inherit', timeout: 30000 });
   }
   
   console.log('✅ Database migrations completed successfully!');

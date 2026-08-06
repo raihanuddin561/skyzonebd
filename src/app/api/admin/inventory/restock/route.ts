@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
 import { addStockLot, getProductStockLots } from '@/services/inventoryService';
 import { logActivity } from '@/lib/activityLogger';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
 // Vercel configuration
 export const runtime = 'nodejs';

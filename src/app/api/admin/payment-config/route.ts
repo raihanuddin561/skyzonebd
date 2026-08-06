@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verify, JwtPayload } from 'jsonwebtoken';
-import { prisma } from '@/lib/db';
+import { getJwtSecret } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activityLogger';
 
 // Vercel configuration
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
     let decoded: DecodedToken;
 
     try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+      decoded = verify(token, getJwtSecret()) as DecodedToken;
     } catch (error) {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     let decoded: DecodedToken;
 
     try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+      decoded = verify(token, getJwtSecret()) as DecodedToken;
     } catch (error) {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },

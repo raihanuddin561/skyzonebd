@@ -25,6 +25,15 @@ export default function SettingsPage() {
       requireEmailVerification: false,
       autoApproveB2B: false,
     },
+    carousel: {
+      autoplayEnabled: true,
+      autoplaySpeed: 5,
+      transitionEffect: 'fade' as 'fade' | 'slide',
+      pauseOnHover: true,
+      showArrows: true,
+      showDots: true,
+      showCounter: true,
+    },
   });
   const [loading, setLoading] = useState(true);
 
@@ -34,7 +43,10 @@ export default function SettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch('/api/admin/settings');
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/settings', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
       const result = await response.json();
       if (result.success) {
         setSettings(result.data);
@@ -49,9 +61,13 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch('/api/admin/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify(settings),
       });
       const result = await response.json();
@@ -210,6 +226,68 @@ export default function SettingsPage() {
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </div>
+        </div>
+      </div>
+
+      {/* Carousel Settings */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1">Homepage Carousel</h3>
+        <p className="text-sm text-gray-500 mb-4">Control how the hero carousel behaves and looks. Slide content itself is managed under Hero Slides.</p>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Transition Effect</label>
+            <select
+              value={settings.carousel.transitionEffect}
+              onChange={(e) => setSettings({...settings, carousel: {...settings.carousel, transitionEffect: e.target.value as 'fade' | 'slide'}})}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            >
+              <option value="fade">Fade &amp; Zoom</option>
+              <option value="slide">Slide</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Autoplay Speed: {settings.carousel.autoplaySpeed}s per slide
+            </label>
+            <input
+              type="range"
+              min={3}
+              max={10}
+              step={1}
+              value={settings.carousel.autoplaySpeed}
+              onChange={(e) => setSettings({...settings, carousel: {...settings.carousel, autoplaySpeed: parseInt(e.target.value)}})}
+              disabled={!settings.carousel.autoplayEnabled}
+              className="w-full disabled:opacity-50"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {[
+            { key: 'autoplayEnabled' as const, label: 'Autoplay', desc: 'Automatically advance to the next slide' },
+            { key: 'pauseOnHover' as const, label: 'Pause on Hover', desc: 'Stop autoplay while a visitor is looking at the carousel' },
+            { key: 'showArrows' as const, label: 'Navigation Arrows', desc: 'Show previous/next arrow buttons' },
+            { key: 'showDots' as const, label: 'Slide Indicators', desc: 'Show the dot indicators below the carousel' },
+            { key: 'showCounter' as const, label: 'Slide Counter', desc: 'Show the "1 / 4" counter badge' },
+          ].map((item) => (
+            <div key={item.key} className="flex items-center justify-between py-3 border-b border-gray-200 last:border-0">
+              <div>
+                <div className="font-medium text-gray-900">{item.label}</div>
+                <div className="text-sm text-gray-600">{item.desc}</div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.carousel[item.key]}
+                  onChange={(e) => setSettings({...settings, carousel: {...settings.carousel, [item.key]: e.target.checked}})}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+          ))}
         </div>
       </div>
 

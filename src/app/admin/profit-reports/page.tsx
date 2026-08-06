@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { api } from '@/utils/apiClient';
 
 interface ProfitReport {
   id: string;
@@ -73,7 +74,7 @@ export default function ProfitReportsPage() {
       if (productId) params.append('productId', productId);
       if (sellerId) params.append('sellerId', sellerId);
 
-      const response = await fetch(`/api/admin/profit-reports?${params.toString()}`);
+      const response = await api.get(`/api/admin/profit-reports?${params.toString()}`);
       const data = await response.json();
 
       if (response.ok && data.success) {
@@ -97,11 +98,7 @@ export default function ProfitReportsPage() {
       setError('');
       setSuccess('');
 
-      const response = await fetch('/api/admin/profit-reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId })
-      });
+      const response = await api.post('/api/admin/profit-reports', { orderId });
 
       const data = await response.json();
 

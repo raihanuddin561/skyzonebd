@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
+import { UserRole, isAdmin } from '@/types/roles';
+import { emailService } from '@/lib/email';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -9,6 +12,14 @@ export const maxDuration = 60; // 60 seconds timeout
 
 export async function GET(request: NextRequest) {
   try {
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status') || 'PENDING';
     const search = searchParams.get('search');
@@ -122,6 +133,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error fetching verification applications:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch verification applications' },
@@ -133,6 +147,14 @@ export async function GET(request: NextRequest) {
 // Update verification status
 export async function PATCH(request: NextRequest) {
   try {
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { applicationId, action, reason } = body;
 
@@ -146,7 +168,7 @@ export async function PATCH(request: NextRequest) {
     // Get the business info to find user
     const businessInfo = await prisma.businessInfo.findUnique({
       where: { id: applicationId },
-      include: { user: true },
+      include: { user: { select: { id: true, name: true, email: true, phone: true, companyName: true } } },
     });
 
     if (!businessInfo) {
@@ -200,11 +222,28 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
+    // Best-effort status-change email (Amazon-style gap-closure Phase 4
+    // part 1) — only for approve/reject, not the intermediate "review" action.
+    if (action === 'approve' || action === 'reject') {
+      const emailResult = await emailService.sendBusinessVerificationStatus(
+        businessInfo.user.email,
+        businessInfo.user.name,
+        action === 'approve' ? 'APPROVED' : 'REJECTED',
+        action === 'reject' ? reason : undefined
+      );
+      if (!emailResult.success) {
+        console.error(`Business verification status email failed for ${businessInfo.user.email}: ${emailResult.error}`);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: `Application ${action}d successfully`,
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error updating verification:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update verification' },
@@ -216,6 +255,14 @@ export async function PATCH(request: NextRequest) {
 // Delete verification applications
 export async function DELETE(request: NextRequest) {
   try {
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { applicationIds } = body;
 
@@ -237,6 +284,9 @@ export async function DELETE(request: NextRequest) {
       message: `${applicationIds.length} application(s) deleted successfully`,
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error deleting applications:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete applications' },

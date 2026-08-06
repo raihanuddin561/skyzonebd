@@ -1,11 +1,13 @@
 'use client'
 
 import { useCart } from '@/contexts/CartContext';
+import { getLineTotal } from '@/utils/cartPricing';
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import { toast } from 'react-toastify';
 
 interface PaymentConfig {
@@ -129,7 +131,7 @@ export default function CheckoutPage() {
           name: item.product.name,
           price: item.product.price,
           quantity: item.quantity,
-          total: item.product.price * item.quantity
+          total: getLineTotal(item.product, item.quantity)
         })),
         shippingAddress: orderData.shippingAddress,
         billingAddress: orderData.billingAddress,
@@ -138,18 +140,6 @@ export default function CheckoutPage() {
         paymentReference: orderData.paymentReference || undefined, // Include transaction ID
         ...(checkoutType === 'guest' && { guestInfo })
       };
-
-      console.log('🛒 Cart items:', items.map(item => ({ id: item.product.id, name: item.product.name })));
-      console.log('📦 Order payload:', orderPayload);
-      console.log('🆔 Product IDs type check:', orderPayload.items.map(item => {
-        const prodId = String(item.productId);
-        return { 
-          id: prodId, 
-          type: typeof item.productId,
-          isString: typeof item.productId === 'string',
-          isCuid: prodId.startsWith('cm')
-        };
-      }));
 
       // Call the actual API to create the order
       const token = localStorage.getItem('token');
@@ -274,7 +264,7 @@ export default function CheckoutPage() {
             <div className="lg:col-span-2 space-y-6">
               {/* Checkout Type Selection */}
               {!user && (
-                <div className="bg-white p-6 rounded-lg shadow-sm">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                   <h2 className="text-xl font-semibold mb-4 text-gray-900">Checkout Options</h2>
                   
                   {/* Guest Welcome Message */}
@@ -316,7 +306,7 @@ export default function CheckoutPage() {
               )}
 
               {/* User Information */}
-              <div className="bg-white p-6 rounded-lg shadow-sm">
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                 <h2 className="text-xl font-semibold mb-4 text-gray-900">
                   {user ? 'Account Information' : 'Contact Information'}
                 </h2>
@@ -404,7 +394,7 @@ export default function CheckoutPage() {
               </div>
 
                 {/* Shipping Information */}
-                <div className="bg-white p-6 rounded-lg shadow-sm">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                   <h2 className="text-xl font-semibold mb-4 text-gray-900">Shipping Address</h2>
                   <textarea
                     name="shippingAddress"
@@ -418,7 +408,7 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* Billing Information */}
-                <div className="bg-white p-6 rounded-lg shadow-sm">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                   <h2 className="text-xl font-semibold mb-4 text-gray-900">Billing Address</h2>
                   <textarea
                     name="billingAddress"
@@ -432,7 +422,7 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* Payment Method */}
-                <div className="bg-white p-6 rounded-lg shadow-sm">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                   <h2 className="text-xl font-semibold mb-4 text-gray-900">Payment Method</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {[
@@ -656,7 +646,7 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* Order Notes */}
-                <div className="bg-white p-6 rounded-lg shadow-sm">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                   <h2 className="text-xl font-semibold mb-4 text-gray-900">Order Notes (Optional)</h2>
                   <textarea
                     name="notes"
@@ -671,9 +661,9 @@ export default function CheckoutPage() {
 
               {/* Order Summary */}
               <div className="lg:col-span-1">
-                <div className="bg-white p-6 rounded-lg shadow-sm sticky top-4">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-4">
                   <h2 className="text-xl font-semibold mb-4 text-gray-900">Order Summary</h2>
-                  
+
                   {/* Order Items */}
                   <div className="space-y-4 mb-6">
                     {items.map((item) => (
@@ -683,25 +673,25 @@ export default function CheckoutPage() {
                           alt={item.product.name}
                           width={60}
                           height={60}
-                          className="rounded object-cover"
+                          className="rounded-lg object-cover bg-gray-50 border border-gray-100"
                         />
                         <div className="flex-1">
                           <h3 className="font-medium text-sm">{item.product.name}</h3>
                           <p className="text-gray-500 text-sm">Qty: {item.quantity}</p>
-                          <p className="font-medium text-sm">৳{(item.product.price * item.quantity).toLocaleString()}</p>
+                          <p className="font-medium text-sm">৳{getLineTotal(item.product, item.quantity).toLocaleString()}</p>
                         </div>
                       </div>
                     ))}
                   </div>
 
                   {/* Total */}
-                  <div className="border-t pt-4 space-y-2">
-                    <div className="flex justify-between">
+                  <div className="border-t border-gray-100 pt-4 space-y-2">
+                    <div className="flex justify-between text-sm text-gray-600">
                       <span>Total Items:</span>
-                      <span>{getTotalItems()}</span>
+                      <span className="font-semibold text-gray-900">{getTotalItems()}</span>
                     </div>
                     <div className="flex justify-between text-lg font-bold">
-                      <span>Total Amount:</span>
+                      <span className="text-gray-900">Total Amount:</span>
                       <span className="text-blue-700">৳{getTotalPrice().toLocaleString()}</span>
                     </div>
                   </div>
@@ -710,15 +700,23 @@ export default function CheckoutPage() {
                   <button
                     onClick={handlePlaceOrder}
                     disabled={isProcessing}
-                    className="w-full mt-6 bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    className="w-full mt-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3.5 px-4 rounded-xl font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 transition-all cursor-pointer"
                   >
                     {isProcessing ? 'Processing Order...' : 'Place Order'}
                   </button>
+
+                  <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-center gap-2 text-xs text-gray-500">
+                    <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 10-8 0v4h8z" />
+                    </svg>
+                    Your information is secure &amp; encrypted
+                  </div>
                 </div>
               </div>
             </div>
           )}
         </div>
+        <Footer />
       </main>
     );
 }

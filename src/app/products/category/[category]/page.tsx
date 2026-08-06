@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Header from '../../../components/Header';
+import Footer from '../../../components/Footer';
 import ProductCard from '../../../components/ProductCard';
 import { useProductsByCategory } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
@@ -245,6 +246,8 @@ export default function CategoryPage() {
           </div>
         </div>
       </div>
+
+      <Footer />
     </main>
   );
 }

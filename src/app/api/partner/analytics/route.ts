@@ -15,13 +15,29 @@ export const maxDuration = 60; // 60 seconds timeout
 
 export async function GET(req: NextRequest) {
   try {
-    const partner = await requirePartner(req);
-    
+    const user = await requirePartner(req);
+
+    // requirePartner() returns the authenticated User, not a Partner record —
+    // Product.sellerId is a real FK to User.id (correct to use user.id
+    // directly for that), but ProfitDistribution.partnerId is a FK to
+    // Partner.id, a different id space. A SELLER-role user may not have a
+    // linked Partner record at all (ADR-008: the two roles are distinct);
+    // in that case payout data below is simply empty, not an error.
+    const partnerRecord = await prisma.partner.findFirst({
+      where: {
+        OR: [
+          { userId: user.id },
+          { email: user.email }
+        ]
+      }
+    });
+    const partnerId = partnerRecord?.id ?? '__no-linked-partner-record__';
+
     const { searchParams } = new URL(req.url);
     const period = searchParams.get('period') || '30'; // days
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - parseInt(period));
-    
+
     // Parallel queries for performance
     const [
       totalRevenue,
@@ -36,7 +52,7 @@ export async function GET(req: NextRequest) {
       prisma.orderItem.aggregate({
         where: {
           product: {
-            sellerId: partner.id
+            sellerId: user.id
           },
           order: {
             status: { notIn: ['CANCELLED'] },
@@ -54,7 +70,7 @@ export async function GET(req: NextRequest) {
       // Payout information
       prisma.profitDistribution.aggregate({
         where: {
-          partnerId: partner.id,
+          partnerId,
           status: 'PENDING'
         },
         _sum: {
@@ -67,7 +83,7 @@ export async function GET(req: NextRequest) {
         by: ['productId'],
         where: {
           product: {
-            sellerId: partner.id
+            sellerId: user.id
           },
           order: {
             status: { notIn: ['CANCELLED'] },
@@ -91,7 +107,7 @@ export async function GET(req: NextRequest) {
       // Low stock products
       prisma.product.findMany({
         where: {
-          sellerId: partner.id,
+          sellerId: user.id,
           stockQuantity: {
             lte: 10
           },
@@ -117,7 +133,7 @@ export async function GET(req: NextRequest) {
           orderItems: {
             some: {
               product: {
-                sellerId: partner.id
+                sellerId: user.id
               }
             }
           },
@@ -131,7 +147,7 @@ export async function GET(req: NextRequest) {
           orderItems: {
             where: {
               product: {
-                sellerId: partner.id
+                sellerId: user.id
               }
             },
             select: {
@@ -160,7 +176,7 @@ export async function GET(req: NextRequest) {
           orderItems: {
             some: {
               product: {
-                sellerId: partner.id
+                sellerId: user.id
               }
             }
           },
@@ -172,7 +188,7 @@ export async function GET(req: NextRequest) {
       // Total product count
       prisma.product.count({
         where: {
-          sellerId: partner.id
+          sellerId: user.id
         }
       })
     ]);
@@ -221,7 +237,7 @@ export async function GET(req: NextRequest) {
     const previousRevenue = await prisma.orderItem.aggregate({
       where: {
         product: {
-          sellerId: partner.id
+          sellerId: user.id
         },
         order: {
           status: { notIn: ['CANCELLED'] },
@@ -243,7 +259,7 @@ export async function GET(req: NextRequest) {
     // Get recent payouts
     const recentPayouts = await prisma.profitDistribution.findMany({
       where: {
-        partnerId: partner.id
+        partnerId
       },
       select: {
         id: true,

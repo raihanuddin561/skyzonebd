@@ -9,7 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/api/',
           '/admin/',
-          '/dashboard/',
           '/account/',
           '/profile/',
           '/auth/',
@@ -27,7 +26,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/api/',
           '/admin/',
-          '/dashboard/',
           '/account/',
           '/profile/',
           '/auth/',

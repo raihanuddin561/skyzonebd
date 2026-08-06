@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { requireAuth } from '@/lib/auth';
+import { UserRole, isAdmin } from '@/types/roles';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -117,8 +119,16 @@ function writeShippingConfig(config: any) {
 // GET shipping zones and partners
 export async function GET(request: NextRequest) {
   try {
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     const config = readShippingConfig();
-    
+
     return NextResponse.json({
       success: true,
       data: {
@@ -127,6 +137,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error fetching shipping config:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch shipping configuration' },
@@ -138,6 +151,14 @@ export async function GET(request: NextRequest) {
 // PUT - Update shipping zone
 export async function PUT(request: NextRequest) {
   try {
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { type, id, ...updates } = body; // type: 'zone' or 'partner'
 
@@ -193,6 +214,9 @@ export async function PUT(request: NextRequest) {
       throw new Error('Failed to write shipping config');
     }
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error updating shipping config:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update shipping configuration' },

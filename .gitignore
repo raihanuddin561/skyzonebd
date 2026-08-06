@@ -142,3 +142,8 @@ vite.config.ts.timestamp-*
 
 .vercel
 .env*.local
+
+# Claude Code skill tooling — installed dependencies and transient
+# execution artifacts, not project source
+.claude/skills/*/node_modules
+.claude/skills/*/.temp-execution-*.js

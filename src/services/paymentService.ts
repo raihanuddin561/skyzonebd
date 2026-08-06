@@ -5,7 +5,7 @@
  * for orders with support for partial payments.
  */
 
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { PaymentMethod, PaymentStatus, OrderStatus } from '@prisma/client';
 
 export interface OrderDueInfo {
@@ -82,7 +82,7 @@ export async function recordPayment({
         payments: {
           where: { status: 'PAID' },
         },
-        user: true,
+        user: { select: { id: true, name: true, email: true, phone: true } },
       },
     });
     
@@ -188,7 +188,7 @@ export async function processRefund({
       where: { id: orderId },
       include: { 
         payments: true,
-        user: true,
+        user: { select: { id: true, name: true, email: true, phone: true } },
       },
     });
     

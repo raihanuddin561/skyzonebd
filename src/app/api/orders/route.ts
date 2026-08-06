@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verify, JwtPayload } from 'jsonwebtoken';
+import { getJwtSecret, requireAdmin } from '@/lib/auth';
 import { logActivity } from '@/lib/activityLogger';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { autoGenerateProfitReport } from '@/utils/profitReportGeneration';
 import { calculateItemPrice, validateCustomerDiscount } from '@/utils/pricingEngine';
+import { emailService } from '@/lib/email';
+import { logInfo, logError } from '@/lib/logger';
+import { depleteStockLotsForSale } from '@/services/inventoryService';
+import { alertIfCrossedReorderLevel } from '@/utils/lowStockAlerts';
+import { getPaymentTermsForMethod, checkCreditLimit, createInvoiceForOrder } from '@/services/invoiceService';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -72,7 +78,7 @@ export async function POST(request: NextRequest) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
         const token = authHeader.substring(7);
-        const decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+        const decoded = verify(token, getJwtSecret()) as DecodedToken;
         userId = decoded.userId;
         
         // Get customer discount if user is logged in
@@ -124,9 +130,11 @@ export async function POST(request: NextRequest) {
     for (const item of items) {
       const product = await prisma.product.findUnique({
         where: { id: item.productId.toString() },
-        select: { 
-          id: true, 
-          name: true, 
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          reorderLevel: true,
           wholesalePrice: true,
           moq: true,
           stockQuantity: true,
@@ -216,14 +224,50 @@ export async function POST(request: NextRequest) {
     const shipping = shippingCharge;
     const tax = subtotalAfterDiscount * taxRate;
     const total = subtotalAfterDiscount + shipping + tax;
-    
+
+    // NET30/60/90 orders get a real Invoice + credit-limit check (Amazon-
+    // style gap-closure Phase 2 part 3) — applies only to invoice-on-
+    // credit payment methods, not prepaid/cash ones, per the confirmed
+    // scope decision. NET terms require a registered account: there's no
+    // BusinessInfo/credit history to check for a guest.
+    const netTerms = getPaymentTermsForMethod(paymentMethod);
+    if (netTerms && !userId) {
+      return NextResponse.json(
+        { success: false, error: 'NET payment terms require a registered account — please sign in or choose another payment method' },
+        { status: 400 }
+      );
+    }
+
+    // Collects stock-crossing candidates during the transaction below, so a
+    // low-stock alert email (best-effort, non-blocking) can be sent AFTER
+    // the transaction commits — never inside it (Amazon-style gap-closure
+    // Phase 1).
+    const stockAlertCandidates: Array<{ product: { id: string; name: string; sku: string | null; reorderLevel: number | null }; previousStock: number; newStock: number }> = [];
+
     // Create order in database and deduct stock in a single transaction
     const order = await prisma.$transaction(async (tx) => {
       // Determine payment status based on payment method
       const manualPaymentMethods = ['bkash', 'bank_transfer'];
       const isManualPayment = manualPaymentMethods.includes(paymentMethod.toLowerCase());
       const initialPaymentStatus: 'PENDING_VERIFICATION' | 'PENDING' = isManualPayment ? 'PENDING_VERIFICATION' : 'PENDING';
-      
+
+      // Enforce the customer's credit limit before creating a NET-terms
+      // order (Amazon-style gap-closure Phase 2 part 3) — checked inside
+      // the transaction so two concurrent NET-terms orders from the same
+      // customer can't both pass the check and together exceed the limit.
+      if (netTerms) {
+        const creditCheck = await checkCreditLimit(userId!, total, tx);
+        if (!creditCheck.allowed) {
+          throw new Response(
+            JSON.stringify({
+              success: false,
+              error: `This order would exceed your credit limit (outstanding: ${creditCheck.outstandingBalance}, limit: ${creditCheck.creditLimit}) — please clear outstanding invoices or choose another payment method`,
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
       // Create order with order items
       const newOrder = await tx.order.create({
         data: {
@@ -240,6 +284,7 @@ export async function POST(request: NextRequest) {
           paymentStatus: initialPaymentStatus as any,
           paymentMethod,
           paymentReference: (paymentReference || undefined) as any,
+          paymentTerms: netTerms || undefined,
           shippingAddress,
           billingAddress,
           notes: notes || undefined,
@@ -266,10 +311,6 @@ export async function POST(request: NextRequest) {
                 profitPerUnit: profitPerUnit,
                 totalProfit: totalProfit,
                 profitMargin: profitMargin,
-                // Store original & tier info for audit
-                originalPrice: priceInfo.basePrice,
-                discountApplied: priceInfo.totalSavings / item.quantity,
-                finalPrice: priceInfo.finalUnitPrice
               };
             })
           }
@@ -279,25 +320,113 @@ export async function POST(request: NextRequest) {
             include: {
               product: true
             }
+          },
+          user: {
+            select: { email: true }
           }
         }
       });
 
-      // Deduct stock for each ordered item
+      // Deduct stock for each ordered item. The sufficiency check above (in
+      // `productDataMap`'s construction) reads stock before this transaction
+      // opens, so two concurrent checkouts for the last few units of a
+      // product could both pass that check and both reach this decrement —
+      // Prisma's atomic `decrement` keeps the arithmetic correct but does
+      // not, by itself, stop the value from crossing zero. Guarding the
+      // update's `where` with `stockQuantity: { gte: quantity }` and
+      // checking the affected row count makes this the actual point that
+      // prevents overselling: if a concurrent request already consumed the
+      // remaining stock, `count` is 0 here and the whole transaction (and
+      // therefore the order) is rolled back rather than committing with
+      // negative stock (Production Readiness Audit, 2026-07-18).
       for (const item of items) {
-        await tx.product.update({
-          where: { id: item.productId.toString() },
+        const productIdStr = item.productId.toString();
+        const existingStock = await tx.product.findUnique({
+          where: { id: productIdStr },
+          select: { stockQuantity: true },
+        });
+        const previousStock = existingStock?.stockQuantity ?? 0;
+
+        const result = await tx.product.updateMany({
+          where: {
+            id: productIdStr,
+            stockQuantity: { gte: item.quantity }
+          },
           data: {
             stockQuantity: {
               decrement: item.quantity
             }
           }
         });
+        if (result.count === 0) {
+          throw new Error(`Insufficient stock for product ${item.productId} (concurrent order consumed the remaining units)`);
+        }
+
+        const { product: productForAlert } = productDataMap.get(productIdStr);
+        stockAlertCandidates.push({
+          product: { id: productForAlert.id, name: productForAlert.name, sku: productForAlert.sku, reorderLevel: productForAlert.reorderLevel },
+          previousStock,
+          newStock: previousStock - item.quantity,
+        });
+
+        // Deplete real stock lots for accurate Weighted-Average-Cost COGS
+        // (Amazon-style gap-closure Phase 1) — falls back to the flat
+        // snapshotted cost already stored on the order item if this
+        // product has no lot history yet (e.g. never restocked through
+        // the lot-tracked restock endpoint), so existing products behave
+        // exactly as before until they're restocked with real lot data.
+        const orderItem = newOrder.orderItems.find(oi => oi.productId === productIdStr);
+        if (orderItem) {
+          const { costPerUnit: wacCostPerUnit } = await depleteStockLotsForSale(tx, {
+            productId: productIdStr,
+            quantity: item.quantity,
+            orderId: newOrder.id,
+            orderItemId: orderItem.id,
+          });
+
+          if (wacCostPerUnit !== null && wacCostPerUnit !== orderItem.costPerUnit) {
+            const profitPerUnit = orderItem.price - wacCostPerUnit;
+            const totalProfit = profitPerUnit * orderItem.quantity;
+            const profitMargin = orderItem.total > 0 ? (totalProfit / orderItem.total) * 100 : 0;
+
+            await tx.orderItem.update({
+              where: { id: orderItem.id },
+              data: { costPerUnit: wacCostPerUnit, profitPerUnit, totalProfit, profitMargin },
+            });
+          }
+        }
+
+        await tx.inventoryLog.create({
+          data: {
+            productId: productIdStr,
+            action: 'SALE',
+            quantity: -item.quantity,
+            previousStock,
+            newStock: previousStock - item.quantity,
+            reference: newOrder.id,
+            notes: `Order ${newOrder.orderNumber}`,
+            performedBy: userId || undefined,
+          },
+        });
       }
-      
+
+      if (netTerms) {
+        await createInvoiceForOrder(
+          { orderId: newOrder.id, customerId: userId!, amount: total, paymentTerms: netTerms },
+          tx
+        );
+      }
+
       return newOrder;
     });
-    
+
+    // Best-effort, non-blocking low-stock alerts — fired after the
+    // transaction has committed, never inside it (Amazon-style gap-closure
+    // Phase 1).
+    for (const candidate of stockAlertCandidates) {
+      await alertIfCrossedReorderLevel(candidate.product, candidate.previousStock, candidate.newStock);
+    }
+
     // Log order creation activity
     const isManualPayment = ['bkash', 'bank_transfer'].includes(paymentMethod.toLowerCase());
     const paymentInfo = isManualPayment ? ` | Payment: ${paymentMethod.toUpperCase()} (TrxID: ${paymentReference}) - Pending Verification` : '';
@@ -311,7 +440,23 @@ export async function POST(request: NextRequest) {
       entityName: order.orderNumber,
       description: `Order created for ${items.length} items. Total: ৳${total.toFixed(2)}${customerDiscount > 0 ? ` (${customerDiscount}% customer discount applied)` : ''}${paymentInfo}`
     });
-    
+
+    // Send an order-confirmation email — best-effort: emailService never
+    // throws (it returns { success, error }), but a failure here still
+    // must not fail an order that was already committed to the database.
+    const recipientEmail = order.user?.email || guestData?.email;
+    if (recipientEmail) {
+      const emailResult = await emailService.sendOrderConfirmation(
+        recipientEmail,
+        order.orderNumber,
+        order.total,
+        order.orderItems.map(item => ({ name: item.product.name, quantity: item.quantity, price: item.price }))
+      );
+      if (!emailResult.success) {
+        console.error(`Order confirmation email failed for order ${order.orderNumber}: ${emailResult.error}`);
+      }
+    }
+
     // Format response to match frontend expectations
     const responseOrder = {
       id: order.id,
@@ -347,6 +492,13 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
 
   } catch (error) {
+    // A guarded update/credit-limit check inside the transaction throws a
+    // pre-built Response to abort with the right status/message (the same
+    // pattern this file's other handlers already use below) — surface it
+    // as-is instead of collapsing it into a generic 500.
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Create Order API Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create order' },
@@ -370,7 +522,7 @@ export async function GET(request: NextRequest) {
     const token = authHeader.substring(7);
     let decoded: DecodedToken;
     try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+      decoded = verify(token, getJwtSecret()) as DecodedToken;
     } catch (error) {
       console.error('Token verification failed:', error);
       return NextResponse.json(
@@ -474,33 +626,13 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-    try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Only admin can update order status (case-insensitive check)
-    if (decoded.role.toUpperCase() !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Admin access required' },
-        { status: 403 }
-      );
-    }
+    // Canonical auth (ADR-009 / P2-9): previously a hand-rolled JWT decode +
+    // `role.toUpperCase() !== 'ADMIN'` check that excluded SUPER_ADMIN.
+    // requireAdmin() correctly treats SUPER_ADMIN as admin-or-higher
+    // (docs/architecture-review/14_Technical_Debt.md §22). This handler has
+    // no live frontend caller today (admin/orders/page.tsx uses
+    // PATCH /api/orders/[id] instead) but is exported and reachable.
+    const decoded = await requireAdmin(request);
 
     const body = await request.json();
     const { orderId, status, paymentStatus } = body;
@@ -560,13 +692,16 @@ export async function PATCH(request: NextRequest) {
           include: {
             product: true
           }
+        },
+        user: {
+          select: { email: true }
         }
       }
     });
 
     // Get admin user info for logging
     const admin = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: decoded.id },
       select: { name: true }
     });
 
@@ -581,7 +716,7 @@ export async function PATCH(request: NextRequest) {
 
     if (changes.length > 0) {
       await logActivity({
-        userId: decoded.userId,
+        userId: decoded.id,
         userName: admin?.name || 'Admin',
         action: 'STATUS_CHANGE',
         entityType: 'Order',
@@ -604,7 +739,33 @@ export async function PATCH(request: NextRequest) {
     if (updateData.status === 'DELIVERED' && currentOrder.status !== 'DELIVERED') {
       const profitResult = await autoGenerateProfitReport(updatedOrder.id);
       if (profitResult.success) {
-        console.log(profitResult.message);
+        if (profitResult.ledgerPosted === false) {
+          logError(profitResult.message, new Error('Ledger posting failed'), 'Orders API');
+        } else {
+          logInfo(profitResult.message, 'Orders API');
+        }
+      } else {
+        // Previously silently ignored — a failed profit-report generation
+        // (e.g. a genuine error, not just "already exists") produced no
+        // log at all, even though the order status update itself still
+        // succeeded and returned 200 to the caller.
+        logError(`Profit report generation did not succeed for order ${updatedOrder.id}`, new Error(profitResult.message), 'Orders API');
+      }
+    }
+
+    // Best-effort shipped/delivered notification email (Amazon-style
+    // gap-closure Phase 4 part 1) — same transition-detection idiom as the
+    // DELIVERED -> autoGenerateProfitReport hook above.
+    if (
+      (updateData.status === 'SHIPPED' && currentOrder.status !== 'SHIPPED') ||
+      (updateData.status === 'DELIVERED' && currentOrder.status !== 'DELIVERED')
+    ) {
+      const recipientEmail = updatedOrder.user?.email || updatedOrder.guestEmail;
+      if (recipientEmail) {
+        const emailResult = await emailService.sendOrderStatusUpdate(recipientEmail, updatedOrder.orderNumber, updateData.status);
+        if (!emailResult.success) {
+          console.error(`Order status email failed for order ${updatedOrder.orderNumber}: ${emailResult.error}`);
+        }
       }
     }
 
@@ -647,6 +808,9 @@ export async function PATCH(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Update Order API Error:', error);
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
       return NextResponse.json(

@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
-import jwt from 'jsonwebtoken';
 import { logActivity } from '@/lib/activityLogger';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { validateWholesalePricing, formatValidationErrors } from '@/utils/wholesaleValidation';
-import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
+import { requireAdmin, verifyToken } from '@/lib/auth';
+import { UserRole, isAdmin as isAdminRole } from '@/types/roles';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
-
-// Use shared auth helper
-const verifyAdmin = verifyAdminToken;
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,17 +24,20 @@ export async function GET(request: NextRequest) {
     const featured = searchParams.get('featured') === 'true';
     const includeInactive = searchParams.get('includeInactive') === 'true';
 
-    // Check if request is from admin (for showing inactive products)
+    // Check if request is from admin (for showing inactive products).
+    // Auth is optional here (guests browse this endpoint too), so this uses
+    // verifyToken (returns null rather than throwing) + the canonical
+    // isAdmin() role-hierarchy check — previously a hand-rolled
+    // `role.toUpperCase() === 'ADMIN'` that excluded SUPER_ADMIN accounts
+    // from the admin catalog view (docs/architecture-review/14_Technical_Debt.md §22).
     let isAdmin = false;
-    try {
-      const authHeader = request.headers.get('authorization');
-      if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string; role: string };
-        isAdmin = decoded.role.toUpperCase() === 'ADMIN';
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const decoded = verifyToken(token);
+      if (decoded) {
+        isAdmin = isAdminRole(decoded.role as UserRole);
       }
-    } catch {
-      // Not admin or invalid token, continue as guest
     }
 
     // Build where clause
@@ -206,13 +206,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Verify admin access
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    const auth = await requireAdmin(request);
 
     const body = await request.json();
-    
+
     // Validate required fields - Removed retailPrice requirement (wholesale only mode)
     const requiredFields = ['name', 'slug', 'categoryId', 'imageUrl', 'price'];
     for (const field of requiredFields) {
@@ -299,13 +296,13 @@ export async function POST(request: NextRequest) {
 
     // Get admin user info for logging
     const admin = await prisma.user.findUnique({
-      where: { id: auth.userId },
+      where: { id: auth.id },
       select: { name: true }
     });
 
     // Log activity
     await logActivity({
-      userId: auth.userId!,
+      userId: auth.id,
       userName: admin?.name || 'Admin',
       action: 'CREATE',
       entityType: 'Product',
@@ -328,6 +325,9 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Create Product Error:', error);
     return NextResponse.json(
       { error: 'Failed to create product', details: error instanceof Error ? error.message : 'Unknown error' },
@@ -342,10 +342,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // Verify admin access
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    const auth = await requireAdmin(request);
 
     const { searchParams } = new URL(request.url);
     const ids = searchParams.get('ids')?.split(',') || [];
@@ -372,14 +369,14 @@ export async function DELETE(request: NextRequest) {
 
     // Get admin user info for logging
     const admin = await prisma.user.findUnique({
-      where: { id: auth.userId },
+      where: { id: auth.id },
       select: { name: true }
     });
 
     // Log activity for each deleted product
     for (const product of productsToDelete) {
       await logActivity({
-        userId: auth.userId!,
+        userId: auth.id,
         userName: admin?.name || 'Admin',
         action: 'DELETE',
         entityType: 'Product',
@@ -401,6 +398,9 @@ export async function DELETE(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Delete Products Error:', error);
     return NextResponse.json(
       { error: 'Failed to delete products', details: error instanceof Error ? error.message : 'Unknown error' },

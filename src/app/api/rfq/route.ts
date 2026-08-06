@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
+import { UserRole, isAdmin } from '@/types/roles';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -7,9 +9,11 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
 
-// GET all RFQs
+// GET RFQs — admins see every RFQ; everyone else sees only their own
 export async function GET(request: NextRequest) {
   try {
+    const authUser = await requireAuth(request);
+
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status') || 'all'; // all, pending, quoted, accepted, rejected
 
@@ -17,6 +21,9 @@ export async function GET(request: NextRequest) {
     let whereClause: any = {};
     if (status !== 'all') {
       whereClause.status = status.toUpperCase();
+    }
+    if (!isAdmin(authUser.role as UserRole)) {
+      whereClause.userId = authUser.id;
     }
 
     const rfqs = await prisma.rFQ.findMany({
@@ -63,6 +70,9 @@ export async function GET(request: NextRequest) {
       message: rfq.message,
       targetPrice: rfq.targetPrice,
       status: rfq.status,
+      quotedPrice: rfq.quotedPrice,
+      responseMessage: rfq.responseMessage,
+      respondedAt: rfq.respondedAt,
       items: rfq.items.map(item => ({
         productId: item.product.id,
         productName: item.product.name,
@@ -86,6 +96,9 @@ export async function GET(request: NextRequest) {
       data: formattedRfqs,
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error fetching RFQs:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch RFQs' },
@@ -94,13 +107,19 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST new RFQ (for customers)
+// POST new RFQ (for customers). The RFQ is always created under the
+// authenticated caller's own identity — a client-supplied `userId` is never
+// trusted, since that would let anyone submit an RFQ as if they were a
+// different user.
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { userId, subject, message, items, targetPrice } = body;
+    const authUser = await requireAuth(request);
 
-    if (!userId || !subject || !items || items.length === 0) {
+    const body = await request.json();
+    const { subject, message, items, targetPrice } = body;
+    const userId = authUser.id;
+
+    if (!subject || !items || items.length === 0) {
       return NextResponse.json(
         { success: false, error: 'Missing required fields' },
         { status: 400 }
@@ -153,6 +172,9 @@ export async function POST(request: NextRequest) {
       message: `RFQ ${rfqNumber} created successfully`,
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error creating RFQ:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create RFQ' },

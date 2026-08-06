@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { checkPermission } from '@/middleware/permissionMiddleware';
+import { createSalaryEntry } from '@/lib/financialLedger';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -97,45 +98,66 @@ export async function POST(request: NextRequest) {
       parseFloat(body.otherDeductions || 0);
     
     const netSalary = grossSalary - totalDeductions;
-    
-    const salary = await prisma.salary.create({
-      data: {
-        employeeId: body.employeeId,
-        month: parseInt(body.month),
-        year: parseInt(body.year),
-        baseSalary: parseFloat(body.baseSalary),
-        allowances: parseFloat(body.allowances) || 0,
-        bonuses: parseFloat(body.bonuses) || 0,
-        overtime: parseFloat(body.overtime) || 0,
-        grossSalary,
-        tax: parseFloat(body.tax) || 0,
-        providentFund: parseFloat(body.providentFund) || 0,
-        insurance: parseFloat(body.insurance) || 0,
-        loan: parseFloat(body.loan) || 0,
-        otherDeductions: parseFloat(body.otherDeductions) || 0,
-        totalDeductions,
-        netSalary,
-        paymentStatus: body.paymentStatus || 'PENDING',
-        paymentDate: body.paymentDate ? new Date(body.paymentDate) : null,
-        paymentMethod: body.paymentMethod,
-        paymentReference: body.paymentReference,
-        workingDays: parseInt(body.workingDays) || 0,
-        presentDays: parseInt(body.presentDays) || 0,
-        absentDays: parseInt(body.absentDays) || 0,
-        leaveDays: parseInt(body.leaveDays) || 0,
-        notes: body.notes
-      },
-      include: {
-        employee: {
-          select: {
-            employeeId: true,
-            firstName: true,
-            lastName: true
+    const paymentStatus = body.paymentStatus || 'PENDING';
+
+    // Only PAID/PARTIAL salaries are real expenses that should hit the
+    // ledger — a PENDING salary record is a planned liability, not yet
+    // money spent (Amazon-style gap-closure Phase 2 part 1).
+    const postsToLedger = paymentStatus === 'PAID' || paymentStatus === 'PARTIAL';
+
+    const salary = await prisma.$transaction(async (tx) => {
+      const created = await tx.salary.create({
+        data: {
+          employeeId: body.employeeId,
+          month: parseInt(body.month),
+          year: parseInt(body.year),
+          baseSalary: parseFloat(body.baseSalary),
+          allowances: parseFloat(body.allowances) || 0,
+          bonuses: parseFloat(body.bonuses) || 0,
+          overtime: parseFloat(body.overtime) || 0,
+          grossSalary,
+          tax: parseFloat(body.tax) || 0,
+          providentFund: parseFloat(body.providentFund) || 0,
+          insurance: parseFloat(body.insurance) || 0,
+          loan: parseFloat(body.loan) || 0,
+          otherDeductions: parseFloat(body.otherDeductions) || 0,
+          totalDeductions,
+          netSalary,
+          paymentStatus,
+          paymentDate: body.paymentDate ? new Date(body.paymentDate) : null,
+          paymentMethod: body.paymentMethod,
+          paymentReference: body.paymentReference,
+          workingDays: parseInt(body.workingDays) || 0,
+          presentDays: parseInt(body.presentDays) || 0,
+          absentDays: parseInt(body.absentDays) || 0,
+          leaveDays: parseInt(body.leaveDays) || 0,
+          notes: body.notes
+        },
+        include: {
+          employee: {
+            select: {
+              employeeId: true,
+              firstName: true,
+              lastName: true
+            }
           }
         }
+      });
+
+      if (postsToLedger) {
+        await createSalaryEntry({
+          id: created.id,
+          employeeId: created.employeeId,
+          employeeName: created.employee ? `${created.employee.firstName} ${created.employee.lastName}` : undefined,
+          netSalary: created.netSalary,
+          month: created.month,
+          year: created.year,
+        }, tx);
       }
+
+      return created;
     });
-    
+
     return NextResponse.json({
       success: true,
       message: 'Salary record created successfully',

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { notFound } from 'next/navigation';
 
 export default function TestUploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -15,6 +16,15 @@ export default function TestUploadPage() {
     setHasToken(!!localStorage.getItem('token'));
     setUserAgent(navigator.userAgent);
   }, []);
+
+  // Debug-only page for manually exercising /api/upload — not meant to be
+  // reachable in a production deployment (the upload endpoint itself
+  // remains auth-protected regardless; this only hides the standalone
+  // test harness page). Placed after every hook call so it never violates
+  // the rules of hooks.
+  if (process.env.NODE_ENV === 'production') {
+    notFound();
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];

@@ -100,7 +100,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         { name: 'Categories', icon: '🏷️', path: '/admin/categories' },
         { name: 'Units', icon: '⚖️', path: '/admin/units' },
         { name: 'Orders', icon: '🛒', path: '/admin/orders' },
+        { name: 'Returns', icon: '↩️', path: '/admin/returns' },
         { name: 'Inventory', icon: '📋', path: '/admin/inventory' },
+        { name: 'Purchase Orders', icon: '📥', path: '/admin/purchase-orders' },
+        { name: 'Suppliers', icon: '🚛', path: '/admin/suppliers' },
       ]
     },
     {
@@ -118,6 +121,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         { name: 'Profit Dashboard', icon: '💰', path: '/admin/profit-dashboard' },
         { name: 'Profit Reports', icon: '📊', path: '/admin/profit-reports' },
         { name: 'Profit & Loss', icon: '📈', path: '/admin/profit-loss' },
+        { name: 'Invoices', icon: '🧾', path: '/admin/invoices' },
+        { name: 'Accounts Receivable', icon: '⏳', path: '/admin/accounts-receivable' },
+        { name: 'Payouts', icon: '💸', path: '/admin/payouts' },
+        { name: 'Financial Ledger', icon: '📒', path: '/admin/financial/ledger' },
+        { name: 'Cost Breakdown', icon: '🧮', path: '/admin/financial/cost-breakdown' },
+        { name: 'Revenue Analytics', icon: '📉', path: '/admin/financial/revenue-analytics' },
+        { name: 'Partner Comparison', icon: '⚖️', path: '/admin/financial/partner-comparison' },
       ]
     },
     {

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { verify, JwtPayload } from 'jsonwebtoken';
+import { getJwtSecret } from '@/lib/auth';
 import { logActivity } from '@/lib/activityLogger';
+import { alertIfCrossedReorderLevel } from '@/utils/lowStockAlerts';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -29,7 +31,7 @@ export async function GET(request: NextRequest) {
     const token = authHeader.substring(7);
     let decoded: DecodedToken;
     try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+      decoded = verify(token, getJwtSecret()) as DecodedToken;
     } catch {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },
@@ -149,7 +151,7 @@ export async function POST(request: NextRequest) {
     const token = authHeader.substring(7);
     let decoded: DecodedToken;
     try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+      decoded = verify(token, getJwtSecret()) as DecodedToken;
     } catch {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },
@@ -209,6 +211,7 @@ export async function POST(request: NextRequest) {
           id: true,
           name: true,
           sku: true,
+          reorderLevel: true,
           stockQuantity: true,
           costPerUnit: true,
           basePrice: true
@@ -280,6 +283,11 @@ export async function POST(request: NextRequest) {
     const totalProfit = total - totalCost;
     const profitMargin = total > 0 ? (totalProfit / total) * 100 : 0;
 
+    // Collects stock-crossing candidates during the transaction below, for
+    // a best-effort, non-blocking low-stock alert fired after it commits
+    // (Amazon-style gap-closure Phase 1).
+    const stockAlertCandidates: Array<{ product: { id: string; name: string; sku: string | null; reorderLevel: number | null }; previousStock: number; newStock: number }> = [];
+
     // Create manual sales entry in transaction
     const entry = await prisma.$transaction(async (tx) => {
       // Create the sales entry
@@ -337,21 +345,39 @@ export async function POST(request: NextRequest) {
       // Adjust inventory if requested
       if (adjustInventory !== false) {
         for (const item of items) {
-          // Fetch product for previous stock value
+          // Fetch product for previous stock value (and for the low-stock
+          // alert check below — Amazon-style gap-closure Phase 1)
           const product = await tx.product.findUnique({
             where: { id: item.productId },
-            select: { stockQuantity: true }
+            select: { stockQuantity: true, name: true, sku: true, reorderLevel: true }
           });
 
           if (!product) continue;
 
-          await tx.product.update({
-            where: { id: item.productId },
+          // Guard the decrement against a concurrent sale/order consuming
+          // the same stock between this pre-fetch and this write (this read
+          // and the write below are both inside the transaction, but
+          // Postgres's default READ COMMITTED isolation does not by itself
+          // prevent that race). If a concurrent transaction already took
+          // the remaining units, `count` is 0 and the whole manual-sale
+          // transaction rolls back rather than committing negative stock
+          // (Production Readiness Audit, 2026-07-18).
+          const stockUpdate = await tx.product.updateMany({
+            where: { id: item.productId, stockQuantity: { gte: item.quantity } },
             data: {
               stockQuantity: {
                 decrement: item.quantity
               }
             }
+          });
+          if (stockUpdate.count === 0) {
+            throw new Error(`Insufficient stock for product ${item.productId} (concurrent sale consumed the remaining units)`);
+          }
+
+          stockAlertCandidates.push({
+            product: { id: item.productId, name: product.name, sku: product.sku, reorderLevel: product.reorderLevel },
+            previousStock: product.stockQuantity,
+            newStock: product.stockQuantity - item.quantity,
           });
 
           // Create inventory log
@@ -401,8 +427,36 @@ export async function POST(request: NextRequest) {
         }
       });
 
+      // Matching COGS debit — previously this entry's only ledger posting
+      // was the revenue CREDIT above, leaving every manual/offline sale's
+      // cost of goods invisible to financial reporting and the ledger
+      // unbalanced for this entire sales channel (Amazon-style gap-closure
+      // Phase 0; same double-entry pattern already used for online orders
+      // in lib/financialLedger.ts's createOrderLedgerEntries).
+      if (totalCost > 0) {
+        await tx.financialLedger.create({
+          data: {
+            sourceType: 'MANUAL_SALE',
+            sourceId: newEntry.id,
+            sourceName: `Manual Sale: ${referenceNumber || newEntry.id}`,
+            amount: totalCost,
+            direction: 'DEBIT',
+            category: 'COGS',
+            subcategory: saleType || 'OFFLINE',
+            description: `Cost of goods for manual sale - ${itemsData.length} items`,
+            notes: notes || null,
+          }
+        });
+      }
+
       return newEntry;
     });
+
+    // Best-effort, non-blocking low-stock alerts, fired after the
+    // transaction has committed (Amazon-style gap-closure Phase 1).
+    for (const candidate of stockAlertCandidates) {
+      await alertIfCrossedReorderLevel(candidate.product, candidate.previousStock, candidate.newStock);
+    }
 
     // Log activity
     await logActivity({

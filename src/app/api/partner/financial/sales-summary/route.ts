@@ -26,23 +26,22 @@ export async function GET(request: NextRequest) {
     // Authenticate partner
     const user = await requirePartner(request);
     
-    // Find partner record
+    // Find partner record. Prefer the explicit userId link (ADR-008); fall
+    // back to matching by email. (Previously matched `{ id: user.id }`
+    // instead of `{ userId: user.id }` — Partner.id and User.id are
+    // different id spaces, so that branch never matched a real link —
+    // Amazon-Style Wholesale Platform Gap Closure — Phase 4 part 4.) A pure
+    // SELLER with no linked Partner row no longer 404s — see the
+    // seller-scoped branch below.
     const partner = await prisma.partner.findFirst({
       where: {
         OR: [
-          { email: user.email },
-          { id: user.id }
+          { userId: user.id },
+          { email: user.email }
         ]
       }
     });
-    
-    if (!partner) {
-      return NextResponse.json(
-        { success: false, error: 'Partner record not found' },
-        { status: 404 }
-      );
-    }
-    
+
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;
     const groupBy = (searchParams.get('groupBy') || 'day') as GroupBy;
@@ -87,14 +86,21 @@ export async function GET(request: NextRequest) {
     // Get pagination params
     const { skip, take, page, limit } = getPaginationParams(searchParams);
     
-    // Get all delivered orders in the date range
+    // Get all delivered orders in the date range. A pure SELLER with no
+    // linked Partner record only sees their own products' contribution, not
+    // the whole platform's — both the order filter and the orderItems
+    // relation itself are scoped to this seller's products, since an
+    // order's own total/grossProfit fields cover every seller's items on it
+    // (Amazon-Style Wholesale Platform Gap Closure — Phase 4 part 4).
+    const sellerScoped = !partner;
     const orders = await prisma.order.findMany({
       where: {
         status: 'DELIVERED',
         createdAt: {
           gte: dateRange.startDate,
           lte: dateRange.endDate
-        }
+        },
+        ...(sellerScoped ? { orderItems: { some: { product: { sellerId: user.id } } } } : {})
       },
       select: {
         id: true,
@@ -103,6 +109,7 @@ export async function GET(request: NextRequest) {
         grossProfit: true,
         createdAt: true,
         orderItems: {
+          where: sellerScoped ? { product: { sellerId: user.id } } : undefined,
           select: {
             quantity: true,
             price: true,
@@ -158,9 +165,16 @@ export async function GET(request: NextRequest) {
       
       const group = grouped.get(key)!;
       group.orderCount += 1;
-      group.revenue += order.total;
-      group.profit += order.grossProfit || 0;
-      
+      // Seller-scoped: revenue/profit come from this seller's own items
+      // only, since order.total/grossProfit cover every seller on the order.
+      if (sellerScoped) {
+        group.revenue += order.orderItems.reduce((sum, item) => sum + item.total, 0);
+        group.profit += order.orderItems.reduce((sum, item) => sum + (item.totalProfit || 0), 0);
+      } else {
+        group.revenue += order.total;
+        group.profit += order.grossProfit || 0;
+      }
+
       // Sum up item-level data
       order.orderItems.forEach(item => {
         group.costs += (item.costPerUnit || 0) * item.quantity;
@@ -182,7 +196,7 @@ export async function GET(request: NextRequest) {
     const enrichedData = salesData.map(period => {
       const aov = period.orderCount > 0 ? period.revenue / period.orderCount : 0;
       const profitMargin = period.revenue > 0 ? (period.profit / period.revenue) * 100 : 0;
-      const partnerShare = period.profit * (partner.profitSharePercentage / 100);
+      const partnerShare = partner ? period.profit * (partner.profitSharePercentage / 100) : 0;
       
       return {
         date: period.date,
@@ -201,20 +215,25 @@ export async function GET(request: NextRequest) {
       };
     });
     
-    // Calculate overall summary for the entire date range
-    const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
-    const totalProfit = orders.reduce((sum, o) => sum + (o.grossProfit || 0), 0);
+    // Calculate overall summary for the entire date range. Seller-scoped:
+    // revenue/profit come from this seller's own items only (see above).
+    const totalRevenue = sellerScoped
+      ? orders.reduce((sum, o) => sum + o.orderItems.reduce((s, i) => s + i.total, 0), 0)
+      : orders.reduce((sum, o) => sum + o.total, 0);
+    const totalProfit = sellerScoped
+      ? orders.reduce((sum, o) => sum + o.orderItems.reduce((s, i) => s + (i.totalProfit || 0), 0), 0)
+      : orders.reduce((sum, o) => sum + (o.grossProfit || 0), 0);
     const totalOrders = orders.length;
-    const totalUnits = orders.reduce((sum, o) => 
+    const totalUnits = orders.reduce((sum, o) =>
       sum + o.orderItems.reduce((itemSum, i) => itemSum + i.quantity, 0), 0
     );
     const totalCosts = orders.reduce((sum, o) =>
       sum + o.orderItems.reduce((itemSum, i) => itemSum + (i.costPerUnit || 0) * i.quantity, 0), 0
     );
-    
+
     const overallAOV = totalOrders > 0 ? totalRevenue / totalOrders : 0;
     const overallProfitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
-    const partnerTotalShare = totalProfit * (partner.profitSharePercentage / 100);
+    const partnerTotalShare = partner ? totalProfit * (partner.profitSharePercentage / 100) : 0;
     
     // Calculate comparison with previous period (if applicable)
     let comparison = null;
@@ -246,7 +265,7 @@ export async function GET(request: NextRequest) {
           averageOrderValue: overallAOV,
           profitMargin: overallProfitMargin,
           partnerShare: partnerTotalShare,
-          partnerSharePercentage: partner.profitSharePercentage
+          partnerSharePercentage: partner?.profitSharePercentage ?? null
         },
         comparison,
         dateRange: {

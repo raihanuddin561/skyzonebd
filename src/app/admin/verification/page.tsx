@@ -54,14 +54,17 @@ export default function B2BVerification() {
           ...(searchTerm && { search: searchTerm }),
         });
 
-        const response = await fetch(`/api/admin/verification?${params}`);
-        
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/admin/verification?${params}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+
         if (!response.ok) {
           throw new Error('Failed to fetch applications');
         }
 
         const result = await response.json();
-        
+
         if (result.success) {
           setApplications(result.data.applications);
         } else {
@@ -161,8 +164,11 @@ export default function B2BVerification() {
         ...(searchTerm && { search: searchTerm }),
       });
 
-      const response = await fetch(`/api/admin/verification?${params}`);
-      
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/admin/verification?${params}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
       if (!response.ok) {
         throw new Error('Failed to fetch applications');
       }

@@ -1,410 +1,197 @@
-// __tests__/deletion/deletion-transitions.test.ts - Data deletion request transition tests
+/**
+ * @jest-environment node
+ */
+// __tests__/deletion/deletion-transitions.test.ts
+// Rewritten for P2-7. The previous version asserted literal values it had
+// just declared in the same test (e.g. `const newStatus = action ===
+// 'approve' ? 'PROCESSING' : 'REJECTED'; expect(newStatus).toBe('PROCESSING')`)
+// — it never called the real admin data-deletion-request routes, so it
+// provided zero regression protection. It now calls the real PATCH
+// (approve/reject) and execute (anonymization) handlers.
+//
+// One deliberate finding from this rewrite: the old file had a test titled
+// "should require rejectionReason when rejecting" asserting a >=10-character
+// minimum. The real route (admin/data-deletion-requests/[id]/route.ts)
+// enforces no such rule at all — `notes` is optional and free-form. That
+// old test was asserting a rule that was never actually implemented; this
+// rewrite does not carry it forward as if it were real. Duplicate-pending-
+// request prevention is enforced by the *creation* route, not this one —
+// already covered for real in __tests__/data-deletion/data-deletion-
+// requests-consolidation.test.ts (P1-6).
 
-describe('Data Deletion Request Transitions', () => {
-  const validStatuses = ['PENDING', 'PROCESSING', 'COMPLETED', 'REJECTED', 'CANCELLED'];
+const mockPrismaClient = {
+  dataDeletionRequest: { findUnique: jest.fn(), update: jest.fn() },
+  dataDeletionAuditLog: { create: jest.fn() },
+  $transaction: jest.fn(),
+};
 
-  describe('Status Validation', () => {
-    it('should start with PENDING status', () => {
-      const initialStatus = 'PENDING';
-      expect(validStatuses).toContain(initialStatus);
-    });
+jest.mock('@/lib/prisma', () => ({
+  __esModule: true,
+  prisma: mockPrismaClient,
+  default: mockPrismaClient,
+}));
 
-    it('should allow PENDING -> PROCESSING transition (approve)', () => {
-      const currentStatus = 'PENDING';
-      const newStatus = 'PROCESSING';
-      
-      const isValidTransition = currentStatus === 'PENDING' && newStatus === 'PROCESSING';
-      expect(isValidTransition).toBe(true);
-    });
+const mockRequireAdmin = jest.fn();
+jest.mock('@/lib/auth', () => ({
+  requireAdmin: (...args: any[]) => mockRequireAdmin(...args),
+}));
 
-    it('should allow PENDING -> REJECTED transition (reject)', () => {
-      const currentStatus = 'PENDING';
-      const newStatus = 'REJECTED';
-      
-      const isValidTransition = currentStatus === 'PENDING' && newStatus === 'REJECTED';
-      expect(isValidTransition).toBe(true);
-    });
+import { PATCH } from '@/app/api/admin/data-deletion-requests/[id]/route';
+import { POST as executeDeletion } from '@/app/api/admin/data-deletion-requests/[id]/execute/route';
 
-    it('should allow PROCESSING -> COMPLETED transition (execute)', () => {
-      const currentStatus = 'PROCESSING';
-      const newStatus = 'COMPLETED';
-      
-      const isValidTransition = currentStatus === 'PROCESSING' && newStatus === 'COMPLETED';
-      expect(isValidTransition).toBe(true);
-    });
+function req(body: any) {
+  return { json: async () => body } as any;
+}
 
-    it('should reject PENDING -> COMPLETED transition (skip approval)', () => {
-      const currentStatus = 'PENDING';
-      const newStatus = 'COMPLETED';
-      
-      const isValidTransition = currentStatus === 'PROCESSING' && newStatus === 'COMPLETED';
-      expect(isValidTransition).toBe(false);
-    });
+const params = Promise.resolve({ id: 'req-1' });
 
-    it('should reject COMPLETED -> PENDING transition (reversal)', () => {
-      const currentStatus = 'COMPLETED';
-      const newStatus = 'PENDING';
-      
-      const isTerminalStatus = currentStatus === 'COMPLETED' || currentStatus === 'REJECTED';
-      expect(isTerminalStatus).toBe(true);
-    });
+beforeEach(() => {
+  // resetAllMocks (not clearAllMocks): clearAllMocks leaves queued
+  // mockResolvedValueOnce/mockImplementationOnce implementations in place,
+  // so an unconsumed one from a prior test (e.g. a test whose route call
+  // short-circuits before ever calling this mock) leaks into the next
+  // test's call to the same mock. resetAllMocks wipes implementations too.
+  jest.resetAllMocks();
+  mockRequireAdmin.mockResolvedValue({ id: 'admin-1', name: 'Admin', email: 'admin@example.com' });
+});
 
-    it('should reject REJECTED -> PROCESSING transition (reversal)', () => {
-      const currentStatus = 'REJECTED';
-      const newStatus = 'PROCESSING';
-      
-      const isTerminalStatus = currentStatus === 'COMPLETED' || currentStatus === 'REJECTED';
-      expect(isTerminalStatus).toBe(true);
-    });
+describe('PATCH /api/admin/data-deletion-requests/[id] (approve/reject)', () => {
+  it('rejects an unknown action (400)', async () => {
+    mockPrismaClient.dataDeletionRequest.findUnique.mockResolvedValueOnce({ status: 'PENDING' });
+    const res = await PATCH(req({ action: 'delete' }), { params });
+    expect(res.status).toBe(400);
   });
 
-  describe('Action Validation', () => {
-    it('should require action to be either approve or reject', () => {
-      const validActions = ['approve', 'reject'];
-      
-      expect(validActions).toContain('approve');
-      expect(validActions).toContain('reject');
-      expect(validActions).not.toContain('delete');
-    });
-
-    it('should require rejectionReason when rejecting', () => {
-      const action = 'reject';
-      const rejectionReason = '';
-      
-      const isValid = action !== 'reject' || rejectionReason.length >= 10;
-      expect(isValid).toBe(false);
-    });
-
-    it('should not require rejectionReason when approving', () => {
-      const action = 'approve';
-      const rejectionReason = '';
-      
-      const isValid = action !== 'reject' || rejectionReason.length >= 10;
-      expect(isValid).toBe(true);
-    });
-
-    it('should accept valid rejectionReason', () => {
-      const action = 'reject';
-      const rejectionReason = 'User has pending orders that need to be completed first.';
-      
-      const isValid = action !== 'reject' || rejectionReason.length >= 10;
-      expect(isValid).toBe(true);
-    });
+  it('404s when the request does not exist', async () => {
+    mockPrismaClient.dataDeletionRequest.findUnique.mockResolvedValueOnce(null);
+    const res = await PATCH(req({ action: 'approve' }), { params });
+    expect(res.status).toBe(404);
   });
 
-  describe('Approval Workflow', () => {
-    it('should update status to PROCESSING on approval', () => {
-      const request = {
-        id: 'req123',
-        status: 'PENDING',
-        userId: 'user123',
-      };
-
-      const action = 'approve';
-      
-      const newStatus = action === 'approve' ? 'PROCESSING' : 'REJECTED';
-      expect(newStatus).toBe('PROCESSING');
-    });
-
-    it('should set processedAt timestamp on approval', () => {
-      const action = 'approve';
-      const processedAt = new Date();
-      
-      expect(processedAt).toBeInstanceOf(Date);
-      expect(action).toBe('approve');
-    });
-
-    it('should record admin ID on approval', () => {
-      const adminId = 'admin123';
-      const action = 'approve';
-      
-      expect(adminId).toBeTruthy();
-      expect(action).toBe('approve');
-    });
+  it('only allows approve/reject from PENDING — rejects a request already PROCESSING', async () => {
+    mockPrismaClient.dataDeletionRequest.findUnique.mockResolvedValueOnce({ status: 'PROCESSING' });
+    const res = await PATCH(req({ action: 'approve' }), { params });
+    expect(res.status).toBe(400);
+    expect(mockPrismaClient.$transaction).not.toHaveBeenCalled();
   });
 
-  describe('Rejection Workflow', () => {
-    it('should update status to REJECTED on rejection', () => {
-      const request = {
-        id: 'req123',
-        status: 'PENDING',
-        userId: 'user123',
-      };
+  it('approve transitions PENDING -> PROCESSING and logs the audit entry inside one transaction', async () => {
+    mockPrismaClient.dataDeletionRequest.findUnique.mockResolvedValueOnce({ status: 'PENDING' });
+    const updated = jest.fn().mockResolvedValue({ id: 'req-1', status: 'PROCESSING' });
+    const auditCreate = jest.fn().mockResolvedValue({});
+    mockPrismaClient.$transaction.mockImplementationOnce(async (cb: any) =>
+      cb({ dataDeletionRequest: { update: updated }, dataDeletionAuditLog: { create: auditCreate } })
+    );
 
-      const action = 'reject';
-      const rejectionReason = 'Pending financial obligations';
-      
-      const newStatus = action === 'approve' ? 'PROCESSING' : 'REJECTED';
-      expect(newStatus).toBe('REJECTED');
-      expect(rejectionReason).toBeTruthy();
-    });
+    const res = await PATCH(req({ action: 'approve' }), { params });
 
-    it('should set rejectedAt timestamp on rejection', () => {
-      const action = 'reject';
-      const rejectedAt = new Date();
-      
-      expect(rejectedAt).toBeInstanceOf(Date);
-      expect(action).toBe('reject');
-    });
-
-    it('should store rejectionReason', () => {
-      const rejectionReason = 'User has active disputes that need resolution.';
-      
-      expect(rejectionReason.length).toBeGreaterThanOrEqual(10);
-    });
+    expect(res.status).toBe(200);
+    expect(updated).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'PROCESSING' }) })
+    );
+    expect(auditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'APPROVE', newStatus: 'PROCESSING' }) })
+    );
   });
 
-  describe('Execution Workflow', () => {
-    it('should only allow execution for PROCESSING status', () => {
-      const validExecutionStatus = 'PROCESSING';
-      
-      const canExecute = validExecutionStatus === 'PROCESSING';
-      expect(canExecute).toBe(true);
-    });
+  it('reject transitions PENDING -> REJECTED and records the rejection reason', async () => {
+    mockPrismaClient.dataDeletionRequest.findUnique.mockResolvedValueOnce({ status: 'PENDING' });
+    const updated = jest.fn().mockResolvedValue({ id: 'req-1', status: 'REJECTED' });
+    const auditCreate = jest.fn().mockResolvedValue({});
+    mockPrismaClient.$transaction.mockImplementationOnce(async (cb: any) =>
+      cb({ dataDeletionRequest: { update: updated }, dataDeletionAuditLog: { create: auditCreate } })
+    );
 
-    it('should reject execution for PENDING status', () => {
-      const currentStatus = 'PENDING';
-      
-      const canExecute = currentStatus === 'PROCESSING';
-      expect(canExecute).toBe(false);
-    });
+    const res = await PATCH(req({ action: 'reject', notes: 'User has unresolved orders' }), { params });
 
-    it('should reject execution for COMPLETED status', () => {
-      const currentStatus = 'COMPLETED';
-      
-      const canExecute = currentStatus === 'PROCESSING';
-      expect(canExecute).toBe(false);
-    });
+    expect(res.status).toBe(200);
+    expect(updated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: 'REJECTED',
+          rejectionReason: 'User has unresolved orders',
+        }),
+      })
+    );
+  });
+});
 
-    it('should update status to COMPLETED after execution', () => {
-      const request = {
-        id: 'req123',
-        status: 'PROCESSING',
-        userId: 'user123',
-      };
-
-      const executionSuccess = true;
-      
-      const newStatus = executionSuccess ? 'COMPLETED' : 'PROCESSING';
-      expect(newStatus).toBe('COMPLETED');
+describe('POST /api/admin/data-deletion-requests/[id]/execute', () => {
+  it('only allows execution from PROCESSING — rejects a request still PENDING', async () => {
+    mockPrismaClient.dataDeletionRequest.findUnique.mockResolvedValueOnce({
+      status: 'PENDING', userId: 'user-1',
     });
-
-    it('should set completedAt timestamp after execution', () => {
-      const completedAt = new Date();
-      
-      expect(completedAt).toBeInstanceOf(Date);
-    });
+    const res = await executeDeletion(req({}), { params });
+    expect(res.status).toBe(400);
+    expect(mockPrismaClient.$transaction).not.toHaveBeenCalled();
   });
 
-  describe('Audit Log Creation', () => {
-    it('should create audit log on request creation', () => {
-      const auditLog = {
-        action: 'CREATED',
-        previousStatus: null,
-        newStatus: 'PENDING',
-        timestamp: new Date(),
-      };
-
-      expect(auditLog.action).toBe('CREATED');
-      expect(auditLog.previousStatus).toBeNull();
-      expect(auditLog.newStatus).toBe('PENDING');
+  it('anonymizes the user, disassociates their products, and marks the request COMPLETED', async () => {
+    mockPrismaClient.dataDeletionRequest.findUnique.mockResolvedValueOnce({
+      status: 'PROCESSING',
+      userId: 'user-1',
+      user: { id: 'user-1', email: 'real@example.com', name: 'Real User', orders: [], products: [] },
     });
 
-    it('should create audit log on approval', () => {
-      const auditLog = {
-        action: 'APPROVED',
-        previousStatus: 'PENDING',
-        newStatus: 'PROCESSING',
-        adminId: 'admin123',
-        timestamp: new Date(),
-      };
+    const userUpdate = jest.fn().mockResolvedValue({});
+    const businessInfoDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
+    const addressDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
+    const rfqUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+    const userPermissionDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
+    const productUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+    const partnerUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+    const requestUpdate = jest.fn().mockResolvedValue({ id: 'req-1', status: 'COMPLETED' });
+    const auditCreate = jest.fn().mockResolvedValue({});
 
-      expect(auditLog.action).toBe('APPROVED');
-      expect(auditLog.previousStatus).toBe('PENDING');
-      expect(auditLog.newStatus).toBe('PROCESSING');
-      expect(auditLog.adminId).toBeTruthy();
+    mockPrismaClient.$transaction.mockImplementationOnce(async (cb: any) =>
+      cb({
+        user: { update: userUpdate },
+        businessInfo: { deleteMany: businessInfoDeleteMany },
+        address: { deleteMany: addressDeleteMany },
+        rFQ: { updateMany: rfqUpdateMany },
+        userPermission: { deleteMany: userPermissionDeleteMany },
+        product: { updateMany: productUpdateMany },
+        partner: { updateMany: partnerUpdateMany },
+        dataDeletionRequest: { update: requestUpdate },
+        dataDeletionAuditLog: { create: auditCreate },
+      })
+    );
+
+    const res = await executeDeletion(req({}), { params });
+
+    expect(res.status).toBe(200);
+
+    // Anonymization: email/name change, PII cleared, account deactivated —
+    // never just left as the real user's data.
+    const userUpdateData = userUpdate.mock.calls[0][0].data;
+    expect(userUpdateData.email).not.toBe('real@example.com');
+    expect(userUpdateData.email).toContain('deleted_user-1');
+    expect(userUpdateData.name).not.toBe('Real User');
+    expect(userUpdateData.phone).toBeNull();
+    expect(userUpdateData.isActive).toBe(false);
+
+    // Hard-deleted data.
+    expect(businessInfoDeleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+    expect(addressDeleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+    expect(userPermissionDeleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+
+    // Retained-but-anonymized / disassociated, not deleted.
+    expect(rfqUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'user-1' } }));
+    expect(productUpdateMany).toHaveBeenCalledWith({
+      where: { sellerId: 'user-1' },
+      data: { sellerId: null },
+    });
+    // Any Partner record linked to this user (ADR-008) is unlinked, not deleted.
+    expect(partnerUpdateMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1' },
+      data: { userId: null },
     });
 
-    it('should create audit log on rejection', () => {
-      const auditLog = {
-        action: 'REJECTED',
-        previousStatus: 'PENDING',
-        newStatus: 'REJECTED',
-        adminId: 'admin123',
-        metadata: {
-          reason: 'Pending orders',
-        },
-        timestamp: new Date(),
-      };
-
-      expect(auditLog.action).toBe('REJECTED');
-      expect(auditLog.previousStatus).toBe('PENDING');
-      expect(auditLog.newStatus).toBe('REJECTED');
-      expect(auditLog.metadata).toBeTruthy();
-    });
-
-    it('should create audit log on execution', () => {
-      const auditLog = {
-        action: 'EXECUTED',
-        previousStatus: 'PROCESSING',
-        newStatus: 'COMPLETED',
-        adminId: 'admin123',
-        timestamp: new Date(),
-      };
-
-      expect(auditLog.action).toBe('EXECUTED');
-      expect(auditLog.previousStatus).toBe('PROCESSING');
-      expect(auditLog.newStatus).toBe('COMPLETED');
-    });
-  });
-
-  describe('Data Anonymization', () => {
-    it('should anonymize email on execution', () => {
-      const userId = 'user123';
-      const originalEmail = 'user@example.com';
-      const anonymizedEmail = `deleted_${userId}@anonymous.local`;
-
-      expect(anonymizedEmail).toContain('deleted_');
-      expect(anonymizedEmail).toContain('@anonymous.local');
-      expect(anonymizedEmail).not.toBe(originalEmail);
-    });
-
-    it('should anonymize name on execution', () => {
-      const userId = 'user123';
-      const originalName = 'John Doe';
-      const anonymizedName = `Deleted User ${userId}`;
-
-      expect(anonymizedName).toContain('Deleted User');
-      expect(anonymizedName).toContain(userId);
-      expect(anonymizedName).not.toBe(originalName);
-    });
-
-    it('should set password to DELETED', () => {
-      const anonymizedPassword = 'DELETED';
-
-      expect(anonymizedPassword).toBe('DELETED');
-    });
-
-    it('should set isActive to false', () => {
-      const isActive = false;
-
-      expect(isActive).toBe(false);
-    });
-
-    it('should clear phone number', () => {
-      const phone = null;
-
-      expect(phone).toBeNull();
-    });
-  });
-
-  describe('Data Retention', () => {
-    it('should delete BusinessInfo', () => {
-      const shouldDelete = true;
-      expect(shouldDelete).toBe(true);
-    });
-
-    it('should delete Addresses', () => {
-      const shouldDelete = true;
-      expect(shouldDelete).toBe(true);
-    });
-
-    it('should delete UserPermissions', () => {
-      const shouldDelete = true;
-      expect(shouldDelete).toBe(true);
-    });
-
-    it('should retain Orders (anonymized)', () => {
-      const shouldRetain = true;
-      expect(shouldRetain).toBe(true);
-    });
-
-    it('should retain Activity Logs', () => {
-      const shouldRetain = true;
-      expect(shouldRetain).toBe(true);
-    });
-
-    it('should anonymize RFQs but retain for audit', () => {
-      const shouldAnonymize = true;
-      const shouldRetain = true;
-      
-      expect(shouldAnonymize).toBe(true);
-      expect(shouldRetain).toBe(true);
-    });
-
-    it('should transfer product ownership to null', () => {
-      const newOwner = null;
-      expect(newOwner).toBeNull();
-    });
-  });
-
-  describe('Edge Cases', () => {
-    it('should prevent duplicate pending requests', async () => {
-      const userId = 'user123';
-      const existingRequest = {
-        id: 'req123',
-        userId,
-        status: 'PENDING',
-      };
-
-      const hasPendingRequest = existingRequest.status === 'PENDING' || existingRequest.status === 'PROCESSING';
-      expect(hasPendingRequest).toBe(true);
-    });
-
-    it('should allow new request after completion', () => {
-      const existingRequest = {
-        id: 'req123',
-        userId: 'user123',
-        status: 'COMPLETED',
-      };
-
-      const canCreateNew = existingRequest.status === 'COMPLETED' || existingRequest.status === 'REJECTED';
-      expect(canCreateNew).toBe(true);
-    });
-
-    it('should allow new request after rejection', () => {
-      const existingRequest = {
-        id: 'req123',
-        userId: 'user123',
-        status: 'REJECTED',
-      };
-
-      const canCreateNew = existingRequest.status === 'COMPLETED' || existingRequest.status === 'REJECTED';
-      expect(canCreateNew).toBe(true);
-    });
-
-    it('should handle request without reason', () => {
-      const request = {
-        email: 'user@example.com',
-        phone: '1234567890',
-        reason: null,
-      };
-
-      expect(request.email).toBeTruthy();
-      expect(request.phone).toBeTruthy();
-      expect(request.reason).toBeNull();
-    });
-  });
-
-  describe('IP and User Agent Tracking', () => {
-    it('should capture IP address on request creation', () => {
-      const ipAddress = '192.168.1.1';
-      
-      expect(ipAddress).toBeTruthy();
-      expect(ipAddress).toMatch(/^\d+\.\d+\.\d+\.\d+$/);
-    });
-
-    it('should capture user agent on request creation', () => {
-      const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)';
-      
-      expect(userAgent).toBeTruthy();
-      expect(userAgent.length).toBeGreaterThan(0);
-    });
-
-    it('should handle unknown IP gracefully', () => {
-      const ipAddress = 'unknown';
-      
-      expect(ipAddress).toBe('unknown');
-    });
+    expect(requestUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'COMPLETED' }) })
+    );
+    expect(auditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'EXECUTED', newStatus: 'COMPLETED' }) })
+    );
   });
 });

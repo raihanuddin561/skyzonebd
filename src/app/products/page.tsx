@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import ProductCard from '../components/ProductCard';
 import QuickQuantityGrid from '@/components/wholesale/QuickQuantityGrid';
 import { useProducts } from '@/hooks/useProducts';
@@ -132,15 +133,28 @@ function ProductsContent() {
       <Header />
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-8 sm:py-12 lg:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <section className="relative bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 text-white py-8 sm:py-12 lg:py-16 overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: 'radial-gradient(circle at 15% 25%, white 1px, transparent 1px), radial-gradient(circle at 85% 75%, white 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+          }}
+        />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-amber-300 mb-3">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            Wholesale Catalog
+          </span>
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4">
             Explore Our Products
           </h1>
-          <p className="text-base sm:text-lg lg:text-xl opacity-90 mb-4 sm:mb-6">
+          <p className="text-base sm:text-lg lg:text-xl text-blue-100 mb-4 sm:mb-6">
             Discover quality products from verified suppliers
           </p>
-          
+
           {/* Search Bar */}
           <div className="max-w-2xl">
             <div className="relative">
@@ -149,7 +163,7 @@ function ProductsContent() {
                 placeholder="Search products, categories, or companies..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 pl-10 sm:pl-12 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-text text-sm sm:text-base"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 pl-10 sm:pl-12 rounded-xl text-gray-900 shadow-lg focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-text text-sm sm:text-base"
                 suppressHydrationWarning
               />
               <svg className="absolute left-3 sm:left-4 top-2.5 sm:top-3.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,20 +234,26 @@ function ProductsContent() {
                     </label>
                     {categories.map(category => {
                       const count = allProducts?.filter((p: Product) => p.category === category.name).length || 0;
+                      const isSelected = selectedCategory === category.id;
                       return (
-                        <label key={category.id} className="flex items-center p-2 sm:p-3 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors border border-transparent hover:border-blue-200 touch-manipulation">
+                        <label
+                          key={category.id}
+                          className={`flex items-center p-2 sm:p-3 rounded-lg cursor-pointer transition-colors border touch-manipulation ${
+                            isSelected ? 'bg-blue-50 border-blue-300' : 'border-transparent hover:bg-blue-50 hover:border-blue-200'
+                          }`}
+                        >
                           <input
                             type="radio"
                             name="category"
                             value={category.id}
-                            checked={selectedCategory === category.id}
+                            checked={isSelected}
                             onChange={(e) => setSelectedCategory(e.target.value)}
                             className="mr-2 sm:mr-3 w-4 h-4 text-blue-600 focus:ring-blue-500 focus:ring-2 cursor-pointer flex-shrink-0"
                             suppressHydrationWarning
                           />
                           <span className="text-xl sm:text-2xl mr-2 sm:mr-3 flex-shrink-0">{category.icon || getCategoryIcon(category.name)}</span>
-                          <span className="text-sm sm:text-base font-medium text-gray-700 flex-1 truncate">{category.name}</span>
-                          <span className="bg-gray-100 text-gray-600 text-xs sm:text-sm font-medium px-2 py-1 rounded-full flex-shrink-0">
+                          <span className={`text-sm sm:text-base font-medium flex-1 truncate ${isSelected ? 'text-blue-800' : 'text-gray-700'}`}>{category.name}</span>
+                          <span className={`text-xs sm:text-sm font-medium px-2 py-1 rounded-full flex-shrink-0 ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
                             {count}
                           </span>
                         </label>
@@ -316,13 +336,13 @@ function ProductsContent() {
           {/* Products Section */}
           <div className="lg:w-3/4">
             {/* Results Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <div>
-                <h2 className="text-3xl font-bold text-gray-800 mb-2">
-                  {selectedCategory === 'all' ? 'All Products' : 
+                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1.5">
+                  {selectedCategory === 'all' ? 'All Products' :
                    categories.find(c => c.id === selectedCategory)?.name || 'Products'}
                 </h2>
-                <p className="text-gray-600 font-medium">
+                <p className="text-gray-500 font-medium text-sm">
                   Showing {startIndex + 1}-{Math.min(startIndex + productsPerPage, filteredProducts.length)} of {filteredProducts.length} products
                 </p>
               </div>
@@ -384,8 +404,12 @@ function ProductsContent() {
 
             {/* Products Display - Grid or Wholesale View */}
             {displayedProducts.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-lg shadow-sm border border-gray-100">
-                <div className="text-gray-300 text-8xl mb-6">🔍</div>
+              <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">
+                <div className="w-20 h-20 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
                 <h3 className="text-2xl font-bold text-gray-800 mb-3">No products found</h3>
                 <p className="text-gray-600 mb-6 max-w-md mx-auto">
                   We couldn't find any products matching your criteria. Try adjusting your search or filter settings.
@@ -448,9 +472,9 @@ function ProductsContent() {
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all cursor-pointer ${
+                        className={`px-4 py-2 rounded-lg font-semibold transition-all cursor-pointer ${
                           currentPage === page
-                            ? 'bg-blue-600 text-white shadow-md'
+                            ? 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-md'
                             : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-700 border border-gray-200'
                         }`}
                         suppressHydrationWarning
@@ -478,6 +502,7 @@ function ProductsContent() {
           </div>
         </div>
       </div>
+      <Footer />
     </main>
   );
 }

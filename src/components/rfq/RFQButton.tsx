@@ -30,10 +30,12 @@ export default function RFQButton({ product, userType, className = '', variant =
     setIsSubmitting(true);
 
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch('/api/rfq', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           items: [

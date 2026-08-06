@@ -22,23 +22,22 @@ export async function GET(request: NextRequest) {
     // Authenticate partner
     const user = await requirePartner(request);
     
-    // Find partner record
+    // Find partner record. Prefer the explicit userId link (ADR-008); fall
+    // back to matching by email. (Previously matched `{ id: user.id }`
+    // instead of `{ userId: user.id }` — Partner.id and User.id are
+    // different id spaces, so that branch never matched a real link —
+    // Amazon-Style Wholesale Platform Gap Closure — Phase 4 part 4.) A pure
+    // SELLER with no linked Partner row no longer 404s — the underlying
+    // query below is scoped to this seller's own products instead.
     const partner = await prisma.partner.findFirst({
       where: {
         OR: [
-          { email: user.email },
-          { id: user.id }
+          { userId: user.id },
+          { email: user.email }
         ]
       }
     });
-    
-    if (!partner) {
-      return NextResponse.json(
-        { success: false, error: 'Partner record not found' },
-        { status: 404 }
-      );
-    }
-    
+
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;
     const startDateStr = searchParams.get('startDate');
@@ -70,10 +69,14 @@ export async function GET(request: NextRequest) {
     if (sortBy === 'revenue') orderByField = 'total';
     if (sortBy === 'units') orderByField = 'quantity';
     
-    // Get top products by grouping order items
+    // Get top products by grouping order items. A pure SELLER with no
+    // linked Partner record only sees their own products, not the whole
+    // platform's (Amazon-Style Wholesale Platform Gap Closure — Phase 4
+    // part 4) — a real Partner (profit-sharing co-owner) still sees everything.
     const topProductsData = await prisma.orderItem.groupBy({
       by: ['productId'],
       where: {
+        ...(partner ? {} : { product: { sellerId: user.id } }),
         order: {
           status: 'DELIVERED',
           createdAt: {

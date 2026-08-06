@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/auth';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
-
-// Use shared auth helper
-const verifyAdmin = verifyAdminToken;
 
 // GET - Get single category
 export async function GET(
@@ -66,10 +63,7 @@ export async function PUT(
 ) {
   try {
     // Verify admin access
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    await requireAdmin(request);
 
     const { id: categoryId } = await params;
     const body = await request.json();
@@ -132,6 +126,9 @@ export async function PUT(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Update Category Error:', error);
     return NextResponse.json(
       { error: 'Failed to update category', details: error instanceof Error ? error.message : 'Unknown error' },
@@ -149,10 +146,7 @@ export async function DELETE(
 ) {
   try {
     // Verify admin access
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    await requireAdmin(request);
 
     const { id: categoryId } = await params;
 
@@ -193,6 +187,9 @@ export async function DELETE(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Delete Category Error:', error);
     return NextResponse.json(
       { error: 'Failed to delete category', details: error instanceof Error ? error.message : 'Unknown error' },

@@ -5,7 +5,7 @@
  * returns, and profit reporting.
  */
 
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { OrderStatus } from '@prisma/client';
 import { allocateStockFIFO, allocateStockWAC } from './inventoryService';
 import { calculateOrderDue } from './paymentService';
@@ -35,7 +35,7 @@ export async function completeOrderDelivery({
             product: true,
           },
         },
-        user: true,
+        user: { select: { id: true, name: true } },
       },
     });
     
@@ -221,7 +221,7 @@ export async function processOrderReturn({
             product: true,
           },
         },
-        user: true,
+        user: { select: { id: true, name: true } },
       },
     });
     

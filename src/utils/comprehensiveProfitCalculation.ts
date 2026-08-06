@@ -2,6 +2,7 @@
 // Comprehensive Profit & Loss Calculation with all costs included
 
 import prisma from '@/lib/prisma';
+import { getFinancialSummary } from '@/lib/financialLedger';
 
 /**
  * Calculate comprehensive profit for a specific period
@@ -150,8 +151,16 @@ export async function calculateComprehensiveProfit(
   });
   
   const purchases = inventoryPurchases._sum.amount || 0;
-  const cogs = openingStockValue + purchases - closingStockValue;
-  
+
+  // COGS is now derived from FinancialLedger's real COGS debits (Amazon-
+  // style gap-closure Phase 2 part 2: "one true ledger") rather than the
+  // openingStock+purchases-closingStock inventory-valuation snapshot —
+  // this reflects what was actually paid for stock actually sold (WAC-
+  // accurate since Phase 1), not a point-in-time valuation guess.
+  // openingStock/purchases/closingStock above are kept and still returned
+  // for informational display; they no longer derive `cogs` itself.
+  const { cogs } = await getFinancialSummary(startDate, endDate);
+
   // 3. Gross Profit
   const grossProfit = netRevenue - cogs;
   const grossMargin = netRevenue > 0 ? (grossProfit / netRevenue) * 100 : 0;

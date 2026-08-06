@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verify, JwtPayload } from 'jsonwebtoken';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activityLogger';
+import { requireAuth, getJwtSecret } from '@/lib/auth';
+import { UserRole, isAdmin } from '@/types/roles';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -23,6 +25,14 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     const { id } = await context.params;
 
     const config = await prisma.paymentConfig.findUnique({
@@ -42,6 +52,9 @@ export async function GET(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error fetching payment config:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
@@ -72,7 +85,7 @@ export async function PATCH(
     let decoded: DecodedToken;
 
     try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+      decoded = verify(token, getJwtSecret()) as DecodedToken;
     } catch (error) {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },
@@ -173,7 +186,7 @@ export async function DELETE(
     let decoded: DecodedToken;
 
     try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
+      decoded = verify(token, getJwtSecret()) as DecodedToken;
     } catch (error) {
       return NextResponse.json(
         { success: false, error: 'Invalid token' },

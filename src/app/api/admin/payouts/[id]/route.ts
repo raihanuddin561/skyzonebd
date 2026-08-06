@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
+import { createCommissionEntry } from '@/lib/financialLedger';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -53,10 +54,17 @@ export async function GET(
     });
     
   } catch (error) {
+    // requireAdmin throws a pre-built Response (401/403) on auth failure —
+    // surface it as-is instead of collapsing it into a generic 500 (Phase
+    // 3 part 1: found while adding auth coverage for this route, the same
+    // bug class already fixed in orders/route.ts during Phase 2).
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Get Payout Error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to fetch payout',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
@@ -118,29 +126,38 @@ export async function PATCH(
     const updateData: any = {};
     
     if (status !== undefined) {
+      // Maker-checker (Amazon-style gap-closure Phase 3 part 2): PAID must
+      // be reached from an already-APPROVED distribution — a distinct
+      // prior action, not a shortcut the same PATCH call can also perform.
+      // This does not require a different admin account than the one who
+      // approved (per the confirmed scope), but it closes the previous
+      // one-click "PENDING straight to PAID" unilateral path.
+      if (status === 'PAID' && existingPayout.status !== 'APPROVED' && existingPayout.status !== 'PAID') {
+        return NextResponse.json(
+          { success: false, error: `Cannot mark as PAID: distribution must be APPROVED first (current status: ${existingPayout.status})` },
+          { status: 400 }
+        );
+      }
+
       updateData.status = status;
-      
+
       // If approving, set approver and approval date
       if (status === 'APPROVED' && existingPayout.status === 'PENDING') {
         updateData.approvedBy = admin.id;
         updateData.approvedAt = new Date();
       }
-      
-      // If marking as paid, set paid date
+
+      // If marking as paid, set paid date and who paid it
       if (status === 'PAID') {
         updateData.paidAt = paidAt ? new Date(paidAt) : new Date();
-        
-        // Also approve if not already approved
-        if (existingPayout.status === 'PENDING') {
-          updateData.approvedBy = admin.id;
-          updateData.approvedAt = new Date();
-        }
+        updateData.paidBy = admin.id;
       }
-      
+
       // If rejecting, clear approval
       if (status === 'REJECTED') {
         updateData.approvedBy = null;
         updateData.approvedAt = null;
+        updateData.paidBy = null;
         updateData.paidAt = null;
       }
     }
@@ -177,9 +194,29 @@ export async function PATCH(
         }
       }
     });
-    
+
+    // Only post to the ledger / increment the partner's running total on
+    // the actual ... -> PAID transition, not on a repeat PATCH against an
+    // already-paid payout (Amazon-style gap-closure Phase 2 part 1:
+    // ledger completeness; Phase 3 part 1: this route is now the sole
+    // canonical payout-status path — admin/distributions/route.ts, the
+    // only other place that ever incremented totalProfitReceived, was
+    // dead code with zero UI callers and has been removed).
+    if (status === 'PAID' && existingPayout.status !== 'PAID') {
+      await createCommissionEntry({
+        id: updatedPayout.id,
+        partnerId: updatedPayout.partnerId,
+        partnerName: updatedPayout.partner?.name,
+        distributionAmount: updatedPayout.distributionAmount,
+      });
+      await prisma.partner.update({
+        where: { id: updatedPayout.partnerId },
+        data: { totalProfitReceived: { increment: updatedPayout.distributionAmount } },
+      });
+    }
+
     // TODO: Send notification to partner if status changed to PAID or APPROVED
-    
+
     return NextResponse.json({
       success: true,
       data: updatedPayout,
@@ -187,10 +224,13 @@ export async function PATCH(
     });
     
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Update Payout Error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to update payout',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
@@ -239,10 +279,13 @@ export async function DELETE(
     });
     
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Delete Payout Error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to delete payout',
         details: error instanceof Error ? error.message : 'Unknown error'
       },

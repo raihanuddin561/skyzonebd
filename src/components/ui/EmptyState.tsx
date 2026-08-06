@@ -259,8 +259,8 @@ export function EmptyNotificationsState() {
       }
       title="No notifications"
       description="You're all caught up! We'll notify you when there's something new."
-      actionLabel="Go to Dashboard"
-      actionHref="/dashboard"
+      actionLabel="Go to Home"
+      actionHref="/"
     />
   );
 }

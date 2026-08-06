@@ -23,7 +23,24 @@ export async function GET(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        companyName: true,
+        role: true,
+        userType: true,
+        isVerified: true,
+        isActive: true,
+        discountPercent: true,
+        discountReason: true,
+        discountValidUntil: true,
+        createdAt: true,
+        updatedAt: true,
+        // password is deliberately excluded — this endpoint previously had
+        // no `select`/`include` filter at all and shipped the bcrypt hash
+        // to the browser on every profile load.
         businessInfo: true,
         addresses: {
           orderBy: {

@@ -1,40 +1,46 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '../../components/Header';
+import Footer from '../../components/Footer';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function DataDeletionRequestPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
   const [formData, setFormData] = useState({
-    email: '',
     phone: '',
     reason: '',
-    confirmEmail: '',
     agreeToTerms: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Deleting an account is an irreversible, identity-sensitive action — it
+  // previously required only a client-supplied email + made-up phone number
+  // with no verification, letting anyone queue any other user's account for
+  // deletion just by knowing their email. It now requires the requester to
+  // be logged in as the account being deleted, same as every other
+  // destructive account action in this app.
+  useEffect(() => {
+    if (!authLoading && !user) {
+      toast.error('Please log in to request account deletion');
+      router.push('/auth/login');
+    }
+  }, [user, authLoading, router]);
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
-    }
-
-    if (!formData.confirmEmail.trim()) {
-      newErrors.confirmEmail = 'Please confirm your email';
-    } else if (formData.email !== formData.confirmEmail) {
-      newErrors.confirmEmail = 'Email addresses do not match';
-    }
-
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone number is required';
+    }
+
+    if (formData.reason.trim() && formData.reason.trim().length < 10) {
+      newErrors.reason = 'Reason must be at least 10 characters, or left blank';
     }
 
     if (!formData.agreeToTerms) {
@@ -56,12 +62,17 @@ export default function DataDeletionRequestPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/data-deletion-request', {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/data-deletion-requests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          phone: formData.phone,
+          reason: formData.reason || 'No reason provided',
+        }),
       });
 
       const data = await response.json();
@@ -127,39 +138,18 @@ export default function DataDeletionRequestPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email */}
+            {/* Account Email (read-only — derived from the logged-in session, not editable) */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Account Email Address <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Account Email Address
               </label>
               <input
                 type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className={`w-full px-4 py-2 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                placeholder="your-email@example.com"
+                value={user?.email || ''}
+                disabled
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
               />
-              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
-              <p className="text-gray-500 text-xs mt-1">The email associated with your SkyzoneBD account</p>
-            </div>
-
-            {/* Confirm Email */}
-            <div>
-              <label htmlFor="confirmEmail" className="block text-sm font-medium text-gray-700 mb-1">
-                Confirm Email Address <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="email"
-                id="confirmEmail"
-                name="confirmEmail"
-                value={formData.confirmEmail}
-                onChange={handleChange}
-                className={`w-full px-4 py-2 border ${errors.confirmEmail ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                placeholder="Confirm your email"
-              />
-              {errors.confirmEmail && <p className="text-red-500 text-sm mt-1">{errors.confirmEmail}</p>}
+              <p className="text-gray-500 text-xs mt-1">This request will apply to your logged-in account.</p>
             </div>
 
             {/* Phone */}
@@ -194,6 +184,7 @@ export default function DataDeletionRequestPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Help us improve by telling us why you're leaving (optional)"
               />
+              {errors.reason && <p className="text-red-500 text-sm mt-1">{errors.reason}</p>}
               <p className="text-gray-500 text-xs mt-1">Optional: Your feedback helps us improve</p>
             </div>
 
@@ -245,6 +236,8 @@ export default function DataDeletionRequestPage() {
           </form>
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 }

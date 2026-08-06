@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
@@ -219,6 +220,8 @@ export default function DataDeletionPage() {
           </div>
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 }

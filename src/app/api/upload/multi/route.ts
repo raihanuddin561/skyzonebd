@@ -1,48 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put, del } from '@vercel/blob';
-import { verify, JwtPayload } from 'jsonwebtoken';
+import { requireAdmin } from '@/lib/auth';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
-
-interface DecodedToken extends JwtPayload {
-  userId: string;
-  role: string;
-}
-
 // POST - Upload multiple images
 export async function POST(request: NextRequest) {
   try {
-    // Verify admin authentication
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-    try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Only admin can upload images (check both ADMIN and admin for case-insensitivity)
-    if (decoded.role.toUpperCase() !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Admin access required' },
-        { status: 403 }
-      );
-    }
+    // Canonical auth (ADR-009 / P2-9): previously a hand-rolled JWT decode +
+    // `role.toUpperCase() !== 'ADMIN'` check that excluded SUPER_ADMIN from
+    // uploading images (docs/architecture-review/14_Technical_Debt.md §22).
+    await requireAdmin(request);
 
     // Parse form data
     const formData = await request.formData();
@@ -125,6 +96,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Multi Upload API Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to upload images' },
@@ -136,33 +110,9 @@ export async function POST(request: NextRequest) {
 // DELETE - Delete multiple images
 export async function DELETE(request: NextRequest) {
   try {
-    // Verify admin authentication
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-    try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Only admin can delete images (check both ADMIN and admin for case-insensitivity)
-    if (decoded.role.toUpperCase() !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Admin access required' },
-        { status: 403 }
-      );
-    }
+    // Canonical auth (ADR-009 / P2-9) — see POST above for why this replaced
+    // a hand-rolled, SUPER_ADMIN-excluding check.
+    await requireAdmin(request);
 
     // Get URLs from request body
     const body = await request.json();
@@ -207,6 +157,9 @@ export async function DELETE(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Multi Delete API Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete images' },

@@ -37,8 +37,6 @@ export interface User {
   userType: UserType;
   isVerified: boolean;
   isActive: boolean;
-  profitSharePercentage?: number;  // For profit-sharing partners
-  isProfitPartner?: boolean;
   businessInfo?: BusinessInfo;  // Optional - can complete from profile
   createdAt: string;
 }

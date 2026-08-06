@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/auth';
+import { createCategorySchema } from '@/lib/validation';
+import { handleError } from '@/lib/error-handler';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
-
-// Use shared auth helper
-const verifyAdmin = verifyAdminToken;
 
 export async function GET(request: NextRequest) {
   try {
@@ -84,24 +83,14 @@ function getCategoryIcon(categoryName: string): string {
 export async function POST(request: NextRequest) {
   try {
     // Verify admin access
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    await requireAdmin(request);
 
     const body = await request.json();
-    
-    // Validate required fields
-    if (!body.name || !body.slug) {
-      return NextResponse.json(
-        { error: 'Name and slug are required' },
-        { status: 400 }
-      );
-    }
+    const data = createCategorySchema.parse(body);
 
     // Check if slug already exists
     const existing = await prisma.category.findUnique({
-      where: { slug: body.slug }
+      where: { slug: data.slug }
     });
 
     if (existing) {
@@ -113,13 +102,7 @@ export async function POST(request: NextRequest) {
 
     // Create category
     const category = await prisma.category.create({
-      data: {
-        name: body.name,
-        slug: body.slug,
-        description: body.description,
-        imageUrl: body.imageUrl,
-        isActive: body.isActive !== undefined ? body.isActive : true,
-      },
+      data,
       select: {
         id: true,
         name: true,
@@ -141,11 +124,14 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Create Category Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to create category', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    if (error instanceof Response) {
+      return error;
+    }
+    // handleError formats Zod validation errors (400, field-level messages)
+    // and Prisma known-request errors (e.g. the P2002 unique-constraint
+    // violation on Category.name — previously an unhandled 500, since only
+    // slug uniqueness was checked explicitly above) consistently.
+    return handleError(error, 'Create Category Error');
   }
 }
 
@@ -153,10 +139,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // Verify admin access
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    await requireAdmin(request);
 
     const { searchParams } = new URL(request.url);
     const ids = searchParams.get('ids')?.split(',') || [];
@@ -208,10 +191,9 @@ export async function DELETE(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Delete Categories Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete categories', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    if (error instanceof Response) {
+      return error;
+    }
+    return handleError(error, 'Delete Categories Error');
   }
 }

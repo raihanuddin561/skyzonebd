@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useState, ReactNode } from 'react';
 import { CartItem, Product, CartContextType } from '@/types/cart';
 import { toast } from 'react-toastify';
+import { getLineTotal } from '@/utils/cartPricing';
 
 // Cart Actions
 type CartAction =
@@ -184,7 +185,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const getTotalPrice = () => {
-    return items.reduce((total, item) => total + (item.product.price * item.quantity), 0);
+    // Applies each item's bulk-pricing tiers (same lookup the product
+    // detail page's pre-add-to-cart preview already used) instead of a
+    // flat price * quantity that ignored bulk discounts entirely.
+    return items.reduce((total, item) => total + getLineTotal(item.product, item.quantity), 0);
   };
 
   const value: CartContextType = {

@@ -2,8 +2,8 @@
 
 import { validateData, createOrderSchema } from '@/lib/validation';
 
-// Mock Prisma
-jest.mock('@/lib/db', () => ({
+// Mock Prisma (src/lib/db.ts was consolidated into src/lib/prisma.ts — P1-4)
+jest.mock('@/lib/prisma', () => ({
   prisma: {
     product: {
       findUnique: jest.fn(),
@@ -20,7 +20,7 @@ jest.mock('@/lib/db', () => ({
   },
 }));
 
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
 const mockPrisma = {
   product: prisma.product,
@@ -43,19 +43,19 @@ describe('Order Creation', () => {
             price: 100,
           },
         ],
-        paymentMethod: 'CASH_ON_DELIVERY' as const,
+        paymentMethod: 'cash_on_delivery' as const,
       };
 
       const result = validateData(createOrderSchema, orderData);
       expect(result.items).toHaveLength(1);
       expect(result.items[0].quantity).toBe(2);
-      expect(result.paymentMethod).toBe('CASH_ON_DELIVERY');
+      expect(result.paymentMethod).toBe('cash_on_delivery');
     });
 
     it('should reject order with empty items', () => {
       const orderData = {
         items: [],
-        paymentMethod: 'CASH_ON_DELIVERY',
+        paymentMethod: 'cash_on_delivery',
       };
 
       expect(() => validateData(createOrderSchema, orderData)).toThrow();
@@ -70,7 +70,7 @@ describe('Order Creation', () => {
             price: 100,
           },
         ],
-        paymentMethod: 'CASH_ON_DELIVERY',
+        paymentMethod: 'cash_on_delivery',
       };
 
       expect(() => validateData(createOrderSchema, orderData)).toThrow();
@@ -85,7 +85,7 @@ describe('Order Creation', () => {
             price: -50,
           },
         ],
-        paymentMethod: 'CASH_ON_DELIVERY',
+        paymentMethod: 'cash_on_delivery',
       };
 
       expect(() => validateData(createOrderSchema, orderData)).toThrow();
@@ -100,7 +100,7 @@ describe('Order Creation', () => {
             price: 100,
           },
         ],
-        paymentMethod: 'CASH_ON_DELIVERY' as const,
+        paymentMethod: 'cash_on_delivery' as const,
       };
 
       expect(() => validateData(createOrderSchema, orderData)).toThrow();
@@ -116,7 +116,7 @@ describe('Order Creation', () => {
             discount: 10,
           },
         ],
-        paymentMethod: 'CASH_ON_DELIVERY' as const,
+        paymentMethod: 'cash_on_delivery' as const,
       };
 
       const result = validateData(createOrderSchema, orderData);
@@ -133,7 +133,7 @@ describe('Order Creation', () => {
             discount: 150,
           },
         ],
-        paymentMethod: 'CASH_ON_DELIVERY',
+        paymentMethod: 'cash_on_delivery',
       };
 
       expect(() => validateData(createOrderSchema, orderData)).toThrow();
@@ -304,7 +304,7 @@ describe('Order Creation', () => {
             price: 100,
           },
         ],
-        paymentMethod: 'CASH_ON_DELIVERY',
+        paymentMethod: 'cash_on_delivery',
         shippingAddress: {
           fullName: '',
           phone: '',
@@ -318,7 +318,12 @@ describe('Order Creation', () => {
   });
 
   describe('Payment Method Validation', () => {
-    const validPaymentMethods: Array<'CASH_ON_DELIVERY' | 'BANK_TRANSFER' | 'MOBILE_BANKING' | 'CARD'> = ['CASH_ON_DELIVERY', 'BANK_TRANSFER', 'MOBILE_BANKING', 'CARD'];
+    // Matches the real, live values the checkout page actually sends
+    // (lowercase snake_case) — see src/lib/validation.ts's createOrderSchema
+    // comment. Previously this test (and the schema) used invented
+    // uppercase values ('CASH_ON_DELIVERY', 'MOBILE_BANKING', 'CARD') that
+    // don't correspond to anything the frontend or backend actually uses.
+    const validPaymentMethods: Array<'cash_on_delivery' | 'bank_transfer' | 'bkash'> = ['cash_on_delivery', 'bank_transfer', 'bkash'];
 
     validPaymentMethods.forEach((method) => {
       it(`should accept ${method} as payment method`, () => {

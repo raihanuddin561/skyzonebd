@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { OrderListSkeleton } from '@/components/ui/Skeleton';
 import { EmptyOrdersState, EmptySearchState } from '@/components/ui/EmptyState';
@@ -154,16 +155,16 @@ export default function OrdersPage() {
           </div>
 
           {/* Filter Tabs */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
             <div className="flex flex-wrap gap-1 p-2">
               {['all', 'pending', 'confirmed', 'shipped', 'delivered'].map((status) => (
                 <button
                   key={status}
                   onClick={() => setFilter(status as any)}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                     filter === status
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      ? 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-md'
+                      : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
                   }`}
                 >
                   {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -183,18 +184,22 @@ export default function OrdersPage() {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
           ) : filteredOrders.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-lg shadow-sm">
-              <div className="text-gray-300 text-6xl mb-4">📦</div>
+            <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">
+              <div className="w-24 h-24 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-6">
+                <svg className="h-12 w-12 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">No orders found</h3>
               <p className="text-gray-600 mb-6">
-                {filter === 'all' 
-                  ? "You haven't placed any orders yet." 
+                {filter === 'all'
+                  ? "You haven't placed any orders yet."
                   : `No orders with status "${filter}".`
                 }
               </p>
-              <Link 
+              <Link
                 href="/products"
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors cursor-pointer"
+                className="inline-block bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-6 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer"
               >
                 Start Shopping
               </Link>
@@ -202,7 +207,7 @@ export default function OrdersPage() {
           ) : (
             <div className="space-y-4">
               {filteredOrders.map((order) => (
-                <div key={order.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div key={order.id} className="card-hover bg-white border border-gray-100 rounded-xl shadow-sm hover:border-blue-200 transition-colors p-6">
                   {/* Order Header */}
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
                     <div>
@@ -258,20 +263,25 @@ export default function OrdersPage() {
                     <div className="flex flex-wrap gap-2">
                       <Link
                         href={`/orders/${order.id}`}
-                        className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer"
+                        className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors cursor-pointer"
                       >
                         View Details
                       </Link>
                       {order.status === 'delivered' && (
-                        <button className="px-4 py-2 text-sm text-gray-600 hover:text-gray-700 font-medium cursor-pointer">
+                        <button className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors cursor-pointer">
                           Reorder
                         </button>
                       )}
-                      <button className="px-4 py-2 text-sm text-gray-600 hover:text-gray-700 font-medium cursor-pointer">
-                        Download Invoice
-                      </button>
+                      {order.paymentMethod?.toUpperCase().startsWith('INVOICE_NET') && (
+                        <Link
+                          href={`/orders/${order.id}/invoice`}
+                          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors cursor-pointer"
+                        >
+                          View Invoice
+                        </Link>
+                      )}
                       {(order.status === 'pending' || order.status === 'confirmed') && (
-                        <button className="px-4 py-2 text-sm text-red-600 hover:text-red-700 font-medium cursor-pointer">
+                        <button className="px-4 py-2 text-sm text-red-600 hover:text-red-700 font-medium transition-colors cursor-pointer">
                           Cancel Order
                         </button>
                       )}
@@ -282,6 +292,8 @@ export default function OrdersPage() {
             </div>
           )}
         </div>
+
+        <Footer />
       </main>
     </ProtectedRoute>
   );

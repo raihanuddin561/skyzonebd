@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { api } from '@/utils/apiClient';
 
 interface Partner {
   id: string;
@@ -69,6 +70,13 @@ export default function ProfitDashboardPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Capital contribution/withdrawal history modal (Amazon-style
+  // gap-closure Phase 3 part 3).
+  const [capitalPartner, setCapitalPartner] = useState<Partner | null>(null);
+  const [capitalHistory, setCapitalHistory] = useState<any[]>([]);
+  const [capitalLoading, setCapitalLoading] = useState(false);
+  const [capitalForm, setCapitalForm] = useState({ amount: '', direction: 'INVESTMENT' as 'INVESTMENT' | 'WITHDRAWAL', notes: '' });
+
   const [partnerForm, setPartnerForm] = useState({
     name: '',
     email: '',
@@ -90,7 +98,7 @@ export default function ProfitDashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await fetch('/api/admin/profit-reports/dashboard');
+      const response = await api.get('/api/admin/profit-reports/dashboard');
       const data = await response.json();
       
       if (response.ok && data.success) {
@@ -109,7 +117,7 @@ export default function ProfitDashboardPage() {
 
   const fetchPartners = async () => {
     try {
-      const response = await fetch('/api/admin/partners');
+      const response = await api.get('/api/admin/partners');
       const data = await response.json();
       
       if (data.success) {
@@ -126,7 +134,7 @@ export default function ProfitDashboardPage() {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
-      const response = await fetch(`/api/admin/profit-reports?startDate=${thirtyDaysAgo.toISOString()}&endDate=${new Date().toISOString()}`);
+      const response = await api.get(`/api/admin/profit-reports?startDate=${thirtyDaysAgo.toISOString()}&endDate=${new Date().toISOString()}`);
       const data = await response.json();
       
       if (data.success && data.reports) {
@@ -169,11 +177,7 @@ export default function ProfitDashboardPage() {
     setSuccess('');
 
     try {
-      const response = await fetch('/api/admin/partners', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(partnerForm)
-      });
+      const response = await api.post('/api/admin/partners', partnerForm);
 
       const data = await response.json();
 
@@ -199,11 +203,7 @@ export default function ProfitDashboardPage() {
     setSuccess('');
 
     try {
-      const response = await fetch(`/api/admin/partners/${editingPartner.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(partnerForm)
-      });
+      const response = await api.put(`/api/admin/partners/${editingPartner.id}`, partnerForm);
 
       const data = await response.json();
 
@@ -241,9 +241,13 @@ export default function ProfitDashboardPage() {
 
   const handleTogglePartnerStatus = async (partnerId: string, currentStatus: boolean) => {
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/partners/${partnerId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({ isActive: !currentStatus })
       });
 
@@ -255,6 +259,51 @@ export default function ProfitDashboardPage() {
         fetchDashboardData();
       } else {
         setError(data.error || 'Failed to update status');
+      }
+    } catch (err) {
+      setError('An error occurred');
+    }
+  };
+
+  const openCapitalModal = async (partner: Partner) => {
+    setCapitalPartner(partner);
+    setCapitalForm({ amount: '', direction: 'INVESTMENT', notes: '' });
+    await fetchCapitalHistory(partner.id);
+  };
+
+  const fetchCapitalHistory = async (partnerId: string) => {
+    try {
+      setCapitalLoading(true);
+      const response = await api.get(`/api/admin/partners/${partnerId}/contributions`);
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setCapitalHistory(data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching capital history:', err);
+    } finally {
+      setCapitalLoading(false);
+    }
+  };
+
+  const handleRecordCapital = async () => {
+    if (!capitalPartner) return;
+    const amount = parseFloat(capitalForm.amount);
+    if (!amount || amount <= 0) {
+      setError('Enter a positive amount');
+      return;
+    }
+    try {
+      const response = await api.post(`/api/admin/partners/${capitalPartner.id}/contributions`, {
+        amount, direction: capitalForm.direction, notes: capitalForm.notes || undefined,
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess(data.message || 'Recorded successfully');
+        setCapitalForm({ amount: '', direction: 'INVESTMENT', notes: '' });
+        fetchCapitalHistory(capitalPartner.id);
+      } else {
+        setError(data.error || 'Failed to record');
       }
     } catch (err) {
       setError('An error occurred');
@@ -529,6 +578,12 @@ export default function ProfitDashboardPage() {
                         >
                           {partner.isActive ? 'Deactivate' : 'Activate'}
                         </button>
+                        <button
+                          onClick={() => openCapitalModal(partner)}
+                          className="text-purple-600 hover:text-purple-900"
+                        >
+                          Capital
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -743,6 +798,86 @@ export default function ProfitDashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {capitalPartner && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-1">Capital — {capitalPartner.name}</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Record additional contributions or withdrawals as real ledger events — the partner&apos;s initial
+                investment (set at creation) is never edited directly.
+              </p>
+
+              <div className="space-y-3 mb-4">
+                <div className="flex gap-2">
+                  <select
+                    value={capitalForm.direction}
+                    onChange={(e) => setCapitalForm({ ...capitalForm, direction: e.target.value as 'INVESTMENT' | 'WITHDRAWAL' })}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  >
+                    <option value="INVESTMENT">Contribution</option>
+                    <option value="WITHDRAWAL">Withdrawal</option>
+                  </select>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="Amount"
+                    value={capitalForm.amount}
+                    onChange={(e) => setCapitalForm({ ...capitalForm, amount: e.target.value })}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Notes (optional)"
+                  value={capitalForm.notes}
+                  onChange={(e) => setCapitalForm({ ...capitalForm, notes: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+                <button
+                  onClick={handleRecordCapital}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+                >
+                  Record
+                </button>
+              </div>
+
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">History</h3>
+              {capitalLoading ? (
+                <div className="text-sm text-gray-500">Loading...</div>
+              ) : capitalHistory.length === 0 ? (
+                <div className="text-sm text-gray-500">No capital events recorded yet.</div>
+              ) : (
+                <div className="divide-y divide-gray-100 max-h-56 overflow-y-auto">
+                  {capitalHistory.map((entry) => (
+                    <div key={entry.id} className="py-2 flex justify-between items-center text-sm">
+                      <div>
+                        <span className={entry.sourceType === 'INVESTMENT' ? 'text-green-700' : 'text-red-700'}>
+                          {entry.sourceType === 'INVESTMENT' ? 'Contribution' : 'Withdrawal'}
+                        </span>
+                        {entry.notes && <span className="text-gray-500"> — {entry.notes}</span>}
+                        <div className="text-xs text-gray-400">{new Date(entry.createdAt).toLocaleString()}</div>
+                      </div>
+                      <span className="font-medium text-gray-900">৳{entry.amount.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-6">
+                <button
+                  onClick={() => setCapitalPartner(null)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

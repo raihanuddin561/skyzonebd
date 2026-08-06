@@ -70,7 +70,10 @@ export default function ProfitLossPage() {
         params.append('endMonth', '12');
       }
 
-      const response = await fetch(`/api/admin/profit-loss?${params.toString()}`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/admin/profit-loss?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
       const data = await response.json();
 
       if (response.status === 403) {

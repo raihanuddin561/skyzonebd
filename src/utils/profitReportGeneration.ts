@@ -3,6 +3,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { createOrderLedgerEntries } from '@/lib/financialLedger';
+import { splitGrossProfit } from '@/utils/profitCalculation';
 
 /**
  * Auto-generate profit report for a delivered order
@@ -12,6 +13,7 @@ export async function autoGenerateProfitReport(orderId: string): Promise<{
   success: boolean;
   message: string;
   reportId?: string;
+  ledgerPosted?: boolean;
 }> {
   try {
     // Check if profit report already exists for this order (idempotency)
@@ -78,17 +80,20 @@ export async function autoGenerateProfitReport(orderId: string): Promise<{
       const cost = costPerUnit * item.quantity;
       const grossProfit = item.totalProfit ?? (revenue - cost);
 
-      // Calculate profit distribution
+      // Calculate profit distribution (canonical split — see
+      // utils/profitCalculation.ts's splitGrossProfit)
       const platformProfitPercent = item.product.platformProfitPercentage || 0;
       const sellerCommissionPercent = item.product.sellerCommissionPercentage || 0;
 
-      const platformProfit = (grossProfit * platformProfitPercent) / 100;
-      const remainingProfit = grossProfit - platformProfit;
-      const sellerProfit = (remainingProfit * sellerCommissionPercent) / 100;
+      const { platformProfit, sellerProfit } = splitGrossProfit(
+        grossProfit,
+        platformProfitPercent,
+        sellerCommissionPercent
+      );
 
       totalRevenue += revenue;
       totalCost += cost;
-      totalPlatformProfit += platformProfit + (remainingProfit - sellerProfit);
+      totalPlatformProfit += platformProfit;
       totalSellerProfit += sellerProfit;
     }
 
@@ -99,44 +104,60 @@ export async function autoGenerateProfitReport(orderId: string): Promise<{
     // Get seller ID from first item (assuming single seller per order)
     const sellerId = order.orderItems[0]?.product.sellerId || null;
 
-    // Create profit report
-    const report = await prisma.profitReport.create({
-      data: {
-        orderId,
-        revenue: totalRevenue,
-        costOfGoods: totalCost,
-        grossProfit,
-        shippingExpense: 0,
-        handlingExpense: 0,
-        platformExpense: 0,
-        marketingExpense: 0,
-        otherExpenses: 0,
-        totalExpenses: 0,
-        netProfit,
-        profitMargin,
-        platformProfit: totalPlatformProfit,
-        platformProfitPercent: grossProfit > 0 ? (totalPlatformProfit / grossProfit) * 100 : 0,
-        sellerProfit: totalSellerProfit,
-        sellerProfitPercent: grossProfit > 0 ? (totalSellerProfit / grossProfit) * 100 : 0,
-        sellerId,
-        reportPeriod: 'daily',
-        reportDate: new Date()
-      }
+    // Create the profit report and update the order's profit fields
+    // atomically — previously these were two independent calls, so a
+    // failure on the order update left a ProfitReport row with no
+    // corresponding update to Order.totalCost/grossProfit/etc (P1-2).
+    const report = await prisma.$transaction(async (tx) => {
+      const created = await tx.profitReport.create({
+        data: {
+          orderId,
+          revenue: totalRevenue,
+          costOfGoods: totalCost,
+          grossProfit,
+          shippingExpense: 0,
+          handlingExpense: 0,
+          platformExpense: 0,
+          marketingExpense: 0,
+          otherExpenses: 0,
+          totalExpenses: 0,
+          netProfit,
+          profitMargin,
+          platformProfit: totalPlatformProfit,
+          platformProfitPercent: grossProfit > 0 ? (totalPlatformProfit / grossProfit) * 100 : 0,
+          sellerProfit: totalSellerProfit,
+          sellerProfitPercent: grossProfit > 0 ? (totalSellerProfit / grossProfit) * 100 : 0,
+          sellerId,
+          reportPeriod: 'daily',
+          reportDate: new Date()
+        }
+      });
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          totalCost,
+          grossProfit,
+          platformProfit: totalPlatformProfit,
+          sellerProfit: totalSellerProfit,
+          profitMargin
+        }
+      });
+
+      return created;
     });
 
-    // Update order with profit info
-    await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        totalCost,
-        grossProfit,
-        platformProfit: totalPlatformProfit,
-        sellerProfit: totalSellerProfit,
-        profitMargin
-      }
-    });
-
-    // Create financial ledger entries (double-entry bookkeeping)
+    // Ledger posting happens after the report/order transaction commits,
+    // deliberately: the profit numbers are the primary business fact and
+    // should stand even if the ledger mirror of them hits a transient
+    // failure. That failure must not be silent, though — it's surfaced in
+    // the return value (`ledgerPosted: false`) so every caller can log and
+    // act on it, rather than being swallowed in a try/catch that only
+    // printed to the console (P1-2). The existing FinancialLedger
+    // `isReconciled` flag remains the durable, queryable trail for
+    // whichever entries *did* post; a `false` here means this order's
+    // entries never posted at all and generation should be retried.
+    let ledgerPosted = true;
     try {
       await createOrderLedgerEntries({
         id: order.id,
@@ -150,14 +171,17 @@ export async function autoGenerateProfitReport(orderId: string): Promise<{
         })),
       });
     } catch (ledgerError) {
-      // Log error but don't fail the profit report generation
-      console.error('Failed to create ledger entries:', ledgerError);
+      ledgerPosted = false;
+      console.error(`Failed to create ledger entries for order ${order.orderNumber} (reportId=${report.id}) — needs manual reconciliation:`, ledgerError);
     }
 
     return {
       success: true,
-      message: `Profit report generated for order ${order.orderNumber}`,
-      reportId: report.id
+      message: ledgerPosted
+        ? `Profit report generated for order ${order.orderNumber}`
+        : `Profit report generated for order ${order.orderNumber}, but ledger posting FAILED and needs manual reconciliation`,
+      reportId: report.id,
+      ledgerPosted
     };
 
   } catch (error) {

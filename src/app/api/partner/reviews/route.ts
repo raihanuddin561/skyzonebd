@@ -20,24 +20,15 @@ export async function GET(request: NextRequest) {
   try {
     // Authenticate partner
     const user = await requirePartner(request);
-    
-    // Find partner record
-    const partner = await prisma.partner.findFirst({
-      where: {
-        OR: [
-          { email: user.email },
-          { id: user.id }
-        ]
-      }
-    });
-    
-    if (!partner) {
-      return NextResponse.json(
-        { success: false, error: 'Partner record not found' },
-        { status: 404 }
-      );
-    }
-    
+
+    // This route's data is scoped entirely by Product.sellerId (below), which
+    // is a real FK to User.id — it never needed a linked Partner record at
+    // all. A prior version required one anyway via a lookup that compared
+    // Partner.id to User.id (a different id space, so it rarely matched) and
+    // 404'd a pure SELLER with no Partner row despite their review data
+    // being perfectly reachable. Removed entirely (Amazon-Style Wholesale
+    // Platform Gap Closure — Phase 4 part 4).
+
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status') || 'APPROVED'; // Default to approved

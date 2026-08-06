@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { hasPermission, PermissionAction } from '@/utils/permissions';
+import { getTokenFromRequest, verifyToken } from '@/lib/auth';
 
 /**
  * Check if request has valid permission
@@ -23,16 +24,18 @@ export async function checkPermission(
   response?: NextResponse;
 }> {
   try {
-    // Get user ID from header or JWT token
-    // TODO: Replace with your actual authentication method
-    const userId = request.headers.get('x-user-id');
-    
+    // Identity is derived from a signature-verified JWT — never trust a
+    // client-supplied header for this. (This previously read the `x-user-id`
+    // header directly with no verification at all, letting anyone impersonate
+    // any user by guessing/knowing their id — see 08_Security_Assessment.md §1.2.)
+    const userId = await getAuthenticatedUserId(request);
+
     if (!userId) {
       return {
         authorized: false,
         response: NextResponse.json(
-          { 
-            success: false, 
+          {
+            success: false,
             error: 'Authentication required',
             code: 'AUTH_REQUIRED'
           },
@@ -40,7 +43,7 @@ export async function checkPermission(
         )
       };
     }
-    
+
     // Check permission
     const hasAccess = await hasPermission(userId, module, action);
     
@@ -114,12 +117,25 @@ export class PermissionError extends Error {
 }
 
 /**
- * Get authenticated user ID from request
+ * Get authenticated user ID from request.
+ *
+ * Extracts and verifies the Bearer JWT via the same token-verification path
+ * used everywhere else in the app (lib/auth.ts). Returns null if there is no
+ * token, or if the token fails signature/expiry verification — it never
+ * falls back to a client-supplied header.
  */
 export async function getAuthenticatedUserId(
   request: NextRequest
 ): Promise<string | null> {
-  // TODO: Replace with your actual authentication method
-  // This could parse JWT token, validate session, etc.
-  return request.headers.get('x-user-id');
+  const token = getTokenFromRequest(request);
+  if (!token) {
+    return null;
+  }
+
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    return null;
+  }
+
+  return decoded.userId;
 }

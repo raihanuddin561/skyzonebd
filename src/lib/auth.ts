@@ -43,12 +43,31 @@ export function getTokenFromRequest(request: NextRequest): string | null {
 }
 
 /**
+ * Returns the JWT signing/verification secret.
+ *
+ * Throws if JWT_SECRET is not configured — there must never be a fallback
+ * here. A fallback is a fixed, publicly-known string (it's committed to
+ * this codebase's history), which would let anyone forge a valid token for
+ * any user/role the moment the real secret is missing from the environment.
+ * Every call site catches this (directly or via verifyToken's try/catch)
+ * and turns it into a 401, so a misconfigured deployment fails closed
+ * (every request rejected) rather than open (every token forgeable).
+ */
+export function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    console.error('FATAL: JWT_SECRET environment variable is not set. All token verification will fail until it is configured.');
+    throw new Error('JWT_SECRET is not configured');
+  }
+  return secret;
+}
+
+/**
  * Verify and decode JWT token
  */
 export function verifyToken(token: string): DecodedToken | null {
   try {
-    const jwtSecret = process.env.JWT_SECRET || 'fallback-secret';
-    const decoded = verify(token, jwtSecret) as DecodedToken;
+    const decoded = verify(token, getJwtSecret()) as DecodedToken;
     return decoded;
   } catch (error) {
     return null;
@@ -211,39 +230,3 @@ export function isRetailUser(user: { userType: string }): boolean {
   return user.userType === 'RETAIL';
 }
 
-/**
- * Verify admin JWT token from request (inline helper)
- * Returns authorization status and userId
- * 
- * @deprecated Use requireAdmin() for proper error handling
- * This is kept for backward compatibility with inline verifyAdmin patterns
- */
-export type AdminAuthResult = 
-  | { authorized: true; userId: string; error?: never }
-  | { authorized: false; userId?: never; error: string };
-
-export function verifyAdminToken(request: NextRequest): AdminAuthResult {
-  try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return { authorized: false, error: 'No authorization token' };
-    }
-
-    const token = authHeader.substring(7);
-    const decoded = verifyToken(token);
-
-    if (!decoded) {
-      return { authorized: false, error: 'Invalid token' };
-    }
-
-    // Case-insensitive role check
-    const role = decoded.role?.toUpperCase();
-    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
-      return { authorized: false, error: 'Admin access required' };
-    }
-
-    return { authorized: true, userId: decoded.userId };
-  } catch {
-    return { authorized: false, error: 'Invalid token' };
-  }
-}

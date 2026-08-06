@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import ProductCard from "./components/ProductCard";
 import Header from "./components/Header";
+import Footer from "./components/Footer";
 import { useFeaturedProducts } from "@/hooks/useProducts";
 import { useCategories } from "@/hooks/useCategories";
 import { getCategoryIcon, getCategoryColor } from "@/utils/categoryIcons";
@@ -30,6 +31,26 @@ interface HeroSlide {
   };
 }
 
+interface CarouselSettings {
+  autoplayEnabled: boolean;
+  autoplaySpeed: number;
+  transitionEffect: 'fade' | 'slide';
+  pauseOnHover: boolean;
+  showArrows: boolean;
+  showDots: boolean;
+  showCounter: boolean;
+}
+
+const DEFAULT_CAROUSEL_SETTINGS: CarouselSettings = {
+  autoplayEnabled: true,
+  autoplaySpeed: 5,
+  transitionEffect: 'fade',
+  pauseOnHover: true,
+  showArrows: true,
+  showDots: true,
+  showCounter: true,
+};
+
 export default function HomePage() {
   const { products: featuredProducts, loading: productsLoading } = useFeaturedProducts();
   const { categories, loading: categoriesLoading } = useCategories();
@@ -39,6 +60,7 @@ export default function HomePage() {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [carouselSettings, setCarouselSettings] = useState<CarouselSettings>(DEFAULT_CAROUSEL_SETTINGS);
 
   // Minimum swipe distance (in px)
   const minSwipeDistance = 50;
@@ -90,15 +112,34 @@ export default function HomePage() {
     fetchHeroSlides();
   }, []);
 
+  // Fetch carousel behavior settings (autoplay speed, transition, arrows/
+  // dots/counter visibility) — admin-configurable under Admin > Settings.
+  // Public/unauthenticated endpoint, since a visitor's own homepage load
+  // needs this before any login has happened.
+  useEffect(() => {
+    const fetchCarouselSettings = async () => {
+      try {
+        const response = await fetch('/api/carousel-settings');
+        const data = await response.json();
+        if (data.success && data.data) {
+          setCarouselSettings({ ...DEFAULT_CAROUSEL_SETTINGS, ...data.data });
+        }
+      } catch (error) {
+        console.error('Error fetching carousel settings:', error);
+      }
+    };
+    fetchCarouselSettings();
+  }, []);
+
   // Auto-slide effect
   useEffect(() => {
-    if (heroSlides.length > 1 && !isPaused) {
+    if (heroSlides.length > 1 && carouselSettings.autoplayEnabled && !(isPaused && carouselSettings.pauseOnHover)) {
       const timer = setInterval(() => {
         setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
-      }, 5000); // Change slide every 5 seconds
+      }, carouselSettings.autoplaySpeed * 1000);
       return () => clearInterval(timer);
     }
-  }, [heroSlides.length, isPaused]);
+  }, [heroSlides.length, isPaused, carouselSettings.autoplayEnabled, carouselSettings.autoplaySpeed, carouselSettings.pauseOnHover]);
 
   const goToSlide = (index: number) => {
     setCurrentSlide(index);
@@ -182,11 +223,22 @@ export default function HomePage() {
             {heroSlides.map((slide, index) => (
               <div
                 key={slide.id}
-                className={`absolute inset-0 transition-all duration-700 ease-in-out ${
-                  index === currentSlide 
-                    ? 'opacity-100 scale-100 z-10' 
-                    : 'opacity-0 scale-95 pointer-events-none z-0'
-                }`}
+                className={
+                  carouselSettings.transitionEffect === 'slide'
+                    ? `absolute inset-0 transition-transform duration-700 ease-in-out ${
+                        index === currentSlide ? 'z-10' : 'z-0 pointer-events-none'
+                      }`
+                    : `absolute inset-0 transition-all duration-700 ease-in-out ${
+                        index === currentSlide
+                          ? 'opacity-100 scale-100 z-10'
+                          : 'opacity-0 scale-95 pointer-events-none z-0'
+                      }`
+                }
+                style={
+                  carouselSettings.transitionEffect === 'slide'
+                    ? { transform: `translateX(${(index - currentSlide) * 100}%)` }
+                    : undefined
+                }
               >
                 <div 
                   className="w-full h-full relative flex items-center justify-center"
@@ -276,12 +328,12 @@ export default function HomePage() {
               </div>
             ))}
 
-            {/* Navigation Arrows - Enhanced Design */}
-            {heroSlides.length > 1 && (
+            {/* Navigation Arrows */}
+            {heroSlides.length > 1 && carouselSettings.showArrows && (
               <>
                 <button
                   onClick={prevSlide}
-                  className="absolute left-2 sm:left-4 md:left-6 top-1/2 -translate-y-1/2 bg-white/25 hover:bg-white/40 active:bg-white/50 backdrop-blur-md text-white p-2 sm:p-3 md:p-4 rounded-full transition-all duration-300 z-20 opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 shadow-lg hover:shadow-xl"
+                  className="absolute left-2 sm:left-4 md:left-6 top-1/2 -translate-y-1/2 bg-white/25 hover:bg-white/40 active:bg-white/50 backdrop-blur-md text-white p-2 sm:p-3 md:p-4 rounded-full transition-all duration-300 z-20 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:scale-110 active:scale-95 shadow-lg hover:shadow-xl cursor-pointer"
                   aria-label="Previous slide"
                 >
                   <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
@@ -290,45 +342,102 @@ export default function HomePage() {
                 </button>
                 <button
                   onClick={nextSlide}
-                  className="absolute right-2 sm:right-4 md:right-6 top-1/2 -translate-y-1/2 bg-white/25 hover:bg-white/40 active:bg-white/50 backdrop-blur-md text-white p-2 sm:p-3 md:p-4 rounded-full transition-all duration-300 z-20 opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 shadow-lg hover:shadow-xl"
+                  className="absolute right-2 sm:right-4 md:right-6 top-1/2 -translate-y-1/2 bg-white/25 hover:bg-white/40 active:bg-white/50 backdrop-blur-md text-white p-2 sm:p-3 md:p-4 rounded-full transition-all duration-300 z-20 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:scale-110 active:scale-95 shadow-lg hover:shadow-xl cursor-pointer"
                   aria-label="Next slide"
                 >
                   <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
-
-                {/* Slide Indicators - Enhanced Design */}
-                <div className="absolute bottom-4 sm:bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex gap-2 sm:gap-3 z-20">
-                  {heroSlides.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => goToSlide(index)}
-                      className={`transition-all duration-300 rounded-full shadow-md hover:shadow-lg ${
-                        index === currentSlide
-                          ? 'bg-white w-8 sm:w-10 md:w-12 h-2.5 sm:h-3 scale-110'
-                          : 'bg-white/60 hover:bg-white/80 w-2.5 sm:w-3 h-2.5 sm:h-3 hover:scale-110'
-                      }`}
-                      aria-label={`Go to slide ${index + 1}`}
-                    />
-                  ))}
-                </div>
-
-                {/* Slide Counter - New Feature */}
-                <div className="absolute top-4 right-4 bg-black/30 backdrop-blur-md text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-semibold z-20">
-                  {currentSlide + 1} / {heroSlides.length}
-                </div>
               </>
+            )}
+
+            {/* Slide Indicators, each doubling as an autoplay progress bar for the active slide */}
+            {heroSlides.length > 1 && carouselSettings.showDots && (
+              <div className="absolute bottom-4 sm:bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex gap-2 sm:gap-3 z-20">
+                {heroSlides.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => goToSlide(index)}
+                    className={`relative overflow-hidden transition-all duration-300 rounded-full shadow-md hover:shadow-lg cursor-pointer ${
+                      index === currentSlide
+                        ? 'bg-white/40 w-8 sm:w-10 md:w-12 h-2.5 sm:h-3 scale-110'
+                        : 'bg-white/60 hover:bg-white/80 w-2.5 sm:w-3 h-2.5 sm:h-3 hover:scale-110'
+                    }`}
+                    aria-label={`Go to slide ${index + 1}`}
+                  >
+                    {index === currentSlide && carouselSettings.autoplayEnabled && !(isPaused && carouselSettings.pauseOnHover) && (
+                      <span
+                        key={`${currentSlide}-${carouselSettings.autoplaySpeed}`}
+                        className="absolute inset-0 bg-white rounded-full origin-left animate-carousel-progress"
+                        style={{ animationDuration: `${carouselSettings.autoplaySpeed}s` }}
+                      />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Slide Counter */}
+            {heroSlides.length > 1 && carouselSettings.showCounter && (
+              <div className="absolute top-4 right-4 bg-black/30 backdrop-blur-md text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-semibold z-20">
+                {currentSlide + 1} / {heroSlides.length}
+              </div>
             )}
           </div>
         )}
       </section>
 
+      {/* Trust Bar */}
+      <section className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {[
+              {
+                title: 'Verified Suppliers',
+                desc: 'Every seller is reviewed & approved',
+                icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />,
+              },
+              {
+                title: 'Secure Payments',
+                desc: 'Your transactions are protected',
+                icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 10-8 0v4h8z" />,
+              },
+              {
+                title: 'Bulk Pricing',
+                desc: 'Tiered discounts as you order more',
+                icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4m16 0l-4 4m4-4l-4-4M4 12l4 4m-4-4l4-4" />,
+              },
+              {
+                title: 'Fast Delivery',
+                desc: 'Nationwide shipping, tracked end to end',
+                icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />,
+              },
+            ].map((item) => (
+              <div key={item.title} className="flex items-start gap-3 p-3 md:p-0">
+                <span className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {item.icon}
+                  </svg>
+                </span>
+                <div>
+                  <p className="text-sm md:text-base font-semibold text-gray-900">{item.title}</p>
+                  <p className="text-xs md:text-sm text-gray-500 mt-0.5 hidden sm:block">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Categories Section */}
       <section className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-10 md:py-16 px-4 border-b border-gray-200">
 
-        <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-6 md:mb-8">Browse Categories</h3>
-        
+        <div className="max-w-7xl mx-auto text-center mb-6 md:mb-8">
+          <span className="section-eyebrow mb-3">Shop by category</span>
+          <h3 className="text-xl md:text-3xl font-bold text-gray-900">Browse Categories</h3>
+        </div>
+
         {categoriesLoading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
@@ -367,8 +476,22 @@ export default function HomePage() {
       </section>
 
       {/* Featured Products */}
-      <section className="py-8 md:py-12 px-4 md:px-6 max-w-7xl mx-auto">
-        <h3 className="text-xl md:text-2xl font-semibold text-gray-900 mb-4 md:mb-6">Featured Products</h3>
+      <section className="py-10 md:py-14 px-4 md:px-6 max-w-7xl mx-auto">
+        <div className="flex items-end justify-between mb-6 md:mb-8 gap-4">
+          <div>
+            <span className="section-eyebrow mb-3">Hot right now</span>
+            <h3 className="text-xl md:text-3xl font-bold text-gray-900">Featured Products</h3>
+          </div>
+          <Link
+            href="/products"
+            className="hidden sm:inline-flex items-center gap-1.5 text-blue-600 font-semibold hover:text-blue-700 transition-colors flex-shrink-0"
+          >
+            View All
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </Link>
+        </div>
         {productsLoading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -380,7 +503,7 @@ export default function HomePage() {
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
-            <div className="text-center mt-6 md:mt-8">
+            <div className="text-center mt-6 md:mt-8 sm:hidden">
               <Link
                 href="/products"
                 className="inline-block bg-blue-600 text-white px-6 md:px-8 py-2.5 md:py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm md:text-base"
@@ -393,122 +516,58 @@ export default function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section className="py-8 md:py-16 bg-gray-100 text-center px-4">
-        <h3 className="text-xl md:text-2xl font-semibold text-gray-900 mb-6 md:mb-8">How It Works</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 max-w-5xl mx-auto">
+      <section className="py-10 md:py-20 bg-gray-50 text-center px-4">
+        <div className="max-w-2xl mx-auto mb-8 md:mb-12">
+          <span className="section-eyebrow mb-3">Get started in minutes</span>
+          <h3 className="text-xl md:text-3xl font-bold text-gray-900">How It Works</h3>
+          <p className="text-sm md:text-base text-gray-500 mt-2">Three simple steps to start buying or selling wholesale.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-8 max-w-5xl mx-auto">
           {[
-            'Register your company on SkyzoneBD',
-            'Add your products and pricing',
-            'Start receiving and managing orders'
+            { title: 'Create your account', desc: 'Register your company on SkyzoneBD in minutes.' },
+            { title: 'List or browse products', desc: 'Add your catalog and pricing, or browse verified sellers.' },
+            { title: 'Order & grow', desc: 'Start receiving and managing bulk orders with ease.' },
           ].map((step, idx) => (
-            <div key={idx} className="p-4 md:p-6 bg-white rounded-xl shadow">
-              <div className="text-3xl md:text-4xl font-bold text-blue-600 mb-2">{idx + 1}</div>
-              <p className="text-sm md:text-base text-gray-800">{step}</p>
+            <div key={idx} className="card-hover p-6 md:p-8 bg-white rounded-2xl shadow-sm border border-gray-100 relative">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center text-lg font-bold mb-4 mx-auto shadow-md">
+                {idx + 1}
+              </div>
+              <p className="text-base md:text-lg font-semibold text-gray-900 mb-1.5">{step.title}</p>
+              <p className="text-sm text-gray-500">{step.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="py-16 bg-blue-600 text-white text-center">
-        <h3 className="text-3xl font-bold mb-4 text-white">Ready to scale?</h3>
-        <p className="mb-6">Join SkyzoneBD today and reach thousands of verified B2B buyers.</p>
-        <Link href="/auth/register" className="px-8 py-4 bg-white text-blue-700 font-semibold rounded-xl shadow hover:bg-gray-100">Become a Vendor</Link>
-      </section>
-
-      <footer className="py-12 bg-gray-100 border-t mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            {/* Company Info */}
-            <div>
-              <h4 className="text-lg font-bold text-gray-900 mb-4">SkyzoneBD</h4>
-              <p className="text-sm text-gray-600 mb-4">
-                Bangladesh&apos;s leading B2B and B2C marketplace connecting buyers and sellers.
-              </p>
-              <p className="text-sm text-gray-600">
-                <strong>Email:</strong> support@skyzonebd.com<br />
-                <strong>Phone:</strong> +880-1700-000000
-              </p>
-            </div>
-
-            {/* Quick Links */}
-            <div>
-              <h4 className="text-lg font-bold text-gray-900 mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="/products" className="text-gray-600 hover:text-blue-600">
-                    All Products
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/auth/register" className="text-gray-600 hover:text-blue-600">
-                    Register
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/auth/login" className="text-gray-600 hover:text-blue-600">
-                    Login
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/cart" className="text-gray-600 hover:text-blue-600">
-                    Shopping Cart
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Policies */}
-            <div>
-              <h4 className="text-lg font-bold text-gray-900 mb-4">Policies</h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="/privacy-policy" className="text-gray-600 hover:text-blue-600">
-                    Privacy Policy
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/terms-of-service" className="text-gray-600 hover:text-blue-600">
-                    Terms of Service
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/refund-policy" className="text-gray-600 hover:text-blue-600">
-                    Refund Policy
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/shipping-policy" className="text-gray-600 hover:text-blue-600">
-                    Shipping Policy
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Download App */}
-            <div>
-              <h4 className="text-lg font-bold text-gray-900 mb-4">Mobile App</h4>
-              <p className="text-sm text-gray-600 mb-4">
-                Download our Android app for a better shopping experience
-              </p>
-              <a 
-                href="https://play.google.com/store" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-flex items-center px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm"
-              >
-                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.6 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.5,12.92 20.16,13.19L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z" />
-                </svg>
-                Google Play
-              </a>
-            </div>
-          </div>
-
-          <div className="border-t pt-8 text-center text-sm text-gray-500">
-            <p>© 2025 SkyzoneBD. All rights reserved.</p>
+      <section className="relative py-16 md:py-20 bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 text-white text-center overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: 'radial-gradient(circle at 20% 30%, white 1px, transparent 1px), radial-gradient(circle at 80% 70%, white 1px, transparent 1px)',
+            backgroundSize: '48px 48px',
+          }}
+        />
+        <div className="relative max-w-2xl mx-auto px-4">
+          <h3 className="text-2xl md:text-4xl font-bold mb-3 text-white">Ready to scale your business?</h3>
+          <p className="mb-8 text-blue-100 text-base md:text-lg">Join SkyzoneBD today and reach thousands of verified B2B buyers across Bangladesh.</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/auth/register"
+              className="px-8 py-3.5 bg-white text-blue-700 font-bold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all"
+            >
+              Become a Vendor
+            </Link>
+            <Link
+              href="/products"
+              className="px-8 py-3.5 bg-white/10 border border-white/30 text-white font-bold rounded-xl hover:bg-white/20 transition-colors"
+            >
+              Start Shopping
+            </Link>
           </div>
         </div>
-      </footer>
+      </section>
+
+      <Footer />
     </main>
   );
 }

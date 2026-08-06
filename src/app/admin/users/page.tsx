@@ -129,9 +129,10 @@ export default function UsersManagement() {
       } else if (newStatus === 'suspended') {
         action = 'suspend';
       } else if (newStatus === 'pending') {
-        // For pending, we need to handle it differently
-        // We'll deactivate and unverify the user
-        action = 'update';
+        // Deactivate and unverify the user via the dedicated action
+        // (not the generic `update` action, which no longer accepts
+        // isActive/isVerified — those must go through a named action).
+        action = 'reset-to-pending';
       }
 
       const response = await fetch('/api/admin/users', {
@@ -142,12 +143,6 @@ export default function UsersManagement() {
         body: JSON.stringify({
           userId,
           action,
-          ...(action === 'update' && {
-            data: {
-              isActive: false,
-              isVerified: false,
-            },
-          }),
         }),
       });
 

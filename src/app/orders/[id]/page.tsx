@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/app/components/Header';
+import Footer from '@/app/components/Footer';
 import Link from 'next/link';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 interface OrderItem {
+  id: string;
   productId: string;
   name: string;
   imageUrl: string;
@@ -55,6 +57,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const [updating, setUpdating] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editedItems, setEditedItems] = useState<OrderItem[]>([]);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
+  const [returnQuantities, setReturnQuantities] = useState<Record<string, number>>({});
+  const [submittingReturn, setSubmittingReturn] = useState(false);
 
   useEffect(() => {
     const loadParams = async () => {
@@ -209,6 +215,56 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       toast.error('Failed to cancel order');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleOpenReturnModal = () => {
+    setReturnQuantities({});
+    setReturnReason('');
+    setShowReturnModal(true);
+  };
+
+  const handleSubmitReturn = async () => {
+    if (!order) return;
+    const items = Object.entries(returnQuantities)
+      .filter(([, quantity]) => quantity > 0)
+      .map(([orderItemId, quantity]) => ({ orderItemId, quantity }));
+
+    if (items.length === 0) {
+      toast.error('Select at least one item to return');
+      return;
+    }
+    if (!returnReason.trim()) {
+      toast.error('Please provide a reason for the return');
+      return;
+    }
+
+    try {
+      setSubmittingReturn(true);
+      const token = localStorage.getItem('token');
+
+      const response = await fetch(`/api/orders/${order.id}/return`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason: returnReason, items })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success(result.message || 'Return request submitted');
+        setShowReturnModal(false);
+      } else {
+        toast.error(result.error || 'Failed to submit return request');
+      }
+    } catch (error) {
+      console.error('Error submitting return request:', error);
+      toast.error('Failed to submit return request');
+    } finally {
+      setSubmittingReturn(false);
     }
   };
 
@@ -409,6 +465,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">Order Items</h2>
+                {!(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && order.status === 'DELIVERED' && (
+                  <button
+                    onClick={handleOpenReturnModal}
+                    className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    ↩️ Request Return
+                  </button>
+                )}
                 {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && order.status === 'PENDING' && !editMode && (
                   <button
                     onClick={handleEditToggle}
@@ -1009,6 +1073,69 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
       </div>
+
+      {showReturnModal && order && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowReturnModal(false); }}
+        >
+          <div className="bg-white rounded-lg max-w-2xl w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
+              Request Return — Order #{order.orderNumber}
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">Select the quantity of each item you'd like to return.</p>
+
+            <div className="space-y-3 mb-4">
+              {order.items.map((item) => (
+                <div key={item.id} className="flex items-center justify-between gap-4 pb-3 border-b border-gray-100 last:border-0">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                    <p className="text-xs text-gray-500">Ordered: {item.quantity} × ৳{item.price.toLocaleString()}</p>
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={item.quantity}
+                    value={returnQuantities[item.id] || 0}
+                    onChange={(e) => {
+                      const value = Math.max(0, Math.min(item.quantity, parseInt(e.target.value) || 0));
+                      setReturnQuantities(prev => ({ ...prev, [item.id]: value }));
+                    }}
+                    className="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <label className="block text-sm font-medium text-gray-700 mb-1">Reason for return</label>
+            <textarea
+              value={returnReason}
+              onChange={(e) => setReturnReason(e.target.value)}
+              placeholder="Tell us why you're returning these items..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg min-h-[100px] text-sm"
+            />
+
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={handleSubmitReturn}
+                disabled={submittingReturn}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {submittingReturn ? 'Submitting...' : 'Submit Return Request'}
+              </button>
+              <button
+                onClick={() => setShowReturnModal(false)}
+                disabled={submittingReturn}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Footer />
     </main>
   );
 }

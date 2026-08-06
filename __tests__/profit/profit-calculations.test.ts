@@ -1,294 +1,147 @@
-// __tests__/profit/profit-calculations.test.ts - Profit calculation tests
+/**
+ * @jest-environment node
+ */
+// __tests__/profit/profit-calculations.test.ts
+// Rewritten for P2-7. The previous version of this file computed its
+// expected values with the same inline arithmetic it then asserted against
+// — it never imported or called any real function from the codebase, so it
+// provided zero regression protection (a bug in the real profit-calculation
+// code could never make this file fail). It now calls the real functions:
+// utils/partnerProfitDistribution.ts's calculateProfitForPeriod (revenue/
+// cost/margin aggregation) and distributeProfitToPartners (partner
+// commission split). The platform/seller profit-split formula itself is
+// covered separately in __tests__/utils/profitCalculation.test.ts (P2-2),
+// which already tests the real splitGrossProfit/calculateProductProfit.
+//
+// Dropped from the old file, deliberately: "Tiered Pricing Profit", "ROI
+// Calculation", and "Profit with Tax" sections had no corresponding real
+// implementation anywhere in the codebase to call instead (the tiered-
+// pricing calculator was confirmed dead code and deleted in P2-2; ROI and
+// a flat tax-on-profit calculation are not implemented features). Testing
+// invented arithmetic with no source function to call is the same
+// tautology this rewrite exists to fix — see 15_Implementation_Backlog.md
+// P2-7 for the full reasoning.
+//
+// Updated for Amazon-style gap-closure Phase 2 part 2:
+// calculateProfitForPeriod/distributeProfitToPartners now derive from
+// getFinancialSummary (FinancialLedger-based) instead of the Sale model —
+// fixtures below mock that dependency instead of sale.aggregate.
 
-describe('Profit Calculations', () => {
-  describe('Margin Calculation', () => {
-    it('should calculate profit margin correctly', () => {
-      const costPrice = 80;
-      const sellingPrice = 100;
-      const profitMargin = ((sellingPrice - costPrice) / sellingPrice) * 100;
+const mockPrismaClient = {
+  financialLedger: { findMany: jest.fn() },
+  partner: { findMany: jest.fn() },
+  profitDistribution: { create: jest.fn() },
+};
 
-      expect(profitMargin).toBe(20);
+jest.mock('@/lib/prisma', () => ({
+  __esModule: true,
+  prisma: mockPrismaClient,
+  default: mockPrismaClient,
+}));
+
+const getFinancialSummary = jest.fn();
+jest.mock('@/lib/financialLedger', () => ({ getFinancialSummary: (...args: any[]) => getFinancialSummary(...args) }));
+
+import { calculateProfitForPeriod, distributeProfitToPartners } from '@/utils/partnerProfitDistribution';
+
+const start = new Date('2026-01-01');
+const end = new Date('2026-01-31');
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockPrismaClient.financialLedger.findMany.mockResolvedValue([]);
+});
+
+describe('calculateProfitForPeriod (real function, not reimplemented arithmetic)', () => {
+  it('derives net profit and margin from the ledger-based financial summary', async () => {
+    getFinancialSummary.mockResolvedValueOnce({
+      revenue: 1000,
+      cogs: 700,
+      grossProfit: 300,
+      operationalCosts: 60,
+      operationalCostsByCategory: { RENT: 60, UTILITIES: 40 },
+      salaryExpenses: 40,
+      netProfitBeforeDistribution: 200, // 300 - 60 - 40
+      distributionsPaid: 0,
+      platformRetainedProfit: 200,
     });
+    mockPrismaClient.financialLedger.findMany.mockResolvedValueOnce(
+      Array.from({ length: 12 }, (_, i) => ({ sourceId: `order-${i}` }))
+    );
 
-    it('should calculate profit amount', () => {
-      const costPrice = 75;
-      const sellingPrice = 100;
-      const quantity = 10;
+    const result = await calculateProfitForPeriod(start, end);
 
-      const profitPerUnit = sellingPrice - costPrice;
-      const totalProfit = profitPerUnit * quantity;
-
-      expect(profitPerUnit).toBe(25);
-      expect(totalProfit).toBe(250);
-    });
-
-    it('should handle zero profit scenario', () => {
-      const costPrice = 100;
-      const sellingPrice = 100;
-
-      const profit = sellingPrice - costPrice;
-      const margin = ((sellingPrice - costPrice) / sellingPrice) * 100;
-
-      expect(profit).toBe(0);
-      expect(margin).toBe(0);
-    });
-
-    it('should detect loss scenario', () => {
-      const costPrice = 120;
-      const sellingPrice = 100;
-
-      const profit = sellingPrice - costPrice;
-
-      expect(profit).toBeLessThan(0);
-      expect(profit).toBe(-20);
-    });
+    expect(result.totalRevenue).toBe(1000);
+    expect(result.grossProfit).toBe(300);
+    expect(result.totalOperationalCosts).toBe(100); // operationalCosts + salaryExpenses
+    expect(result.netProfit).toBe(200);
+    expect(result.netMargin).toBeCloseTo(20); // netProfit / totalRevenue * 100
+    expect(result.salesCount).toBe(12);
+    expect(result.costsByCategory).toEqual({ RENT: 60, UTILITIES: 40 });
   });
 
-  describe('Partner Commission Calculation', () => {
-    it('should calculate partner commission correctly', () => {
-      const sellingPrice = 100;
-      const costPrice = 80;
-      const commissionRate = 30; // 30%
-
-      const grossProfit = sellingPrice - costPrice;
-      const partnerCommission = grossProfit * (commissionRate / 100);
-      const netProfit = grossProfit - partnerCommission;
-
-      expect(grossProfit).toBe(20);
-      expect(partnerCommission).toBe(6);
-      expect(netProfit).toBe(14);
+  it('does not divide by zero when there is no revenue in the period', async () => {
+    getFinancialSummary.mockResolvedValueOnce({
+      revenue: 0, cogs: 0, grossProfit: 0, operationalCosts: 0, operationalCostsByCategory: {},
+      salaryExpenses: 0, netProfitBeforeDistribution: 0, distributionsPaid: 0, platformRetainedProfit: 0,
     });
 
-    it('should handle 0% commission', () => {
-      const sellingPrice = 100;
-      const costPrice = 80;
-      const commissionRate = 0;
+    const result = await calculateProfitForPeriod(start, end);
 
-      const grossProfit = sellingPrice - costPrice;
-      const partnerCommission = grossProfit * (commissionRate / 100);
+    expect(result.totalRevenue).toBe(0);
+    expect(result.netMargin).toBe(0);
+    expect(Number.isNaN(result.netMargin)).toBe(false);
+  });
+});
 
-      expect(partnerCommission).toBe(0);
-      expect(grossProfit).toBe(20);
+describe('distributeProfitToPartners (real function, not reimplemented arithmetic)', () => {
+  it("splits net profit across active partners by each partner's profitSharePercentage", async () => {
+    getFinancialSummary.mockResolvedValueOnce({
+      revenue: 1000, cogs: 600, grossProfit: 400, operationalCosts: 100, operationalCostsByCategory: {},
+      salaryExpenses: 0, netProfitBeforeDistribution: 300, distributionsPaid: 0, platformRetainedProfit: 300,
     });
+    // netProfit = 300
+    mockPrismaClient.partner.findMany.mockResolvedValueOnce([
+      { id: 'p1', profitSharePercentage: 30 },
+      { id: 'p2', profitSharePercentage: 20 },
+    ]);
+    mockPrismaClient.profitDistribution.create
+      .mockImplementationOnce(async ({ data }: any) => data)
+      .mockImplementationOnce(async ({ data }: any) => data);
 
-    it('should handle 100% commission', () => {
-      const sellingPrice = 100;
-      const costPrice = 80;
-      const commissionRate = 100;
+    const result = await distributeProfitToPartners('MONTHLY', start, end);
 
-      const grossProfit = sellingPrice - costPrice;
-      const partnerCommission = grossProfit * (commissionRate / 100);
-      const netProfit = grossProfit - partnerCommission;
-
-      expect(partnerCommission).toBe(20);
-      expect(netProfit).toBe(0);
-    });
-
-    it('should calculate commission for multiple products', () => {
-      const products = [
-        { sellingPrice: 100, costPrice: 80, quantity: 2, commissionRate: 30 },
-        { sellingPrice: 200, costPrice: 150, quantity: 1, commissionRate: 25 },
-        { sellingPrice: 50, costPrice: 40, quantity: 5, commissionRate: 20 },
-      ];
-
-      let totalCommission = 0;
-
-      products.forEach((product) => {
-        const grossProfit = (product.sellingPrice - product.costPrice) * product.quantity;
-        const commission = grossProfit * (product.commissionRate / 100);
-        totalCommission += commission;
-      });
-
-      // Product 1: (100-80) * 2 * 0.30 = 12
-      // Product 2: (200-150) * 1 * 0.25 = 12.5
-      // Product 3: (50-40) * 5 * 0.20 = 10
-      // Total: 34.5
-
-      expect(totalCommission).toBe(34.5);
-    });
+    expect(result.success).toBe(true);
+    expect(result.distributions).toHaveLength(2);
+    expect(result.distributions[0].distributionAmount).toBeCloseTo(90); // 300 * 30%
+    expect(result.distributions[1].distributionAmount).toBeCloseTo(60); // 300 * 20%
   });
 
-  describe('Order Level Profit', () => {
-    it('should calculate total order profit', () => {
-      const items = [
-        { costPrice: 80, sellingPrice: 100, quantity: 2 },
-        { costPrice: 50, sellingPrice: 75, quantity: 3 },
-        { costPrice: 30, sellingPrice: 40, quantity: 5 },
-      ];
-
-      const totalProfit = items.reduce((sum, item) => {
-        const profitPerUnit = item.sellingPrice - item.costPrice;
-        return sum + profitPerUnit * item.quantity;
-      }, 0);
-
-      // Item 1: (100-80) * 2 = 40
-      // Item 2: (75-50) * 3 = 75
-      // Item 3: (40-30) * 5 = 50
-      // Total: 165
-
-      expect(totalProfit).toBe(165);
+  it('returns success:false and creates nothing when there are no active partners', async () => {
+    getFinancialSummary.mockResolvedValueOnce({
+      revenue: 1000, cogs: 600, grossProfit: 400, operationalCosts: 100, operationalCostsByCategory: {},
+      salaryExpenses: 0, netProfitBeforeDistribution: 300, distributionsPaid: 0, platformRetainedProfit: 300,
     });
+    mockPrismaClient.partner.findMany.mockResolvedValueOnce([]);
 
-    it('should account for discounts in profit calculation', () => {
-      const costPrice = 80;
-      const listPrice = 100;
-      const discount = 10; // 10%
-      const quantity = 5;
+    const result = await distributeProfitToPartners('MONTHLY', start, end);
 
-      const discountedPrice = listPrice * (1 - discount / 100);
-      const profitPerUnit = discountedPrice - costPrice;
-      const totalProfit = profitPerUnit * quantity;
-
-      expect(discountedPrice).toBe(90);
-      expect(profitPerUnit).toBe(10);
-      expect(totalProfit).toBe(50);
-    });
-
-    it('should account for shipping costs', () => {
-      const itemsProfit = 100;
-      const shippingCost = 15;
-
-      const netProfit = itemsProfit - shippingCost;
-
-      expect(netProfit).toBe(85);
-    });
-
-    it('should account for platform fees', () => {
-      const grossProfit = 100;
-      const platformFeeRate = 5; // 5%
-
-      const platformFee = grossProfit * (platformFeeRate / 100);
-      const netProfit = grossProfit - platformFee;
-
-      expect(platformFee).toBe(5);
-      expect(netProfit).toBe(95);
-    });
+    expect(result.success).toBe(false);
+    expect(result.distributions).toHaveLength(0);
+    expect(mockPrismaClient.profitDistribution.create).not.toHaveBeenCalled();
   });
 
-  describe('Tiered Pricing Profit', () => {
-    it('should calculate profit for tiered pricing', () => {
-      const costPrice = 80;
-      const tiers = [
-        { minQuantity: 1, maxQuantity: 9, price: 100 },
-        { minQuantity: 10, maxQuantity: 49, price: 95 },
-        { minQuantity: 50, maxQuantity: undefined, price: 90 },
-      ];
-
-      // Order 5 units - Tier 1
-      const quantity1 = 5;
-      const price1 = 100;
-      const profit1 = (price1 - costPrice) * quantity1;
-      expect(profit1).toBe(100);
-
-      // Order 25 units - Tier 2
-      const quantity2 = 25;
-      const price2 = 95;
-      const profit2 = (price2 - costPrice) * quantity2;
-      expect(profit2).toBe(375);
-
-      // Order 100 units - Tier 3
-      const quantity3 = 100;
-      const price3 = 90;
-      const profit3 = (price3 - costPrice) * quantity3;
-      expect(profit3).toBe(1000);
+  it("excludes partners who exited on or before this period's start date (Amazon-style gap-closure Phase 3 part 4)", async () => {
+    getFinancialSummary.mockResolvedValueOnce({
+      revenue: 1000, cogs: 600, grossProfit: 400, operationalCosts: 100, operationalCostsByCategory: {},
+      salaryExpenses: 0, netProfitBeforeDistribution: 300, distributionsPaid: 0, platformRetainedProfit: 300,
     });
-  });
+    mockPrismaClient.partner.findMany.mockResolvedValueOnce([]);
 
-  describe('Profit Margin Categories', () => {
-    it('should categorize high margin products', () => {
-      const costPrice = 50;
-      const sellingPrice = 100;
-      const margin = ((sellingPrice - costPrice) / sellingPrice) * 100;
+    await distributeProfitToPartners('MONTHLY', start, end);
 
-      expect(margin).toBeGreaterThanOrEqual(40); // High margin
-    });
-
-    it('should categorize medium margin products', () => {
-      const costPrice = 75;
-      const sellingPrice = 100;
-      const margin = ((sellingPrice - costPrice) / sellingPrice) * 100;
-
-      expect(margin).toBeGreaterThanOrEqual(20);
-      expect(margin).toBeLessThan(40);
-    });
-
-    it('should categorize low margin products', () => {
-      const costPrice = 90;
-      const sellingPrice = 100;
-      const margin = ((sellingPrice - costPrice) / sellingPrice) * 100;
-
-      expect(margin).toBeLessThan(20);
-    });
-  });
-
-  describe('Date Range Profit Aggregation', () => {
-    it('should aggregate profits for a date range', () => {
-      const orders = [
-        { date: '2026-01-15', profit: 100 },
-        { date: '2026-01-16', profit: 150 },
-        { date: '2026-01-17', profit: 200 },
-      ];
-
-      const totalProfit = orders.reduce((sum, order) => sum + order.profit, 0);
-      const averageProfit = totalProfit / orders.length;
-
-      expect(totalProfit).toBe(450);
-      expect(averageProfit).toBe(150);
-    });
-
-    it('should calculate daily profit breakdown', () => {
-      const orders = [
-        { date: '2026-01-15', profit: 100 },
-        { date: '2026-01-15', profit: 50 },
-        { date: '2026-01-16', profit: 200 },
-      ];
-
-      const dailyProfit: Record<string, number> = {};
-
-      orders.forEach((order) => {
-        if (!dailyProfit[order.date]) {
-          dailyProfit[order.date] = 0;
-        }
-        dailyProfit[order.date] += order.profit;
-      });
-
-      expect(dailyProfit['2026-01-15']).toBe(150);
-      expect(dailyProfit['2026-01-16']).toBe(200);
-    });
-  });
-
-  describe('Profit with Tax', () => {
-    it('should calculate profit after tax', () => {
-      const grossProfit = 100;
-      const taxRate = 15; // 15%
-
-      const tax = grossProfit * (taxRate / 100);
-      const netProfitAfterTax = grossProfit - tax;
-
-      expect(tax).toBe(15);
-      expect(netProfitAfterTax).toBe(85);
-    });
-  });
-
-  describe('ROI Calculation', () => {
-    it('should calculate return on investment', () => {
-      const costPrice = 80;
-      const sellingPrice = 100;
-
-      const profit = sellingPrice - costPrice;
-      const roi = (profit / costPrice) * 100;
-
-      expect(roi).toBe(25); // 25% ROI
-    });
-
-    it('should handle negative ROI', () => {
-      const costPrice = 100;
-      const sellingPrice = 80;
-
-      const profit = sellingPrice - costPrice;
-      const roi = (profit / costPrice) * 100;
-
-      expect(roi).toBe(-20); // -20% ROI (loss)
-    });
+    const whereArg = mockPrismaClient.partner.findMany.mock.calls[0][0].where;
+    expect(whereArg.isActive).toBe(true);
+    expect(whereArg.OR).toEqual([{ exitDate: null }, { exitDate: { gt: start } }]);
   });
 });

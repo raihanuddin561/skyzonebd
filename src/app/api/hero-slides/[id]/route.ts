@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/auth';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -8,19 +8,13 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
 
-// Use shared auth helper
-const verifyAdmin = verifyAdminToken;
-
 // PUT - Update hero slide (Admin only)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    await requireAdmin(request);
 
     const { id } = await params;
     const body = await request.json();
@@ -50,6 +44,9 @@ export async function PUT(
       message: 'Hero slide updated successfully'
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Update Hero Slide Error:', error);
     return NextResponse.json(
       { error: 'Failed to update hero slide' },
@@ -66,10 +63,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    await requireAdmin(request);
 
     const { id } = await params;
 
@@ -82,6 +76,9 @@ export async function DELETE(
       message: 'Hero slide deleted successfully'
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Delete Hero Slide Error:', error);
     return NextResponse.json(
       { error: 'Failed to delete hero slide' },

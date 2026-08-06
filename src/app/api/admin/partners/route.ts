@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { canOverridePercentage, requireAdmin } from '@/lib/permissions';
 import { UserRole } from '@/types/roles';
+import { createCapitalEntry } from '@/lib/financialLedger';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -95,8 +96,26 @@ export async function POST(request: NextRequest) {
       taxId,
       bankAccount,
       notes,
+      userId, // Optional (ADR-008): link this Partner to an existing login account
       overrideLimit, // Super admin can force override
     } = body;
+
+    if (userId) {
+      const linkedUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (!linkedUser) {
+        return NextResponse.json(
+          { success: false, error: 'No user found with the given userId' },
+          { status: 400 }
+        );
+      }
+      const alreadyLinked = await prisma.partner.findUnique({ where: { userId } });
+      if (alreadyLinked) {
+        return NextResponse.json(
+          { success: false, error: 'That user is already linked to a different partner record' },
+          { status: 409 }
+        );
+      }
+    }
 
     // Validate required fields
     if (!name || profitSharePercentage === undefined) {
@@ -145,6 +164,8 @@ export async function POST(request: NextRequest) {
       ? `Warning: Total share is ${newTotal.toFixed(1)}% (Super admin override applied)`
       : undefined;
 
+    const parsedInitialInvestment = initialInvestment ? parseFloat(initialInvestment) : null;
+
     const partner = await prisma.partner.create({
       data: {
         name,
@@ -152,13 +173,29 @@ export async function POST(request: NextRequest) {
         phone,
         profitSharePercentage: parseFloat(profitSharePercentage),
         partnerType,
-        initialInvestment: initialInvestment ? parseFloat(initialInvestment) : null,
+        initialInvestment: parsedInitialInvestment,
         address,
         taxId,
         bankAccount,
         notes,
+        userId: userId || null,
       },
     });
+
+    // Record the starting capital as a real ledger event (Amazon-style
+    // gap-closure Phase 3 part 3) — Partner.initialInvestment itself is
+    // never edited again after this; any further capital event goes
+    // through POST /api/admin/partners/[id]/contributions instead.
+    if (parsedInitialInvestment && parsedInitialInvestment > 0) {
+      await createCapitalEntry({
+        partnerId: partner.id,
+        partnerName: partner.name,
+        amount: parsedInitialInvestment,
+        direction: 'INVESTMENT',
+        notes: 'Initial investment at partner creation',
+        createdBy: authUser.id,
+      });
+    }
 
     return NextResponse.json({
       success: true,

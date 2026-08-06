@@ -2,8 +2,8 @@
 // Partner Dashboard - Overview of profit data
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/prisma';
+import { requirePartner } from '@/lib/auth';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -11,88 +11,38 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
 
-// Helper to verify partner authentication
-function verifyPartner(request: NextRequest): { 
-  authorized: true; 
-  userId: string; 
-  partnerId?: string;
-} | { 
-  authorized: false; 
-  error: string 
-} {
-  try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return { authorized: false, error: 'No authorization token' };
-    }
-
-    const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { 
-      userId: string; 
-      role: string;
-      partnerId?: string;
-    };
-
-    // Partner role required
-    if (decoded.role.toUpperCase() !== 'PARTNER') {
-      return { authorized: false, error: 'Partner access required' };
-    }
-
-    return { 
-      authorized: true, 
-      userId: decoded.userId,
-      partnerId: decoded.partnerId 
-    };
-  } catch {
-    return { authorized: false, error: 'Invalid token' };
-  }
-}
-
 /**
  * GET /api/partner/dashboard
  * Get partner dashboard overview with profit summary
  */
 export async function GET(request: NextRequest) {
   try {
-    const auth = verifyPartner(request);
-    if (!auth.authorized) {
-      return NextResponse.json(
-        { success: false, error: auth.error },
-        { status: 401 }
-      );
-    }
+    const user = await requirePartner(request);
 
-    // Find partner by userId or partnerId
-    let partner = null;
-    if (auth.partnerId) {
-      partner = await prisma.partner.findUnique({
-        where: { id: auth.partnerId }
-      });
-    } else {
-      // Try to find partner by user ID (if partner is also a user)
-      partner = await prisma.partner.findFirst({
-        where: { 
-          OR: [
-            { email: (await prisma.user.findUnique({ where: { id: auth.userId }, select: { email: true } }))?.email },
-            { id: auth.userId }
-          ]
-        }
-      });
-    }
-
-    if (!partner) {
-      return NextResponse.json(
-        { success: false, error: 'Partner record not found' },
-        { status: 404 }
-      );
-    }
-
-    // Get profit distributions for this partner
-    const distributions = await prisma.profitDistribution.findMany({
-      where: { partnerId: partner.id },
-      orderBy: { createdAt: 'desc' },
-      take: 10 // Last 10 distributions
+    // Find the Partner record for this user. Prefer the explicit userId
+    // link (ADR-008); fall back to matching by email for any Partner rows
+    // that predate the link and haven't been connected yet. A pure SELLER
+    // with no linked Partner row is expected (ADR-008) and no longer 404s —
+    // distribution/profit-share data is simply empty, since there is none
+    // to show (Amazon-Style Wholesale Platform Gap Closure — Phase 4 part 4).
+    const partner = await prisma.partner.findFirst({
+      where: {
+        OR: [
+          { userId: user.id },
+          { email: user.email }
+        ]
+      }
     });
+
+    // Get profit distributions for this partner (none exist for a seller
+    // with no Partner record — ProfitDistribution is a Partner-only concept)
+    const distributions = partner
+      ? await prisma.profitDistribution.findMany({
+          where: { partnerId: partner.id },
+          orderBy: { createdAt: 'desc' },
+          take: 10 // Last 10 distributions
+        })
+      : [];
 
     // Calculate summary statistics
     const totalPending = distributions
@@ -107,9 +57,14 @@ export async function GET(request: NextRequest) {
       .filter(d => d.status === 'PAID')
       .reduce((sum, d) => sum + d.distributionAmount, 0);
 
-    // Get profit reports for partner's products
+    // Get profit reports for this seller's products. ProfitReport.sellerId
+    // is populated from Product.sellerId (a User.id, per
+    // profitReportGeneration.ts) — a real bug here queried `partner.id`
+    // instead, a different id space, so this always returned empty for any
+    // real partner (Amazon-Style Wholesale Platform Gap Closure — Phase 4
+    // part 4).
     const profitReports = await prisma.profitReport.findMany({
-      where: { sellerId: partner.id },
+      where: { sellerId: user.id },
       orderBy: { reportDate: 'desc' },
       take: 20,
       include: {
@@ -153,15 +108,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        // Partner Info
-        partner: {
+        // Partner Info (null for a pure seller with no linked Partner record)
+        partner: partner ? {
           id: partner.id,
           name: partner.name,
           profitSharePercentage: partner.profitSharePercentage,
           isActive: partner.isActive,
           joinDate: partner.joinDate,
           totalProfitReceived: partner.totalProfitReceived
-        },
+        } : null,
 
         // Summary Statistics
         summary: {
@@ -170,7 +125,7 @@ export async function GET(request: NextRequest) {
           totalPaid,
           totalEarned: totalPaid + totalApproved + totalPending,
           currentMonthProfit,
-          lifetimeProfit: partner.totalProfitReceived
+          lifetimeProfit: partner?.totalProfitReceived || 0
         },
 
         // Recent Distributions
@@ -208,6 +163,9 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Partner Dashboard Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to load dashboard' },

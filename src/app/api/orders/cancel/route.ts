@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verify, JwtPayload } from 'jsonwebtoken';
+import { requireAuth } from '@/lib/auth';
+import { UserRole, isAdmin as isAdminRole } from '@/types/roles';
 import { logActivity } from '@/lib/activityLogger';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+import { releaseStockAllocationsForOrder } from '@/services/inventoryService';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
-
-
-interface DecodedToken extends JwtPayload {
-  userId: string;
-  role: string;
-}
 
 /**
  * POST /api/orders/cancel
@@ -21,25 +17,12 @@ interface DecodedToken extends JwtPayload {
  */
 export async function POST(request: NextRequest) {
   try {
-    
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-    try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
+    // Canonical auth (ADR-009 / P2-9): previously a hand-rolled JWT decode +
+    // `role.toUpperCase() === 'ADMIN'` check that excluded SUPER_ADMIN from
+    // cancelling orders on another customer's behalf — the exact bug class
+    // flagged (but not fixed) in P0-4's closure note. requireAuth + isAdmin()
+    // correctly treats SUPER_ADMIN as admin-or-higher.
+    const decoded = await requireAuth(request);
 
     const body = await request.json();
     const { orderId, reason } = body;
@@ -71,8 +54,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check authorization
-    const isAdmin = decoded.role.toUpperCase() === 'ADMIN';
-    const isOrderOwner = order.userId === decoded.userId;
+    const isAdmin = isAdminRole(decoded.role as UserRole);
+    const isOrderOwner = order.userId === decoded.id;
 
     if (!isAdmin && !isOrderOwner) {
       return NextResponse.json(
@@ -96,46 +79,77 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Cancel the order
-    const updatedOrder = await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        status: 'CANCELLED',
-        cancelledAt: new Date(),
-        cancelledBy: decoded.userId,
-        cancellationReason: reason || 'No reason provided'
-      },
-      include: {
-        orderItems: {
-          include: {
-            product: true
-          }
-        }
-      }
-    });
-
-    // Restore stock for cancelled order items
-
-    for (const item of updatedOrder.orderItems) {
-      await prisma.product.update({
-        where: { id: item.productId },
+    // Cancel the order and restore stock atomically — if any step fails
+    // (including partway through restoring a multi-item order), the entire
+    // cancellation rolls back rather than leaving the order marked
+    // CANCELLED with only some items' stock restored.
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      const cancelled = await tx.order.update({
+        where: { id: orderId },
         data: {
-          stockQuantity: {
-            increment: item.quantity
+          status: 'CANCELLED',
+          cancelledAt: new Date(),
+          cancelledBy: decoded.id,
+          cancellationReason: reason || 'No reason provided'
+        },
+        include: {
+          orderItems: {
+            include: {
+              product: true
+            }
           }
         }
       });
-    }
+
+      for (const item of cancelled.orderItems) {
+        const productBeforeRestore = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { stockQuantity: true },
+        });
+        const previousStock = productBeforeRestore?.stockQuantity ?? 0;
+
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stockQuantity: {
+              increment: item.quantity
+            }
+          }
+        });
+
+        await tx.inventoryLog.create({
+          data: {
+            productId: item.productId,
+            action: 'ADJUSTMENT',
+            quantity: item.quantity,
+            previousStock,
+            newStock: previousStock + item.quantity,
+            reference: orderId,
+            notes: `Stock restored from cancelled order ${cancelled.orderNumber}`,
+            performedBy: decoded.id,
+          },
+        });
+      }
+
+      // Release any stock-lot allocations this order consumed (Amazon-style
+      // gap-closure Phase 1) — keeps StockLot.quantityRemaining consistent
+      // with the Product.stockQuantity restoration above, rather than
+      // leaving lots permanently under-reporting remaining stock after a
+      // cancellation.
+      await releaseStockAllocationsForOrder(tx, orderId);
+
+      return cancelled;
+    });
 
     // Get user info for logging
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: decoded.id },
       select: { name: true }
     });
 
     // Log cancellation activity
     await logActivity({
-      userId: decoded.userId,
+      userId: decoded.id,
       userName: user?.name || (isAdmin ? 'Admin' : 'Customer'),
       action: 'CANCEL',
       entityType: 'Order',
@@ -189,6 +203,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Cancel Order API Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to cancel order' },

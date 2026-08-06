@@ -1,115 +1,79 @@
-````markdown
-# SkyzoneBD - B2B & B2C E-Commerce Platform
+# SkyZoneBD — B2B Wholesale E-Commerce Platform
 
-This is a comprehensive B2B and B2C e-commerce platform built with Next.js, featuring dual pricing models, wholesale tiers, and verified business accounts.
+A single-tenant, single-region B2B wholesale e-commerce platform for the Bangladesh market. Buyers register (with optional business verification), browse a wholesale catalog with quantity-tiered pricing and per-product MOQs, negotiate custom terms via RFQ, and check out as a guest or registered account. Behind the storefront: inventory management, a financial ledger, and a partner (investor/co-owner) profit-sharing system.
 
-## Features
+**SkyZoneBD is wholesale-only.** Retail/B2C pricing existed at the schema level through early January 2026 and was deliberately removed (see ADR-003, `docs/architecture-review/13_ADRs.md`). If you find a document describing a dual B2C/B2B model, it predates that decision — see `docs/legacy-archive/`.
 
-- 🛍️ B2C (Retail) & B2B (Wholesale) Support
-- 📦 Product Management with Categories
-- 🏷️ Smart MOQ (Minimum Order Quantity) Logic
-- 💰 Wholesale Pricing Tiers
-- 🔐 User Authentication & Business Verification
-- 🛒 Shopping Cart & Wishlist
-- 📊 Order Management
-- 🔍 Product Search & Filters
-- 💳 Payment Integration
-- 📱 Responsive Design
+## Documentation map
 
-## Tech Stack
+Start here, in this order:
 
-- **Framework:** Next.js 15.3.2 (App Router)
-- **Database:** PostgreSQL with Prisma ORM
-- **Authentication:** JWT with bcrypt
-- **Styling:** Tailwind CSS
-- **Deployment:** Vercel (with Postgres & Blob Storage)
+1. **`docs/architecture-review/01_Project_Overview.md`** — what this system is, verified against source, not prior docs.
+2. **`docs/architecture-review/02_Business_Requirements.md`** — the business rules.
+3. **`docs/engineering-workflow/00_Agentic_Engineering_Workflow.md`** — how work gets done on this project (process, roles, quality gates).
+4. **`docs/architecture-review/13_ADRs.md`** — every architectural decision, why it was made, and its current status.
+5. **`docs/architecture-review/15_Implementation_Backlog.md`** and **`14_Technical_Debt.md`** — what's left to do.
 
-## Getting Started
+The full `docs/architecture-review/` set (16 documents as of this writing) covers architecture, domain model, database, API, security, code quality, target architecture, and roadmap in depth. `docs/legacy-archive/` holds ~143 superseded, session-diary-style documents from early development — non-authoritative, kept for history only.
 
-First, run the development server:
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router), React 19, TypeScript 5 (strict) |
+| Styling | Tailwind CSS 4 |
+| Database | PostgreSQL (Neon), Prisma ORM 6 |
+| Auth | Custom JWT (`jsonwebtoken` + `bcryptjs`), Bearer header |
+| File storage | Vercel Blob |
+| Validation | Zod |
+| Testing | Jest + ts-jest + Testing Library |
+| CI | GitHub Actions (`.github/workflows/ci.yml`) |
+| Deployment | Vercel |
+
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env   # fill in DATABASE_URL, JWT_SECRET, etc. — see docs/engineering-workflow for required variables
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Database Setup
-
-Set up the database using one of the following methods:
+### Database
 
 ```bash
-# Option 1: Push schema to database
-npm run db:push
-
-# Option 2: Run migrations
-npm run db:migrate
-
-# Seed database with sample data
-npm run db:seed
-
-# Open Prisma Studio to view data
-npm run db:studio
+npm run db:migrate   # apply migrations (local/dev)
+npm run db:seed       # seed sample data
+npm run db:studio     # inspect data via Prisma Studio
 ```
 
-See [DATABASE_SETUP_INSTRUCTIONS.md](./DATABASE_SETUP_INSTRUCTIONS.md) for detailed setup instructions.
+**Never run `db:push` or `migrate deploy` against a shared/production database without review** — see `docs/engineering-workflow/06_Coding_Standards.md` §8 and the migration-safety finding in `docs/architecture-review/14_Technical_Debt.md` §15.
 
-## Environment Variables
+### Tests and checks
 
-Create a `.env` file in the root directory:
-
-```env
-DATABASE_URL="postgresql://postgres:123@localhost:5432/sagor_db"
-DIRECT_URL="postgresql://postgres:123@localhost:5432/sagor_db"
-JWT_SECRET="your-secret-key-here"
+```bash
+npm run test:ci        # Jest
+npx tsc --noEmit       # TypeScript
+npx prisma validate    # schema
 ```
 
-## Project Structure
+## Project structure
 
-- `/src/app` - Next.js App Router pages and layouts
-- `/src/components` - Reusable React components
-- `/src/contexts` - React Context providers (Auth, Cart, Wishlist)
-- `/src/hooks` - Custom React hooks
-- `/src/services` - API service layer
-- `/src/types` - TypeScript type definitions
-- `/prisma` - Database schema and seed files
-- `/public` - Static assets
+- `src/app` — Next.js App Router pages, layouts, and API routes (`src/app/api/`)
+- `src/components` — shared React components
+- `src/contexts` — React Context providers (Auth, Cart, Wishlist)
+- `src/services` — service-layer modules
+- `src/lib` — shared infrastructure (auth, validation, logging, error handling, rate limiting)
+- `src/types` — TypeScript type definitions
+- `src/utils` — pure utility/business-logic functions
+- `prisma/` — schema and seed files
+- `docs/` — all engineering documentation (see above)
 
-## Key Features Documentation
+## Contributing
 
-- [B2B & B2C Implementation](./B2B_B2C_IMPLEMENTATION.md)
-- [Smart MOQ Logic](./MOQ_SMART_IMPLEMENTATION.md)
-- [Admin Panel](./ADMIN_PANEL_DOCUMENTATION.md)
-- [Vercel Deployment](./VERCEL_DEPLOYMENT_GUIDE.md)
-- [Database Integration](./DATABASE_INTEGRATION_SUMMARY.md)
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-See [VERCEL_DEPLOYMENT_GUIDE.md](./VERCEL_DEPLOYMENT_GUIDE.md) for complete deployment instructions with Vercel Postgres and Blob Storage.
+Every change follows `docs/engineering-workflow/00_Agentic_Engineering_Workflow.md`'s lifecycle, scaled to the change's size. In short: understand the business requirement → check existing architecture/ADRs before building something new → write the plan → implement → test → update documentation in the same change. See `docs/engineering-workflow/03_Task_Execution_Protocol.md` for the full checklist and `.github/PULL_REQUEST_TEMPLATE.md` before opening a PR.
 
 ## License
 
-© 2025 SkyzoneBD. All rights reserved.
-
-````
+© 2026 SkyZoneBD. All rights reserved.

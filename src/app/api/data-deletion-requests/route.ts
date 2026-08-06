@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import { emailService } from '@/lib/email';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -112,6 +113,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Best-effort confirmation email (Amazon-style gap-closure Phase 4 part 1).
+    const emailResult = await emailService.sendDataDeletionConfirmation(deletionRequest.user.email, deletionRequest.user.name);
+    if (!emailResult.success) {
+      console.error(`Deletion confirmation email failed for ${deletionRequest.user.email}: ${emailResult.error}`);
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Data deletion request submitted successfully',
@@ -120,7 +127,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ Error creating deletion request:', error);
-    
+
     // Handle Response throws from requireAuth
     if (error instanceof Response) {
       return error;
@@ -128,6 +135,44 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: 'Failed to create deletion request' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * GET /api/data-deletion-requests
+ * User views their own deletion request history
+ * Requires authentication
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const user = await requireAuth(request);
+
+    const requests = await prisma.dataDeletionRequest.findMany({
+      where: { userId: user.id },
+      orderBy: { requestedAt: 'desc' },
+      include: {
+        auditLogs: {
+          orderBy: { timestamp: 'asc' },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      requests,
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching deletion requests:', error);
+
+    if (error instanceof Response) {
+      return error;
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to fetch requests' },
       { status: 500 }
     );
   }

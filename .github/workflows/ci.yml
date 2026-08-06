@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  # Dummy values only — no job in this workflow connects to a real database.
+  # prisma generate requires DATABASE_URL to resolve as an env var (it does
+  # not need to be reachable); the jest suite mocks the Prisma client in
+  # every test and never opens a real connection.
+  DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci'
+  JWT_SECRET: 'ci-test-jwt-secret-not-for-production-use'
+
+jobs:
+  typecheck:
+    name: Type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:ci
+
+  lint:
+    name: Lint (non-blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      # `next lint` currently crashes project-wide with a pre-existing
+      # ESLint 9 / FlatCompat config bug unrelated to any particular file
+      # (TypeError: Converting circular structure to JSON while loading
+      # next/core-web-vitals) — see docs/architecture-review/14_Technical_Debt.md
+      # §9. Non-blocking until that's fixed, so lint output is still visible
+      # in CI without gating merges on a broken tool.
+      - run: npm run lint
+        continue-on-error: true

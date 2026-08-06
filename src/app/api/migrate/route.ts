@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { timingSafeEqual } from 'crypto';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -10,13 +11,30 @@ export const maxDuration = 60; // 60 seconds timeout
 
 const execAsync = promisify(exec);
 
+// Fails closed if MIGRATION_SECRET_KEY is unset — never fall back to a
+// literal (the same "your-secret-key-here" placeholder is published in
+// .env.example and in this project's own security documentation, so a
+// fallback here would be a publicly-known bearer token granting anyone the
+// ability to trigger `prisma migrate deploy` against the live database).
+// Matches lib/auth.ts's getJwtSecret() fail-closed doctrine.
+function isAuthorizedMigrationRequest(authHeader: string | null): boolean {
+  const secretKey = process.env.MIGRATION_SECRET_KEY;
+  if (!secretKey) {
+    console.error('FATAL: MIGRATION_SECRET_KEY is not set. Rejecting all requests to this endpoint until it is configured.');
+    return false;
+  }
+  if (!authHeader) return false;
+  const expected = Buffer.from(`Bearer ${secretKey}`);
+  const actual = Buffer.from(authHeader);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Security: Check for authorization header
     const authHeader = request.headers.get('authorization');
-    const secretKey = process.env.MIGRATION_SECRET_KEY || 'your-secret-key-here';
-    
-    if (authHeader !== `Bearer ${secretKey}`) {
+
+    if (!isAuthorizedMigrationRequest(authHeader)) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
@@ -50,9 +68,8 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
-    const secretKey = process.env.MIGRATION_SECRET_KEY || 'your-secret-key-here';
-    
-    if (authHeader !== `Bearer ${secretKey}`) {
+
+    if (!isAuthorizedMigrationRequest(authHeader)) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }

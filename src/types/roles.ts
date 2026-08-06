@@ -294,34 +294,3 @@ export function getRoleBadgeColor(role: UserRole): string {
   return colors[role] || 'bg-gray-100 text-gray-800';
 }
 
-/**
- * Permission Check Result
- */
-export interface PermissionCheck {
-  granted: boolean;
-  reason?: string;
-}
-
-/**
- * Advanced permission checker with reasoning
- */
-export function checkPermission(
-  userRole: UserRole,
-  permission: PermissionModule,
-  context?: Record<string, unknown>
-): PermissionCheck {
-  // Super admin always has access
-  if (isSuperAdmin(userRole)) {
-    return { granted: true, reason: 'Super admin access' };
-  }
-  
-  // Check role-based permission
-  if (hasPermission(userRole, permission)) {
-    return { granted: true, reason: 'Role-based access' };
-  }
-  
-  return { 
-    granted: false, 
-    reason: `Permission '${permission}' not granted for role '${userRole}'` 
-  };
-}

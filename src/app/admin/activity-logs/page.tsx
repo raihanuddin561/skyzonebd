@@ -76,7 +76,7 @@ export default function ActivityLogsPage() {
   // Redirect if not admin
   useEffect(() => {
     if (user && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-      router.push('/dashboard');
+      router.push('/');
     }
   }, [user, router]);
 

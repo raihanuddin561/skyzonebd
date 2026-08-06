@@ -21,7 +21,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get('status'); // in_stock, low_stock, out_of_stock, reorder_needed
 
-    // Fetch products with stock info
+    // Fetch products with stock info, plus enough order-item history to
+    // compute a real sales-velocity figure per product (previously a
+    // hardcoded `averageDailySales: 2` for every product regardless of how
+    // it actually sells — Amazon-style gap-closure Phase 0).
+    const thirtyDaysAgo = new Date(new Date().setDate(new Date().getDate() - 30));
     const products = await prisma.product.findMany({
       where: {
         isActive: true,
@@ -40,15 +44,18 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
+        orderItems: {
+          where: { createdAt: { gte: thirtyDaysAgo } },
+          select: { quantity: true },
+        },
       },
       orderBy: {
         name: 'asc',
       },
     });
 
-    // TODO: Calculate average daily sales from order history
-    // For now, we'll use placeholder values
     const stockItems = products.map(product => {
+      const soldLast30Days = product.orderItems.reduce((sum, item) => sum + item.quantity, 0);
       const stockItem = {
         productId: product.id,
         productName: product.name,
@@ -57,7 +64,7 @@ export async function GET(request: NextRequest) {
         moq: product.moq || 10,
         reorderPoint: product.reorderLevel || 20,
         reorderQuantity: product.reorderQuantity || 50,
-        averageDailySales: 2, // TODO: Calculate from actual sales data
+        averageDailySales: soldLast30Days / 30,
       };
 
       return calculateStockStatus(stockItem);

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sign } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+import { getJwtSecret } from '@/lib/auth';
+import { rateLimiters, withRateLimit } from '@/lib/rate-limiter';
+import { emailService } from '@/lib/email';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -10,6 +13,10 @@ export const maxDuration = 60; // 60 seconds timeout
 
 
 export async function POST(request: NextRequest) {
+  return withRateLimit(request, rateLimiters.auth, () => handleRegister(request));
+}
+
+async function handleRegister(request: NextRequest): Promise<NextResponse> {
   try {
     const { name, email, password, companyName, phone } = await request.json();
 
@@ -62,6 +69,15 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Best-effort welcome email (Amazon-style gap-closure Phase 4 part 1) —
+    // emailService.sendEmail never throws (returns { success, error }), so
+    // no try/catch is needed, but a failure here must never fail a
+    // registration that already committed to the database.
+    const emailResult = await emailService.sendWelcomeEmail(newUser.email, newUser.name, 'RETAIL');
+    if (!emailResult.success) {
+      console.error(`Welcome email failed for ${newUser.email}: ${emailResult.error}`);
+    }
+
     // Generate JWT token
     const token = sign(
       { 
@@ -69,7 +85,7 @@ export async function POST(request: NextRequest) {
         email: newUser.email, 
         role: newUser.role.toLowerCase()
       },
-      process.env.JWT_SECRET || 'fallback-secret',
+      getJwtSecret(),
       { expiresIn: '7d' }
     );
 

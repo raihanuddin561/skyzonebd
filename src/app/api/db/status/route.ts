@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma, testConnection } from '@/lib/db'
+import { prisma, testConnection } from '@/lib/prisma'
 import { verify } from 'jsonwebtoken'
+import { getJwtSecret } from '@/lib/auth'
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.substring(7);
     try {
-      const decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as { userId: string; role: string };
+      const decoded = verify(token, getJwtSecret()) as { userId: string; role: string };
       
       if (decoded.role.toUpperCase() !== 'ADMIN' && decoded.role.toUpperCase() !== 'SUPER_ADMIN') {
         return NextResponse.json(

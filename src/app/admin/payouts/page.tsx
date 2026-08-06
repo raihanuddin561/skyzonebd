@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import PayoutTable from '@/components/payouts/PayoutTable';
 import GeneratePayoutModal, { PayoutFormData } from '@/components/payouts/GeneratePayoutModal';
+import { api } from '@/utils/apiClient';
 
 interface Payout {
   id: string;
@@ -61,8 +62,8 @@ export default function AdminPayoutsPage() {
         : `/api/admin/financial/outstanding-payouts?status=${statusFilter}`;
       
       const [payoutsRes, partnersRes] = await Promise.all([
-        fetch(payoutsUrl),
-        fetch('/api/admin/partners')
+        api.get(payoutsUrl),
+        api.get('/api/admin/partners')
       ]);
       
       if (!payoutsRes.ok || !partnersRes.ok) {
@@ -84,13 +85,7 @@ export default function AdminPayoutsPage() {
   
   const handleGeneratePayout = async (formData: PayoutFormData) => {
     try {
-      const response = await fetch('/api/admin/payouts/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
+      const response = await api.post('/api/admin/payouts/generate', formData);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -126,13 +121,7 @@ export default function AdminPayoutsPage() {
         if (paymentReference) updateData.paymentReference = paymentReference;
       }
       
-      const response = await fetch(`/api/admin/payouts/${payoutId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
+      const response = await api.patch(`/api/admin/payouts/${payoutId}`, updateData);
       
       if (!response.ok) {
         throw new Error('Failed to update payout status');

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { userService } from '@/services/apiService';
 import Head from 'next/head';
@@ -191,32 +192,40 @@ export default function ProfilePage() {
     <ProtectedRoute>
       <main className="min-h-screen bg-gray-50">
         <Header />
-        
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Profile</h1>
+
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-xl font-bold shadow-md flex-shrink-0">
+              {user?.name?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            <div>
+              <span className="section-eyebrow mb-1">My Account</span>
+              <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
+            </div>
+          </div>
 
           {/* Success Message */}
           {success && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
               <p className="text-green-800">{success}</p>
             </div>
           )}
 
           {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
               <p className="text-red-800">{error}</p>
             </div>
           )}
-          
+
           {/* Profile Information */}
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold text-gray-900">Personal Information</h2>
               {!isEditing && !isChangingPassword && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-4 py-2 rounded-xl font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer"
                 >
                   Edit Profile
                 </button>
@@ -290,7 +299,7 @@ export default function ProfilePage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-6 py-2 rounded-xl font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 transition-all cursor-pointer"
                   >
                     {loading ? 'Saving...' : 'Save Changes'}
                   </button>
@@ -298,7 +307,7 @@ export default function ProfilePage() {
                     type="button"
                     onClick={handleCancelEdit}
                     disabled={loading}
-                    className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors disabled:cursor-not-allowed"
+                    className="px-6 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors disabled:cursor-not-allowed border border-gray-200 cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -345,10 +354,10 @@ export default function ProfilePage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Account Status
                   </label>
-                  <span className={`px-2 py-1 rounded-full text-xs ${
-                    user?.isVerified 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-yellow-100 text-yellow-800'
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                    user?.isVerified
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-amber-100 text-amber-800'
                   }`}>
                     {user?.isVerified ? 'Verified' : 'Pending Verification'}
                   </span>
@@ -368,13 +377,13 @@ export default function ProfilePage() {
 
           {/* Password Change Section */}
           {!isEditing && (
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">Password & Security</h2>
                 {!isChangingPassword && (
                   <button
                     onClick={() => setIsChangingPassword(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-4 py-2 rounded-xl font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer"
                   >
                     Change Password
                   </button>
@@ -436,7 +445,7 @@ export default function ProfilePage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-6 py-2 rounded-xl font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 transition-all cursor-pointer"
                     >
                       {loading ? 'Changing...' : 'Change Password'}
                     </button>
@@ -444,7 +453,7 @@ export default function ProfilePage() {
                       type="button"
                       onClick={handleCancelPasswordChange}
                       disabled={loading}
-                      className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors disabled:cursor-not-allowed"
+                      className="px-6 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors disabled:cursor-not-allowed border border-gray-200 cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -458,6 +467,8 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+
+        <Footer />
       </main>
     </ProtectedRoute>
   );

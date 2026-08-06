@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '../../components/Header';
+import Footer from '../../components/Footer';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -55,21 +56,36 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gray-50 relative overflow-hidden">
       <Header />
-      
-      <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
+
+      {/* Subtle branded dot-pattern accent */}
+      <div
+        className="absolute inset-0 opacity-40 pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(circle, rgba(37,99,235,0.08) 1px, transparent 1px)',
+          backgroundSize: '28px 28px',
+        }}
+      />
+
+      <div className="relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-6">
           <div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            <span className="section-eyebrow mx-auto flex w-fit">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              Join SkyzoneBD
+            </span>
+            <h2 className="mt-4 text-center text-3xl font-extrabold text-gray-900">
               Create your wholesale account
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
               Join SkyzoneBD to connect with verified wholesalers and suppliers
             </p>
           </div>
-          
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+
+          <form className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700">
@@ -224,10 +240,27 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={isLoading || formData.password !== formData.confirmPassword}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group relative w-full flex justify-center items-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-700 shadow-md hover:shadow-lg hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 transition-all cursor-pointer"
               >
-                {isLoading ? 'Creating account...' : 'Create Account'}
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Creating account...
+                  </>
+                ) : (
+                  'Create Account'
+                )}
               </button>
+
+              <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
+                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 10-8 0v4h8z" />
+                </svg>
+                Secure registration &middot; Your data is protected
+              </div>
             </div>
 
             <div className="text-center">
@@ -241,6 +274,8 @@ export default function RegisterPage() {
           </form>
         </div>
       </div>
+
+      <Footer />
     </main>
   );
 }

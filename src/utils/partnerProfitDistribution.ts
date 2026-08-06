@@ -1,7 +1,18 @@
 import prisma from '@/lib/prisma';
+import { getFinancialSummary } from '@/lib/financialLedger';
 
 /**
- * Calculate profit for a given period including all costs
+ * Calculate profit for a given period including all costs.
+ *
+ * Ledger-derived (Amazon-style gap-closure Phase 2 part 2: "one true
+ * ledger") — previously aggregated the `Sale` model, which is only
+ * populated by a manual per-order admin action (`POST /api/admin/sales/
+ * generate`); if that step was skipped for an order, this calculation
+ * (and the partner distributions it feeds via distributeProfitToPartners)
+ * silently under-reported. FinancialLedger entries are posted
+ * automatically on order delivery, so this fixes that gap as a side
+ * effect of the consolidation.
+ *
  * @param startDate - Start date of period
  * @param endDate - End date of period
  * @returns Profit calculation with revenue, costs, and net profit
@@ -11,59 +22,26 @@ export async function calculateProfitForPeriod(
   endDate: Date
 ) {
   try {
-    // Get total revenue from sales
-    const salesData = await prisma.sale.aggregate({
-      where: {
-        saleDate: {
-          gte: startDate,
-          lte: endDate,
-        },
-        isDelivered: true,
-      },
-      _sum: {
-        totalAmount: true,
-        profitAmount: true,
-        quantity: true,
-      },
-      _count: {
-        id: true,
-      },
-    });
+    const summary = await getFinancialSummary(startDate, endDate);
 
-    const totalRevenue = salesData._sum.totalAmount || 0;
-    const grossProfit = salesData._sum.profitAmount || 0;
-
-    // Get all operational costs for the period
-    const costsData = await prisma.operationalCost.aggregate({
-      where: {
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-      _sum: {
-        amount: true,
-      },
-    });
-
-    const totalOperationalCosts = costsData._sum.amount || 0;
-
-    // Calculate net profit
-    const netProfit = grossProfit - totalOperationalCosts;
+    const totalRevenue = summary.revenue;
+    const grossProfit = summary.grossProfit;
+    const totalOperationalCosts = summary.operationalCosts + summary.salaryExpenses;
+    const netProfit = summary.netProfitBeforeDistribution;
     const netMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
-    // Get costs by category
-    const costsByCategory = await prisma.operationalCost.groupBy({
-      by: ['category'],
+    // Distinct orders/manual-sales that posted revenue in this period —
+    // ledger-derived, so it's accurate even when the legacy manual
+    // Sale-generation step was skipped for some orders.
+    const revenueEntries = await prisma.financialLedger.findMany({
       where: {
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
+        createdAt: { gte: startDate, lte: endDate },
+        direction: 'CREDIT',
+        category: 'REVENUE',
+        sourceType: { in: ['ORDER', 'MANUAL_SALE'] },
       },
-      _sum: {
-        amount: true,
-      },
+      select: { sourceId: true },
+      distinct: ['sourceId'],
     });
 
     return {
@@ -72,12 +50,13 @@ export async function calculateProfitForPeriod(
       totalOperationalCosts,
       netProfit,
       netMargin,
-      salesCount: salesData._count.id,
-      unitsSold: salesData._sum.quantity || 0,
-      costsByCategory: costsByCategory.reduce((acc, item) => {
-        acc[item.category] = item._sum.amount || 0;
-        return acc;
-      }, {} as Record<string, number>),
+      salesCount: revenueEntries.length,
+      // No longer derivable from the ledger (order-level entries, not
+      // per-unit) — previously sourced from Sale.quantity, which required
+      // that same manual generation step. 0 is an honest "unavailable",
+      // not a regression from an already-unreliable figure.
+      unitsSold: 0,
+      costsByCategory: summary.operationalCostsByCategory,
     };
   } catch (error) {
     console.error('Error calculating profit:', error);
@@ -101,9 +80,16 @@ export async function distributeProfitToPartners(
     // Calculate profit for period
     const profitData = await calculateProfitForPeriod(startDate, endDate);
 
-    // Get active partners
+    // Get active partners — excludes anyone who exited on or before this
+    // distribution period's start date (Amazon-style gap-closure Phase 3
+    // part 4: Partner.exitDate was previously read by zero code anywhere,
+    // so an exited partner still received full-share distributions for
+    // every period after they left).
     const partners = await prisma.partner.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        OR: [{ exitDate: null }, { exitDate: { gt: startDate } }],
+      },
     });
 
     if (partners.length === 0) {
@@ -213,7 +199,13 @@ export async function generateYearlyProfitReport(year: number) {
 }
 
 /**
- * Get profit trends for chart/analytics
+ * Get profit trends for chart/analytics.
+ *
+ * Ledger-derived (Amazon-style gap-closure Phase 2 part 2) — previously
+ * read `Sale`/`OperationalCost` directly, the same manual-generation-
+ * dependent gap as `calculateProfitForPeriod` above; migrated for the same
+ * reason, keeping the same output shape (`date, revenue, profit, costs,
+ * netProfit`) so existing callers/charts are unaffected.
  */
 export async function getProfitTrends(
   startDate: Date,
@@ -221,79 +213,37 @@ export async function getProfitTrends(
   groupBy: 'DAY' | 'WEEK' | 'MONTH' = 'DAY'
 ) {
   try {
-    // Get all sales in period
-    const sales = await prisma.sale.findMany({
-      where: {
-        saleDate: {
-          gte: startDate,
-          lte: endDate,
-        },
-        isDelivered: true,
-      },
-      select: {
-        saleDate: true,
-        totalAmount: true,
-        profitAmount: true,
-      },
+    const entries = await prisma.financialLedger.findMany({
+      where: { createdAt: { gte: startDate, lte: endDate } },
+      select: { createdAt: true, amount: true, direction: true, sourceType: true, category: true },
     });
 
-    // Get all costs in period
-    const costs = await prisma.operationalCost.findMany({
-      where: {
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-      select: {
-        date: true,
-        amount: true,
-      },
-    });
-
-    // Group data by period
-    const trends: any[] = [];
-    const dateMap = new Map();
-
-    // Process sales
-    sales.forEach((sale) => {
-      const dateKey = formatDateByGroup(new Date(sale.saleDate), groupBy);
-      if (!dateMap.has(dateKey)) {
-        dateMap.set(dateKey, {
-          date: dateKey,
-          revenue: 0,
-          profit: 0,
-          costs: 0,
-          netProfit: 0,
-        });
+    const dateMap = new Map<string, { date: string; revenue: number; profit: number; costs: number; netProfit: number }>();
+    const bucketFor = (date: Date) => {
+      const key = formatDateByGroup(date, groupBy);
+      if (!dateMap.has(key)) {
+        dateMap.set(key, { date: key, revenue: 0, profit: 0, costs: 0, netProfit: 0 });
       }
-      const data = dateMap.get(dateKey);
-      data.revenue += sale.totalAmount;
-      data.profit += sale.profitAmount || 0;
-    });
+      return dateMap.get(key)!;
+    };
 
-    // Process costs
-    costs.forEach((cost) => {
-      const dateKey = formatDateByGroup(new Date(cost.date), groupBy);
-      if (!dateMap.has(dateKey)) {
-        dateMap.set(dateKey, {
-          date: dateKey,
-          revenue: 0,
-          profit: 0,
-          costs: 0,
-          netProfit: 0,
-        });
+    for (const e of entries) {
+      const isOrderRevenue = e.direction === 'CREDIT' && e.category === 'REVENUE' && (e.sourceType === 'ORDER' || e.sourceType === 'MANUAL_SALE');
+      const isOrderCogs = e.direction === 'DEBIT' && e.category === 'COGS' && (e.sourceType === 'ORDER' || e.sourceType === 'MANUAL_SALE');
+      const isOperatingCost = e.direction === 'DEBIT' && (e.sourceType === 'EXPENSE' || e.sourceType === 'SALARY');
+
+      if (isOrderRevenue) {
+        const data = bucketFor(e.createdAt);
+        data.revenue += e.amount;
+        data.profit += e.amount;
+      } else if (isOrderCogs) {
+        bucketFor(e.createdAt).profit -= e.amount;
+      } else if (isOperatingCost) {
+        bucketFor(e.createdAt).costs += e.amount;
       }
-      const data = dateMap.get(dateKey);
-      data.costs += cost.amount;
-    });
+    }
 
-    // Calculate net profit
-    dateMap.forEach((data) => {
-      data.netProfit = data.profit - data.costs;
-      trends.push(data);
-    });
-
+    const trends = Array.from(dateMap.values()).map((data) => ({ ...data, netProfit: data.profit - data.costs }));
     return trends.sort((a, b) => a.date.localeCompare(b.date));
   } catch (error) {
     console.error('Error getting profit trends:', error);

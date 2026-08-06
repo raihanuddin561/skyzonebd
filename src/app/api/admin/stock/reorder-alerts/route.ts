@@ -18,18 +18,16 @@ export async function GET(request: NextRequest) {
   try {
     const admin = await requireAdmin(request);
 
-    // Fetch products with low/out of stock
-    const products = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        OR: [
-          { stockQuantity: 0 },
-          {
-            // Stock at or below reorder level
-            stockQuantity: { lte: 20 }, // TODO: Compare with actual reorderLevel
-          },
-        ],
-      },
+    // Prisma can't compare two columns of the same row in a `where` filter
+    // (stockQuantity <= reorderLevel), so this fetches every active
+    // product's own reorderLevel and filters in application code against
+    // it — previously a hardcoded `stockQuantity <= 20` regardless of each
+    // product's real reorder point (Amazon-style gap-closure Phase 0).
+    // Also pulls 30 days of order-item history to compute real sales
+    // velocity instead of a hardcoded `averageDailySales: 2`.
+    const thirtyDaysAgo = new Date(new Date().setDate(new Date().getDate() - 30));
+    const allActiveProducts = await prisma.product.findMany({
+      where: { isActive: true },
       select: {
         id: true,
         name: true,
@@ -43,14 +41,23 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
+        orderItems: {
+          where: { createdAt: { gte: thirtyDaysAgo } },
+          select: { quantity: true },
+        },
       },
       orderBy: {
         stockQuantity: 'asc', // Most urgent first
       },
     });
 
+    const products = allActiveProducts.filter(
+      product => product.stockQuantity === 0 || product.stockQuantity <= (product.reorderLevel ?? 20)
+    );
+
     // Calculate stock status and generate alerts
     const alerts = products.map(product => {
+      const soldLast30Days = product.orderItems.reduce((sum, item) => sum + item.quantity, 0);
       const stockItem = {
         productId: product.id,
         productName: product.name,
@@ -59,7 +66,7 @@ export async function GET(request: NextRequest) {
         moq: product.moq || 10,
         reorderPoint: product.reorderLevel || 20,
         reorderQuantity: product.reorderQuantity || 50,
-        averageDailySales: 2, // TODO: Calculate from actual sales
+        averageDailySales: soldLast30Days / 30,
       };
 
       const calculation = calculateStockStatus(stockItem);
@@ -69,7 +76,7 @@ export async function GET(request: NextRequest) {
         ...calculation,
         category: product.category.name,
         alertMessage,
-        priority: calculation.status === 'out_of_stock' ? 'critical' : 
+        priority: calculation.status === 'out_of_stock' ? 'critical' :
                  calculation.status === 'reorder_needed' ? 'high' : 'medium',
       };
     });

@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/auth';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
-
-// Use shared auth helper
-const verifyAdmin = verifyAdminToken;
 
 // GET - Get all units
 export async function GET(request: NextRequest) {
@@ -51,13 +48,7 @@ export async function GET(request: NextRequest) {
 // POST - Create new unit (Admin only)
 export async function POST(request: NextRequest) {
   try {
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json(
-        { success: false, error: auth.error },
-        { status: 401 }
-      );
-    }
+    await requireAdmin(request);
 
     const body = await request.json();
     const { name, symbol, description } = body;
@@ -101,6 +92,9 @@ export async function POST(request: NextRequest) {
       message: 'Unit created successfully',
     });
   } catch (error: any) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Create Unit Error:', error);
     
     // If table doesn't exist, return specific error
@@ -123,13 +117,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update unit (Admin only)
 export async function PUT(request: NextRequest) {
   try {
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json(
-        { success: false, error: auth.error },
-        { status: 401 }
-      );
-    }
+    await requireAdmin(request);
 
     const body = await request.json();
     const { id, name, symbol, description, isActive } = body;
@@ -157,6 +145,9 @@ export async function PUT(request: NextRequest) {
       message: 'Unit updated successfully',
     });
   } catch (error: any) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Update Unit Error:', error);
     
     // If table doesn't exist, return specific error
@@ -179,13 +170,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete unit (Admin only)
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json(
-        { success: false, error: auth.error },
-        { status: 401 }
-      );
-    }
+    await requireAdmin(request);
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -221,6 +206,9 @@ export async function DELETE(request: NextRequest) {
       message: 'Unit deleted successfully',
     });
   } catch (error: any) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Delete Unit Error:', error);
     
     // If table doesn't exist, return specific error

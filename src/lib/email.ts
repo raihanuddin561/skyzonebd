@@ -265,6 +265,160 @@ class EmailService {
   }
 
   /**
+   * Send a low-stock alert to admins (Amazon-style gap-closure Phase 1) —
+   * previously the only way to learn a product had crossed its reorder
+   * point was to manually visit the reorder-alerts admin page.
+   */
+  async sendLowStockAlert(to: string, product: { name: string; sku: string | null; stockQuantity: number; reorderLevel: number }) {
+    const subject = product.stockQuantity === 0
+      ? `OUT OF STOCK: ${product.name}`
+      : `Low Stock Alert: ${product.name}`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: ${product.stockQuantity === 0 ? '#dc2626' : '#d97706'};">
+              ${product.stockQuantity === 0 ? 'Out of Stock' : 'Low Stock'}
+            </h2>
+            <p><strong>${product.name}</strong> ${product.sku ? `(SKU: ${product.sku})` : ''}</p>
+            <p>Current stock: <strong>${product.stockQuantity}</strong> units (reorder level: ${product.reorderLevel})</p>
+            <p>Consider creating a purchase order to restock this product.</p>
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL || ''}/admin/inventory" style="display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
+              View Inventory
+            </a>
+          </div>
+        </body>
+      </html>
+    `;
+
+    return this.sendEmail({ to, subject, html });
+  }
+
+  /**
+   * Send an order shipped/delivered status-update email (Amazon-style
+   * gap-closure Phase 4 part 1) — previously no such email existed at
+   * all; a customer had no way to learn their order shipped or arrived
+   * except by manually checking the order page.
+   */
+  async sendOrderStatusUpdate(to: string, orderNumber: string, status: 'SHIPPED' | 'DELIVERED') {
+    const subject = status === 'SHIPPED'
+      ? `Your order ${orderNumber} has shipped!`
+      : `Your order ${orderNumber} has been delivered`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #2563eb; color: white; padding: 20px; text-align: center;">
+              <h1>${status === 'SHIPPED' ? 'Order Shipped' : 'Order Delivered'}</h1>
+            </div>
+            <div style="padding: 20px; background: #f9fafb;">
+              <p><strong>Order Number:</strong> ${orderNumber}</p>
+              ${status === 'SHIPPED'
+                ? '<p>Your order is on its way!</p>'
+                : '<p>Your order has been delivered. We hope you\'re happy with your purchase!</p>'}
+              <a href="${process.env.NEXT_PUBLIC_SITE_URL || ''}/orders" style="display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
+                View Order
+              </a>
+            </div>
+            <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 12px;">
+              <p>© ${new Date().getFullYear()} SkyzoneBD. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    return this.sendEmail({ to, subject, html });
+  }
+
+  /**
+   * Send a customer their RFQ quote (Amazon-Style Wholesale Platform Gap
+   * Closure — Phase 4 part 3) — previously the admin's quote was accepted
+   * by the respond API and then silently discarded, so no such email
+   * could ever have existed until the quote itself was actually persisted.
+   */
+  async sendRFQQuote(to: string, rfqNumber: string, quotedPrice: number | null, responseMessage: string) {
+    const subject = `Your quote for RFQ ${rfqNumber} is ready`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #2563eb; color: white; padding: 20px; text-align: center;">
+              <h1>Quote Ready</h1>
+            </div>
+            <div style="padding: 20px; background: #f9fafb;">
+              <p><strong>RFQ Number:</strong> ${rfqNumber}</p>
+              ${quotedPrice != null ? `<p><strong>Quoted Price:</strong> ৳${quotedPrice.toLocaleString()} per unit</p>` : ''}
+              <p><strong>Message from our team:</strong></p>
+              <p style="background: white; padding: 12px; border-radius: 5px;">${responseMessage}</p>
+              <a href="${process.env.NEXT_PUBLIC_SITE_URL || ''}/rfq" style="display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
+                View Quote
+              </a>
+            </div>
+            <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 12px;">
+              <p>© ${new Date().getFullYear()} SkyzoneBD. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    return this.sendEmail({ to, subject, html });
+  }
+
+  /**
+   * Send a return-status update (Amazon-Style Wholesale Platform Gap
+   * Closure — Phase 4 part 5) — approved/rejected/refunded are each their
+   * own notification, since a return's state machine is independent of the
+   * order's own status.
+   */
+  async sendReturnStatusUpdate(
+    to: string,
+    returnNumber: string,
+    status: 'APPROVED' | 'REJECTED' | 'REFUNDED',
+    details: { refundAmount?: number; rejectionReason?: string }
+  ) {
+    const subjectByStatus: Record<typeof status, string> = {
+      APPROVED: `Your return ${returnNumber} has been approved`,
+      REJECTED: `Your return ${returnNumber} could not be approved`,
+      REFUNDED: `Your refund for return ${returnNumber} has been processed`,
+    };
+    const bodyByStatus: Record<typeof status, string> = {
+      APPROVED: `<p>Your return request has been approved. We'll process your refund shortly.</p>`,
+      REJECTED: `<p>We're unable to approve this return request.</p>${details.rejectionReason ? `<p><strong>Reason:</strong> ${details.rejectionReason}</p>` : ''}`,
+      REFUNDED: `<p>Your refund has been processed.</p>${details.refundAmount != null ? `<p><strong>Refund Amount:</strong> ৳${details.refundAmount.toLocaleString()}</p>` : ''}`,
+    };
+    const subject = subjectByStatus[status];
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #2563eb; color: white; padding: 20px; text-align: center;">
+              <h1>Return ${status === 'REFUNDED' ? 'Refunded' : status === 'APPROVED' ? 'Approved' : 'Update'}</h1>
+            </div>
+            <div style="padding: 20px; background: #f9fafb;">
+              <p><strong>Return Number:</strong> ${returnNumber}</p>
+              ${bodyByStatus[status]}
+              <a href="${process.env.NEXT_PUBLIC_SITE_URL || ''}/orders" style="display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
+                View Order
+              </a>
+            </div>
+            <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 12px;">
+              <p>© ${new Date().getFullYear()} SkyzoneBD. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    return this.sendEmail({ to, subject, html });
+  }
+
+  /**
    * Send data deletion confirmation email
    */
   async sendDataDeletionConfirmation(to: string, userName: string) {

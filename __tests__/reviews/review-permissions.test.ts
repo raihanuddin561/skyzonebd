@@ -2,8 +2,8 @@
 
 import { validateData, createReviewSchema } from '@/lib/validation';
 
-// Mock Prisma
-jest.mock('@/lib/db', () => ({
+// Mock Prisma (src/lib/db.ts was consolidated into src/lib/prisma.ts — P1-4)
+jest.mock('@/lib/prisma', () => ({
   prisma: {
     order: {
       findFirst: jest.fn(),
@@ -20,7 +20,7 @@ jest.mock('@/lib/db', () => ({
   },
 }));
 
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
 describe('Review Permissions', () => {
   beforeEach(() => {
@@ -226,6 +226,7 @@ describe('Review Permissions', () => {
     it('should validate correct review data', () => {
       const reviewData = {
         productId: 'clh3h8k0e0000xyz123456789',
+        orderId: 'clh3h8k0e0000order123456789',
         rating: 5,
         comment: 'Excellent product! Very satisfied with the quality.',
       };
@@ -279,6 +280,7 @@ describe('Review Permissions', () => {
     it('should accept optional images array', () => {
       const reviewData = {
         productId: 'clh3h8k0e0000xyz123456789',
+        orderId: 'clh3h8k0e0000order123456789',
         rating: 5,
         comment: 'Great product with photos',
         images: [

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sign } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+import { getJwtSecret } from '@/lib/auth';
+import { rateLimiters, withRateLimit } from '@/lib/rate-limiter';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -10,6 +12,10 @@ export const maxDuration = 60; // 60 seconds timeout
 
 
 export async function POST(request: NextRequest) {
+  return withRateLimit(request, rateLimiters.auth, () => handleLogin(request));
+}
+
+async function handleLogin(request: NextRequest): Promise<NextResponse> {
   try {
     const { email, password } = await request.json();
 
@@ -70,7 +76,7 @@ export async function POST(request: NextRequest) {
         email: user.email, 
         role: user.role // Keep original case (ADMIN, SUPER_ADMIN, etc.)
       },
-      process.env.JWT_SECRET || 'fallback-secret',
+      getJwtSecret(),
       { expiresIn: '7d' }
     );
 

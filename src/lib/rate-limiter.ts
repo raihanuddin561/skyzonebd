@@ -16,8 +16,11 @@ interface RateLimitStore {
 
 const store: RateLimitStore = {};
 
-// Clean up old entries every 5 minutes
-setInterval(() => {
+// Clean up old entries every 5 minutes. `.unref()` so this timer never
+// keeps the Node process (or a test run) alive on its own — this module
+// was previously unused by anything, so the missing unref never mattered
+// until it was actually wired into routes.
+const cleanupInterval = setInterval(() => {
   const now = Date.now();
   Object.keys(store).forEach((key) => {
     if (store[key].resetTime < now) {
@@ -25,6 +28,7 @@ setInterval(() => {
     }
   });
 }, 5 * 60 * 1000);
+cleanupInterval.unref?.();
 
 export class RateLimiter {
   private config: RateLimitConfig;

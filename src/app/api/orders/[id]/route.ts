@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { autoGenerateProfitReport } from '@/utils/profitReportGeneration';
-import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
+import { requireAdmin, requireAuth } from '@/lib/auth';
+import { UserRole, isAdmin } from '@/types/roles';
+import { logInfo, logError } from '@/lib/logger';
+import { releaseStockAllocationsForOrder } from '@/services/inventoryService';
+import { emailService } from '@/lib/email';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
-
-// Use shared auth helper
-const verifyAdmin = verifyAdminToken;
 
 // GET - Get single order details
 export async function GET(
@@ -53,6 +54,23 @@ export async function GET(
       );
     }
 
+    // Guest orders (no linked account — order.userId is null) are readable
+    // by anyone holding the order id, since there is no account to
+    // authenticate against; this is how guest-checkout customers view their
+    // own order today. Orders placed by a registered user require the
+    // requester to be that user or an admin — this order previously had no
+    // auth check at all, leaking customer PII to anyone with the order id.
+    if (order.userId) {
+      const authUser = await requireAuth(request);
+      const isOwner = order.userId === authUser.id;
+      if (!isOwner && !isAdmin(authUser.role as UserRole)) {
+        return NextResponse.json(
+          { success: false, error: 'You are not authorized to view this order' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Format response
     const formattedOrder = {
       id: order.id,
@@ -64,6 +82,7 @@ export async function GET(
         mobile: order.guestPhone
       } : null,
       items: order.orderItems.map(item => ({
+        id: item.id,
         productId: item.productId,
         name: item.product.name,
         imageUrl: item.product.imageUrl,
@@ -92,6 +111,9 @@ export async function GET(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Get Order Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch order' },
@@ -109,10 +131,7 @@ export async function PATCH(
 ) {
   try {
     // Verify admin access
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ success: false, error: auth.error }, { status: 401 });
-    }
+    await requireAdmin(request);
 
     const { id } = await params;
     const body = await request.json();
@@ -158,6 +177,9 @@ export async function PATCH(
               }
             }
           }
+        },
+        user: {
+          select: { email: true }
         }
       }
     });
@@ -166,7 +188,29 @@ export async function PATCH(
     if (updateData.status === 'DELIVERED' && existingOrder.status !== 'DELIVERED') {
       const profitResult = await autoGenerateProfitReport(updatedOrder.id);
       if (profitResult.success) {
-        console.log(profitResult.message);
+        if (profitResult.ledgerPosted === false) {
+          logError(profitResult.message, new Error('Ledger posting failed'), 'Orders API');
+        } else {
+          logInfo(profitResult.message, 'Orders API');
+        }
+      } else {
+        logError(`Profit report generation did not succeed for order ${updatedOrder.id}`, new Error(profitResult.message), 'Orders API');
+      }
+    }
+
+    // Best-effort shipped/delivered notification email (Amazon-style
+    // gap-closure Phase 4 part 1) — same transition-detection idiom as the
+    // DELIVERED -> autoGenerateProfitReport hook above.
+    if (
+      (updateData.status === 'SHIPPED' && existingOrder.status !== 'SHIPPED') ||
+      (updateData.status === 'DELIVERED' && existingOrder.status !== 'DELIVERED')
+    ) {
+      const recipientEmail = updatedOrder.user?.email || updatedOrder.guestEmail;
+      if (recipientEmail) {
+        const emailResult = await emailService.sendOrderStatusUpdate(recipientEmail, updatedOrder.orderNumber, updateData.status);
+        if (!emailResult.success) {
+          console.error(`Order status email failed for order ${updatedOrder.orderNumber}: ${emailResult.error}`);
+        }
       }
     }
 
@@ -183,6 +227,9 @@ export async function PATCH(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Update Order Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update order' },
@@ -200,10 +247,7 @@ export async function DELETE(
 ) {
   try {
     // Verify admin access
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ success: false, error: auth.error }, { status: 401 });
-    }
+    const admin = await requireAdmin(request);
 
     const { id } = await params;
 
@@ -230,27 +274,51 @@ export async function DELETE(
       );
     }
 
-    // Restore stock for cancelled orders
-    for (const item of order.orderItems) {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId }
-      });
+    // Restore stock and update the order status atomically. The previous
+    // read-then-write (`findUnique` then `stockQuantity: product.stockQuantity
+    // + item.quantity`) was both non-atomic (a failure partway through a
+    // multi-item order left some products restored and others not, with the
+    // order never marked cancelled) and race-prone (two concurrent
+    // cancellations could read the same stale stockQuantity and lose an
+    // update). Atomic `increment` inside one transaction fixes both.
+    const cancelledOrder = await prisma.$transaction(async (tx) => {
+      for (const item of order.orderItems) {
+        const productBeforeRestore = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { stockQuantity: true },
+        });
+        const previousStock = productBeforeRestore?.stockQuantity ?? 0;
 
-      if (product) {
-        await prisma.product.update({
-          where: { id: product.id },
-          data: { stockQuantity: product.stockQuantity + item.quantity }
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stockQuantity: { increment: item.quantity } }
+        });
+
+        await tx.inventoryLog.create({
+          data: {
+            productId: item.productId,
+            action: 'ADJUSTMENT',
+            quantity: item.quantity,
+            previousStock,
+            newStock: previousStock + item.quantity,
+            reference: id,
+            notes: `Stock restored from cancelled order ${order.orderNumber}`,
+            performedBy: admin.id,
+          },
         });
       }
-    }
 
-    // Update order status to cancelled instead of deleting
-    const cancelledOrder = await prisma.order.update({
-      where: { id },
-      data: { 
-        status: 'CANCELLED',
-        updatedAt: new Date()
-      }
+      // Release any stock-lot allocations this order consumed (Amazon-style
+      // gap-closure Phase 1) — see orders/cancel/route.ts for the same fix.
+      await releaseStockAllocationsForOrder(tx, id);
+
+      return tx.order.update({
+        where: { id },
+        data: {
+          status: 'CANCELLED',
+          updatedAt: new Date()
+        }
+      });
     });
 
     return NextResponse.json({
@@ -264,6 +332,9 @@ export async function DELETE(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Cancel Order Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to cancel order' },

@@ -2,6 +2,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
+import { UserRole, isAdmin } from '@/types/roles';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -15,8 +17,14 @@ export const maxDuration = 60; // 60 seconds timeout
  */
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Add admin authentication middleware
-    
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     const configs = await prisma.platformConfig.findMany({
       where: {
         category: 'profit'
@@ -38,6 +46,9 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error fetching profit config:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch configurations' },
@@ -52,8 +63,14 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // TODO: Add admin authentication middleware
-    
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { key, value, description, category = 'profit' } = body;
 
@@ -93,6 +110,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error saving profit config:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to save configuration' },
@@ -107,8 +127,14 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    // TODO: Add admin authentication middleware
-    
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { platformProfitPercentage } = body;
 
@@ -160,6 +186,9 @@ export async function PUT(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error updating profit percentage:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update profit percentage' },
@@ -174,8 +203,14 @@ export async function PUT(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    // TODO: Add admin authentication middleware
-    
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const key = searchParams.get('key');
 
@@ -196,6 +231,9 @@ export async function DELETE(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error deleting profit config:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete configuration' },

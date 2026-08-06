@@ -5,6 +5,8 @@ import {
   getProfitSummary,
   getProfitTrends,
 } from '@/utils/partnerProfitDistribution';
+import { requireAuth } from '@/lib/auth';
+import { UserRole, isAdmin } from '@/types/roles';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -13,6 +15,14 @@ export const maxDuration = 60; // 60 seconds timeout
 
 export async function GET(request: NextRequest) {
   try {
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const action = searchParams.get('action');
     const startDate = searchParams.get('startDate');
@@ -68,6 +78,9 @@ export async function GET(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error calculating profit:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to calculate profit' },
@@ -78,6 +91,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { action, periodType, startDate, endDate } = body;
 
@@ -110,6 +131,9 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error processing profit request:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to process request' },

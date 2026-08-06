@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import ProductCard from '../components/ProductCard';
 import { useProductSearch } from '@/hooks/useProducts';
 import { usePopularSearches } from '@/hooks/useSearch';
@@ -15,7 +16,7 @@ function PopularSearches() {
 
   if (loading) {
     return (
-      <div className="mt-16 bg-white rounded-lg p-6 shadow">
+      <div className="mt-16 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
         <h3 className="text-lg font-semibold mb-4 text-gray-900">Popular Searches</h3>
         <div className="flex flex-wrap gap-2">
           {[1, 2, 3, 4, 5, 6].map(i => (
@@ -31,14 +32,14 @@ function PopularSearches() {
   }
 
   return (
-    <div className="mt-16 bg-white rounded-lg p-6 shadow">
+    <div className="mt-16 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
       <h3 className="text-lg font-semibold mb-4 text-gray-900">Popular Searches</h3>
       <div className="flex flex-wrap gap-2">
         {searches.map(term => (
           <Link
             key={term}
             href={`/search?q=${encodeURIComponent(term)}`}
-            className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 text-sm transition-colors"
+            className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full hover:bg-blue-100 text-sm font-medium transition-colors"
           >
             {term}
           </Link>
@@ -94,25 +95,25 @@ function SearchContent() {
       <Header />
       
       {/* Search Header */}
-      <div className="bg-white py-6 border-b">
+      <div className="bg-white py-6 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold mb-2 text-gray-900">
+              <h1 className="text-2xl font-bold mb-1.5 text-gray-900">
                 Search Results {query && `for "${query}"`}
               </h1>
-              <p className="text-gray-600">
+              <p className="text-gray-500">
                 {loading ? 'Searching...' : `${sortedResults.length} products found`}
               </p>
             </div>
-            
+
             {/* Sort Dropdown */}
             {!loading && sortedResults.length > 0 && (
               <div className="mt-4 sm:mt-0">
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 >
                   <option value="relevance">Sort by Relevance</option>
                   <option value="name">Sort by Name</option>
@@ -129,15 +130,19 @@ function SearchContent() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* No Query State */}
         {!query && (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">🔍</div>
+          <div className="text-center py-16 bg-white rounded-xl border border-gray-100 shadow-sm">
+            <div className="w-20 h-20 rounded-full bg-blue-50 text-blue-400 flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
             <h2 className="text-xl font-semibold mb-2 text-gray-900">Start your search</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-500 mb-6">
               Enter a product name, category, or company to find what you're looking for
             </p>
             <Link
               href="/products"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-block"
+              className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
             >
               Browse All Products
             </Link>
@@ -154,23 +159,27 @@ function SearchContent() {
 
         {/* No Results */}
         {!loading && query && sortedResults.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">�</div>
+          <div className="text-center py-16 bg-white rounded-xl border border-gray-100 shadow-sm">
+            <div className="w-20 h-20 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
             <h2 className="text-xl font-semibold mb-2 text-gray-900">No results found</h2>
-            <p className="text-gray-600 mb-4">
-              We couldn't find any products matching "{query}"
+            <p className="text-gray-500 mb-4">
+              We couldn't find any products matching &quot;{query}&quot;
             </p>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-500">Try:</p>
-              <ul className="text-sm text-gray-500 space-y-1">
-                <li>• Checking your spelling</li>
-                <li>• Using different keywords</li>
-                <li>• Searching for more general terms</li>
+            <div className="space-y-1 mb-6">
+              <p className="text-sm text-gray-500 font-medium">Try:</p>
+              <ul className="text-sm text-gray-500 space-y-0.5">
+                <li>Checking your spelling</li>
+                <li>Using different keywords</li>
+                <li>Searching for more general terms</li>
               </ul>
             </div>
             <Link
               href="/products"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-block mt-4"
+              className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
             >
               Browse All Products
             </Link>
@@ -180,8 +189,8 @@ function SearchContent() {
         {/* Search Results */}
         {!loading && query && sortedResults.length > 0 && (
           <>
-            <div className="mb-6">
-              <p className="text-gray-600">
+            <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <p className="text-gray-600 text-sm font-medium">
                 Showing {startIndex + 1}-{Math.min(startIndex + productsPerPage, sortedResults.length)} of {sortedResults.length} results
               </p>
             </div>
@@ -220,10 +229,10 @@ function SearchContent() {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`px-4 py-2 rounded ${
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all cursor-pointer ${
                         currentPage === page
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                          ? 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-md'
+                          : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-700 border border-gray-300'
                       }`}
                     >
                       {page}
@@ -250,6 +259,8 @@ function SearchContent() {
         {/* Popular Searches */}
         <PopularSearches />
       </div>
+
+      <Footer />
     </main>
   );
 }

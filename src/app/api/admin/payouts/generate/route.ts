@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { startOfDay, endOfDay } from 'date-fns';
+import { getFinancialSummary } from '@/lib/financialLedger';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -53,20 +54,32 @@ export async function POST(request: NextRequest) {
         name: true,
         email: true,
         profitSharePercentage: true,
-        isActive: true
+        isActive: true,
+        exitDate: true
       }
     });
-    
+
     if (!partner) {
       return NextResponse.json(
         { success: false, error: 'Partner not found' },
         { status: 404 }
       );
     }
-    
+
     if (!partner.isActive) {
       return NextResponse.json(
         { success: false, error: 'Cannot generate payout for inactive partner' },
+        { status: 400 }
+      );
+    }
+
+    // Amazon-style gap-closure Phase 3 part 4: block generation for a
+    // period entirely on/after the partner's exit date — an explicit
+    // single-partner request names this partner directly, so a clear
+    // rejection is more useful here than a silent skip.
+    if (partner.exitDate && partner.exitDate <= start) {
+      return NextResponse.json(
+        { success: false, error: `Cannot generate a distribution for ${partner.name} — this period starts on or after their exit date (${partner.exitDate.toISOString().split('T')[0]})` },
         { status: 400 }
       );
     }
@@ -91,7 +104,22 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // === CALCULATE REVENUE ===
+    // === CALCULATE REVENUE/COGS/OPERATIONAL COSTS FROM THE LEDGER ===
+    // Amazon-style gap-closure Phase 2 part 2 ("one true ledger"): this
+    // route previously recomputed revenue/COGS/operational-costs from
+    // Order/OperationalCost directly — a fifth independent formula. Now
+    // sourced from getFinancialSummary like every other profit-calculation
+    // consumer; the returns/shipping/tax adjustment layer below (currently
+    // all real deductions, not hardcoded away) is applied on top, since
+    // the ledger doesn't yet post RETURN/TAX/SHIPPING entries.
+    const summary = await getFinancialSummary(start, end);
+    const totalRevenue = summary.revenue;
+    const totalCOGS = summary.cogs;
+    const totalOperationalCosts = summary.operationalCosts + summary.salaryExpenses;
+
+    // Still queried directly for informational display fields only
+    // (subtotal/shipping revenue breakdown, orders-processed count) — not
+    // used to derive totalRevenue/totalCOGS above anymore.
     const deliveredOrders = await prisma.order.findMany({
       where: {
         status: 'DELIVERED',
@@ -102,50 +130,15 @@ export async function POST(request: NextRequest) {
       },
       select: {
         id: true,
-        total: true,
         subtotal: true,
         shipping: true,
-        orderItems: {
-          select: {
-            quantity: true,
-            costPerUnit: true,
-            price: true,
-            totalProfit: true
-          }
-        }
       }
     });
-    
-    // Calculate revenue components
-    const totalRevenue = deliveredOrders.reduce((sum, o) => sum + o.total, 0);
+
     const subtotalRevenue = deliveredOrders.reduce((sum, o) => sum + o.subtotal, 0);
     const shippingRevenue = deliveredOrders.reduce((sum, o) => sum + (o.shipping || 0), 0);
     const discountsGiven = 0; // No discount field in Order model
-    
-    // === CALCULATE COGS ===
-    let totalCOGS = 0;
-    
-    deliveredOrders.forEach(order => {
-      order.orderItems.forEach(item => {
-        totalCOGS += (item.costPerUnit || 0) * item.quantity;
-      });
-    });
-    
-    // === CALCULATE OPERATIONAL COSTS ===
-    const operationalCosts = await prisma.operationalCost.findMany({
-      where: {
-        date: {
-          gte: start,
-          lte: end
-        }
-      },
-      select: {
-        amount: true
-      }
-    });
-    
-    const totalOperationalCosts = operationalCosts.reduce((sum, c) => sum + c.amount, 0);
-    
+
     // === HANDLE RETURNS ===
     const returnedOrders = await prisma.order.findMany({
       where: {
@@ -240,10 +233,17 @@ export async function POST(request: NextRequest) {
     });
     
   } catch (error) {
+    // requireAdmin throws a pre-built Response (401/403) on auth failure —
+    // surface it as-is instead of collapsing it into a generic 500 (found
+    // alongside the identical bug in admin/payouts/[id]/route.ts, Phase 3
+    // part 1).
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Generate Payout Error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to generate payout statement',
         details: error instanceof Error ? error.message : 'Unknown error'
       },

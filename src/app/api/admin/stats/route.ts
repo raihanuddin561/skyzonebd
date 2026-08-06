@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
+import { UserRole, isAdmin } from '@/types/roles';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -9,6 +11,14 @@ export const maxDuration = 60; // 60 seconds timeout
 
 export async function GET(request: NextRequest) {
   try {
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     // Get query parameters for date filtering
     const searchParams = request.nextUrl.searchParams;
     const period = searchParams.get('period') || '30'; // days
@@ -196,6 +206,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error fetching admin stats:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch admin statistics' },

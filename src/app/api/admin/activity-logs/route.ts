@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verify, JwtPayload } from 'jsonwebtoken';
+import { requireAuth } from '@/lib/auth';
+import { UserRole, isAdmin } from '@/types/roles';
 import { getActivityLogs, getActivityStats } from '@/lib/activityLogger';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
-
-
-interface DecodedToken extends JwtPayload {
-  userId: string;
-  role: string;
-}
 
 /**
  * GET /api/admin/activity-logs
@@ -20,27 +15,12 @@ interface DecodedToken extends JwtPayload {
  */
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-    try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Only admin can view activity logs
-    if (decoded.role.toUpperCase() !== 'ADMIN') {
+    // Canonical auth (ADR-009 / P2-9): previously hand-rolled JWT decode +
+    // `role.toUpperCase() !== 'ADMIN'`, which rejected SUPER_ADMIN accounts
+    // outright. requireAuth + isAdmin() correctly treats SUPER_ADMIN as
+    // admin-or-higher (docs/architecture-review/14_Technical_Debt.md §22).
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
@@ -96,6 +76,9 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Activity Logs API Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch activity logs' },

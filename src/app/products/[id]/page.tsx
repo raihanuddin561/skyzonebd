@@ -6,9 +6,11 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import Head from 'next/head';
 import Header from '../../components/Header';
+import Footer from '../../components/Footer';
 import { useProduct, useRelatedProducts } from '@/hooks/useProducts';
 import { Product } from '@/types/cart';
 import { useCart } from '@/contexts/CartContext';
+import { getLineTotal } from '@/utils/cartPricing';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-toastify';
 import ImageZoomLightbox from '@/components/common/ImageZoomLightbox';
@@ -108,19 +110,7 @@ export default function ProductDetailPage() {
 
   const calculateTotalPrice = () => {
     if (!product) return 0;
-    
-    // Check for bulk pricing
-    if (product.bulkPricing) {
-      const applicablePricing = product.bulkPricing
-        .filter(bp => quantity >= bp.quantity)
-        .sort((a, b) => b.quantity - a.quantity)[0];
-      
-      if (applicablePricing) {
-        return applicablePricing.price * quantity;
-      }
-    }
-    
-    return product.price * quantity;
+    return getLineTotal(product, quantity);
   };
 
   const openImageModal = (index: number) => {
@@ -448,7 +438,7 @@ export default function ProductDetailPage() {
                   <button
                     onClick={handleAddToCart}
                     disabled={isAdding}
-                    className="w-full py-3 px-6 rounded-lg font-semibold transition-colors bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3.5 px-6 rounded-xl font-semibold transition-all bg-gradient-to-r from-blue-600 to-indigo-700 text-white hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 shadow-md cursor-pointer"
                   >
                     {isAdding ? 'Adding...' : 'Add to Cart'}
                   </button>
@@ -683,6 +673,7 @@ export default function ProductDetailPage() {
         {/* Related Products */}
         {relatedProducts.length > 0 && (
           <div className="mt-16">
+            <span className="section-eyebrow mb-3">You may also like</span>
             <h3 className="text-2xl font-semibold mb-8 text-gray-900">Related Products</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {relatedProducts.map((relatedProduct) => (
@@ -691,7 +682,7 @@ export default function ProductDetailPage() {
                   href={`/products/${relatedProduct.id}`}
                   className="group"
                 >
-                  <div className="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="card-hover bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:border-blue-200">
                     <Image
                       src={relatedProduct.imageUrl}
                       alt={relatedProduct.name}
@@ -726,6 +717,8 @@ export default function ProductDetailPage() {
           alt={product.name}
         />
       )}
+
+      <Footer />
     </main>
   );
 }

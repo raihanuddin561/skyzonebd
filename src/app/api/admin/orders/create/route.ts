@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyAdminToken, type AdminAuthResult } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
+import { depleteStockLotsForSale } from '@/services/inventoryService';
+import { alertIfCrossedReorderLevel } from '@/utils/lowStockAlerts';
+import { getPaymentTermsForMethod, checkCreditLimit, createInvoiceForOrder } from '@/services/invoiceService';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
-
-// Use shared auth helper
-const verifyAdmin = verifyAdminToken;
 
 // Generate unique order number
 function generateOrderNumber(): string {
@@ -24,10 +24,7 @@ function generateOrderNumber(): string {
 // POST - Admin creates order manually
 export async function POST(request: NextRequest) {
   try {
-    const auth = verifyAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ success: false, error: auth.error }, { status: 401 });
-    }
+    const auth = await requireAdmin(request);
 
     const body = await request.json();
     const {
@@ -108,6 +105,9 @@ export async function POST(request: NextRequest) {
       profitPerUnit: number;
       totalProfit: number;
       profitMargin: number;
+      productName: string;
+      productSku: string | null;
+      reorderLevel: number | null;
     }> = [];
 
     for (const item of items) {
@@ -124,6 +124,8 @@ export async function POST(request: NextRequest) {
         select: {
           id: true,
           name: true,
+          sku: true,
+          reorderLevel: true,
           wholesalePrice: true,
           stockQuantity: true,
           basePrice: true,
@@ -178,17 +180,51 @@ export async function POST(request: NextRequest) {
         costPerUnit: costPerUnit,
         profitPerUnit: profitPerUnit,
         totalProfit: totalProfit,
-        profitMargin: profitMargin
+        profitMargin: profitMargin,
+        productName: product.name,
+        productSku: product.sku,
+        reorderLevel: product.reorderLevel
       });
     }
 
     const total = subtotal + shipping + tax;
 
+    // NET30/60/90 orders get a real Invoice + credit-limit check (Amazon-
+    // style gap-closure Phase 2 part 3) — applies only to invoice-on-
+    // credit payment methods, not prepaid/cash ones. NET terms require an
+    // identified customer: there's no BusinessInfo/credit history to
+    // check for a no-customer manual order.
+    const netTerms = getPaymentTermsForMethod(paymentMethod);
+    if (netTerms && !customerId) {
+      return NextResponse.json(
+        { success: false, error: 'NET payment terms require a customer to be selected' },
+        { status: 400 }
+      );
+    }
+
     // Generate order number
     const orderNumber = generateOrderNumber();
 
+    // Collects stock-crossing candidates during the transaction below, for
+    // a best-effort, non-blocking low-stock alert fired after it commits
+    // (Amazon-style gap-closure Phase 1).
+    const stockAlertCandidates: Array<{ product: { id: string; name: string; sku: string | null; reorderLevel: number | null }; previousStock: number; newStock: number }> = [];
+
     // Create order, update stock, and log activity in a single transaction
     const order: any = await prisma.$transaction(async (tx) => {
+      if (netTerms) {
+        const creditCheck = await checkCreditLimit(customerId, total, tx);
+        if (!creditCheck.allowed) {
+          throw new Response(
+            JSON.stringify({
+              success: false,
+              error: `This order would exceed the customer's credit limit (outstanding: ${creditCheck.outstandingBalance}, limit: ${creditCheck.creditLimit})`,
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
       // Create order
       const newOrder = await tx.order.create({
         data: {
@@ -201,6 +237,7 @@ export async function POST(request: NextRequest) {
           status,
           paymentStatus: 'PENDING',
           paymentMethod,
+          paymentTerms: netTerms || undefined,
           shippingAddress,
           billingAddress,
           notes,
@@ -233,22 +270,80 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // Update stock quantities
+      // Update stock quantities. Guarded the same way as the customer-facing
+      // checkout (orders/route.ts) — this file previously used a plain
+      // `update` with no `stockQuantity: { gte }` guard, the exact
+      // check-then-act race already found and fixed elsewhere (Production
+      // Readiness Audit, 2026-07-18) but missed here at the time. Also
+      // deplete real stock lots for WAC-accurate COGS and record the
+      // movement in InventoryLog (Amazon-style gap-closure Phase 1).
       for (const item of orderItemsData) {
-        await tx.product.update({
+        const existingStock = await tx.product.findUnique({
           where: { id: item.productId },
+          select: { stockQuantity: true },
+        });
+        const previousStock = existingStock?.stockQuantity ?? 0;
+
+        const result = await tx.product.updateMany({
+          where: {
+            id: item.productId,
+            stockQuantity: { gte: item.quantity }
+          },
           data: {
             stockQuantity: {
               decrement: item.quantity
             }
           }
         });
+        if (result.count === 0) {
+          throw new Error(`Insufficient stock for product ${item.productId} (concurrent order consumed the remaining units)`);
+        }
+
+        stockAlertCandidates.push({
+          product: { id: item.productId, name: item.productName, sku: item.productSku, reorderLevel: item.reorderLevel },
+          previousStock,
+          newStock: previousStock - item.quantity,
+        });
+
+        const orderItem = newOrder.orderItems.find((oi: any) => oi.productId === item.productId);
+        if (orderItem) {
+          const { costPerUnit: wacCostPerUnit } = await depleteStockLotsForSale(tx, {
+            productId: item.productId,
+            quantity: item.quantity,
+            orderId: newOrder.id,
+            orderItemId: orderItem.id,
+          });
+
+          if (wacCostPerUnit !== null && wacCostPerUnit !== orderItem.costPerUnit) {
+            const profitPerUnit = orderItem.price - wacCostPerUnit;
+            const totalProfit = profitPerUnit * orderItem.quantity;
+            const profitMargin = orderItem.total > 0 ? (totalProfit / orderItem.total) * 100 : 0;
+
+            await tx.orderItem.update({
+              where: { id: orderItem.id },
+              data: { costPerUnit: wacCostPerUnit, profitPerUnit, totalProfit, profitMargin },
+            });
+          }
+        }
+
+        await tx.inventoryLog.create({
+          data: {
+            productId: item.productId,
+            action: 'SALE',
+            quantity: -item.quantity,
+            previousStock,
+            newStock: previousStock - item.quantity,
+            reference: newOrder.id,
+            notes: `Admin-created order ${newOrder.orderNumber}`,
+            performedBy: auth.id,
+          },
+        });
       }
 
       // Log activity
       await tx.activityLog.create({
         data: {
-          userId: auth.userId!,
+          userId: auth.id,
           userName: 'Admin',
           action: 'CREATE',
           entityType: 'Order',
@@ -262,9 +357,22 @@ export async function POST(request: NextRequest) {
           }
         }
       });
-      
+
+      if (netTerms) {
+        await createInvoiceForOrder(
+          { orderId: newOrder.id, customerId: customerId, amount: total, paymentTerms: netTerms },
+          tx
+        );
+      }
+
       return newOrder;
     });
+
+    // Best-effort, non-blocking low-stock alerts, fired after the
+    // transaction has committed (Amazon-style gap-closure Phase 1).
+    for (const candidate of stockAlertCandidates) {
+      await alertIfCrossedReorderLevel(candidate.product, candidate.previousStock, candidate.newStock);
+    }
 
     return NextResponse.json({
       success: true,
@@ -294,6 +402,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Create Order Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create order' },

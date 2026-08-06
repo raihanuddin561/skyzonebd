@@ -32,12 +32,44 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-slate-100 border-b shadow-sm sticky top-0 z-50">
+    <header className="sticky top-0 z-50">
+      {/* Trust strip */}
+      <div className="hidden md:block bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 text-blue-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5 flex items-center justify-center gap-6 text-xs font-medium">
+          <span className="inline-flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Verified Wholesale Suppliers
+          </span>
+          <span className="w-1 h-1 rounded-full bg-blue-300/60" />
+          <span className="inline-flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Fast Bulk Delivery Nationwide
+          </span>
+          <span className="w-1 h-1 rounded-full bg-blue-300/60" />
+          <span className="inline-flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 8a6 6 0 00-9.33-5M6 16v1a3 3 0 003 3h6a3 3 0 003-3v-1m-6-8V3m0 5a3 3 0 100 6 3 3 0 000-6z" />
+            </svg>
+            24/7 Buyer Support
+          </span>
+        </div>
+      </div>
+
+      <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
       {/* Desktop Header */}
-      <div className="hidden lg:flex items-center justify-between p-4 gap-4">
+      <div className="hidden lg:flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3.5 gap-4 max-w-7xl mx-auto">
         {/* Logo */}
-        <Link href="/" className="flex-shrink-0">
-          <h1 className="text-2xl font-bold text-blue-800 cursor-pointer whitespace-nowrap">SkyzoneBD</h1>
+        <Link href="/" className="flex-shrink-0 flex items-center gap-2 group">
+          <span className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-bold text-lg shadow-md group-hover:shadow-lg transition-shadow">
+            S
+          </span>
+          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight cursor-pointer whitespace-nowrap">
+            Skyzone<span className="text-blue-600">BD</span>
+          </h1>
         </Link>
 
         {/* SearchBar */}
@@ -46,13 +78,13 @@ export default function Header() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex items-center gap-3 text-sm text-gray-700 flex-shrink-0">
-        <Link href="/products" className="hover:text-blue-700 font-medium cursor-pointer">Products</Link>
-        <Link href="/compare" className="hover:text-blue-700 font-medium cursor-pointer">Compare</Link>
-        
+        <nav className="flex items-center gap-1 text-sm text-gray-700 flex-shrink-0">
+        <Link href="/products" className="px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 font-medium cursor-pointer transition-colors">Products</Link>
+        <Link href="/compare" className="px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 font-medium cursor-pointer transition-colors">Compare</Link>
+
         {/* Wishlist Icon */}
-        <Link href="/wishlist" className="relative hover:text-blue-700 font-medium cursor-pointer">
-          <div className="flex items-center gap-1">
+        <Link href="/wishlist" className="relative px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 font-medium cursor-pointer transition-colors">
+          <div className="flex items-center gap-1.5">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
@@ -60,23 +92,23 @@ export default function Header() {
           </div>
           <NoSSR>
             {getTotalItems() > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              <span className="absolute top-0.5 right-0.5 bg-amber-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
                 {getTotalItems()}
               </span>
             )}
           </NoSSR>
         </Link>
-        
+
         <CartIcon />
-        
+
         <NoSSR>
           {isAuthenticated ? (
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 hover:text-blue-700 font-medium cursor-pointer"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 font-medium cursor-pointer transition-colors"
               >
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-sm">
                   {user?.name.charAt(0).toUpperCase()}
                 </div>
                 <span className="hidden sm:inline">{user?.name}</span>
@@ -84,20 +116,23 @@ export default function Header() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              
+
               {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50">
                   <div className="px-4 py-2 border-b">
                     <p className="text-sm font-medium text-gray-900">{user?.name}</p>
                     <p className="text-sm text-gray-500">{user?.email}</p>
                   </div>
                   {user?.role?.toLowerCase() === 'admin' && (
                     <Link
-                      href="/dashboard"
-                      className="block px-4 py-2 text-sm text-blue-700 hover:bg-gray-100 cursor-pointer font-medium"
+                      href="/admin"
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 cursor-pointer font-medium"
                       onClick={() => setShowUserMenu(false)}
                     >
-                      🏠 Dashboard
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      </svg>
+                      Dashboard
                     </Link>
                   )}
                   <Link
@@ -113,6 +148,13 @@ export default function Header() {
                     onClick={() => setShowUserMenu(false)}
                   >
                     My Orders
+                  </Link>
+                  <Link
+                    href="/rfq"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    My Quote Requests
                   </Link>
                   <Link
                     href="/data-deletion"
@@ -132,8 +174,8 @@ export default function Header() {
             </div>
           ) : (
             <>
-              <Link href="/auth/login" className="hover:text-blue-700 font-medium cursor-pointer">Login</Link>
-              <Link href="/auth/register" className="hover:text-blue-700 font-medium cursor-pointer">Register</Link>
+              <Link href="/auth/login" className="px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 font-medium cursor-pointer transition-colors">Login</Link>
+              <Link href="/auth/register" className="ml-1 px-4 py-2 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-semibold cursor-pointer shadow-sm hover:shadow-md transition-shadow">Register</Link>
             </>
           )}
         </NoSSR>
@@ -147,7 +189,7 @@ export default function Header() {
           {/* Hamburger Menu */}
           <button
             onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
             aria-label="Toggle menu"
           >
             <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -160,19 +202,24 @@ export default function Header() {
           </button>
 
           {/* Logo */}
-          <Link href="/" className="flex-1 text-center">
-            <h1 className="text-xl md:text-2xl font-bold text-blue-800 cursor-pointer">SkyzoneBD</h1>
+          <Link href="/" className="flex-1 flex items-center justify-center gap-1.5">
+            <span className="w-7 h-7 rounded-md bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+              S
+            </span>
+            <h1 className="text-xl font-extrabold text-gray-900 tracking-tight cursor-pointer">
+              Skyzone<span className="text-blue-600">BD</span>
+            </h1>
           </Link>
 
           {/* Right Icons */}
-          <div className="flex items-center gap-2">
-            <Link href="/wishlist" className="relative p-2 hover:bg-gray-200 rounded-lg transition-colors">
+          <div className="flex items-center gap-1">
+            <Link href="/wishlist" className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
               <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
               <NoSSR>
                 {getTotalItems() > 0 && (
-                  <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
+                  <span className="absolute top-0 right-0 bg-amber-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
                     {getTotalItems()}
                   </span>
                 )}
@@ -222,11 +269,14 @@ export default function Header() {
                     </div>
                     {user?.role?.toLowerCase() === 'admin' && (
                       <Link
-                        href="/dashboard"
-                        className="block px-4 py-3 text-blue-700 hover:bg-gray-100 font-medium"
+                        href="/admin"
+                        className="flex items-center gap-2 px-4 py-3 text-blue-700 hover:bg-gray-100 font-medium"
                         onClick={() => setShowMobileMenu(false)}
                       >
-                        🏠 Dashboard
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        Dashboard
                       </Link>
                     )}
                     <Link
@@ -242,6 +292,13 @@ export default function Header() {
                       onClick={() => setShowMobileMenu(false)}
                     >
                       My Orders
+                    </Link>
+                    <Link
+                      href="/rfq"
+                      className="block px-4 py-3 text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowMobileMenu(false)}
+                    >
+                      My Quote Requests
                     </Link>
                     <Link
                       href="/data-deletion"
@@ -279,6 +336,7 @@ export default function Header() {
             </nav>
           </div>
         )}
+      </div>
       </div>
     </header>
   );

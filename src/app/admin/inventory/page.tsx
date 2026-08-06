@@ -30,7 +30,10 @@ export default function InventoryPage() {
   const fetchInventory = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/inventory');
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/inventory', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -81,10 +84,14 @@ export default function InventoryPage() {
 
   const handleStockUpdate = async (productId: string, newStock: number) => {
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/inventory/${productId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stock: newStock })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ stockQuantity: newStock })
       });
 
       if (response.ok) {

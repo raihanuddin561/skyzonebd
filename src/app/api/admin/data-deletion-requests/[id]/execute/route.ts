@@ -74,8 +74,6 @@ export async function POST(
           discountPercent: 0,
           discountReason: null,
           discountValidUntil: null,
-          profitSharePercentage: null,
-          isProfitPartner: false,
         },
       });
 
@@ -109,6 +107,15 @@ export async function POST(
         data: {
           sellerId: null, // Remove seller association
         },
+      });
+
+      // Unlink any Partner record from this user (ADR-008's optional
+      // Partner.userId link) — the Partner business/financial record
+      // itself is retained (it isn't this user's data to delete), only the
+      // link to the now-anonymized login is cleared.
+      await tx.partner.updateMany({
+        where: { userId },
+        data: { userId: null },
       });
 
       // 3. Update deletion request status

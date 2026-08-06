@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import { dataService } from '@/services/dataService';
 import { Product } from '@/types/cart';
 import { toast } from 'react-toastify';
@@ -69,15 +70,35 @@ export default function ComparePage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <Header />
-      
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4 text-gray-900">Compare Products</h1>
-          <p className="text-sm sm:text-base text-gray-600">Compare up to 3 products side by side</p>
-        </div>
 
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 text-white py-8 sm:py-10 lg:py-12 overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: 'radial-gradient(circle at 15% 25%, white 1px, transparent 1px), radial-gradient(circle at 85% 75%, white 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+          }}
+        />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-amber-300 mb-3">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+            </svg>
+            Comparison Tool
+          </span>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">
+            Compare Products
+          </h1>
+          <p className="text-base sm:text-lg text-blue-100">
+            Compare up to 3 products side by side to find the best fit
+          </p>
+        </div>
+      </section>
+
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
         {/* Add Product Section */}
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6 sm:mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-6 sm:mb-8">
           <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-gray-900">Add Products to Compare</h2>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <input
@@ -85,12 +106,12 @@ export default function ComparePage() {
               placeholder="Enter Product ID"
               value={productId}
               onChange={(e) => setProductId(e.target.value)}
-              className="flex-1 px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+              className="flex-1 px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
             />
             <button
               onClick={handleAddProduct}
               disabled={!productId || selectedProducts.length >= 3}
-              className="px-4 sm:px-6 py-2.5 sm:py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap touch-manipulation font-medium text-sm sm:text-base"
+              className="px-4 sm:px-6 py-2.5 sm:py-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-md disabled:cursor-not-allowed whitespace-nowrap touch-manipulation transition-all text-sm sm:text-base"
             >
               Add Product
             </button>
@@ -102,7 +123,7 @@ export default function ComparePage() {
 
         {/* Comparison Table */}
         {selectedProducts.length > 0 ? (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             {/* Mobile Card View */}
             <div className="lg:hidden">
               {selectedProducts.map((product, index) => (
@@ -128,7 +149,7 @@ export default function ComparePage() {
                     </div>
                     <button
                       onClick={() => handleRemoveProduct(product.id)}
-                      className="w-8 h-8 bg-red-500 text-white rounded-full text-sm hover:bg-red-600 flex items-center justify-center flex-shrink-0 ml-2 touch-manipulation"
+                      className="w-8 h-8 bg-white border border-gray-200 text-red-500 rounded-full text-sm shadow-sm hover:bg-red-50 hover:border-red-200 flex items-center justify-center flex-shrink-0 ml-2 touch-manipulation transition-colors"
                       aria-label="Remove product"
                     >
                       ×
@@ -160,7 +181,7 @@ export default function ComparePage() {
                         <div className="relative">
                           <button
                             onClick={() => handleRemoveProduct(product.id)}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs hover:bg-red-600"
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-white border border-gray-200 text-red-500 rounded-full text-xs shadow-sm hover:bg-red-50 hover:border-red-200 transition-colors"
                           >
                             ×
                           </button>
@@ -199,17 +220,27 @@ export default function ComparePage() {
             </div>
           </div>
         ) : (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">📊</div>
-            <h3 className="text-xl font-semibold mb-2 text-gray-900">No Products Selected</h3>
-            <p className="text-gray-600">
-              Add products using their IDs to start comparing
+          <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="w-20 h-20 rounded-full bg-blue-50 text-blue-400 flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-3">No Products Selected</h3>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              Add products using their IDs above to start comparing, or pick from the popular products below.
             </p>
+            <Link
+              href="/products"
+              className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
+            >
+              Browse Products
+            </Link>
           </div>
         )}
 
         {/* Quick Add Popular Products */}
-        <div className="mt-8 bg-white rounded-lg shadow p-6">
+        <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-900">Popular Products</h3>
           {loading && popularProducts.length === 0 ? (
             <div className="text-center py-8">
@@ -220,9 +251,9 @@ export default function ComparePage() {
               {popularProducts.map(product => {
                 const isSelected = selectedProducts.find(p => p.id === product.id);
                 const canAdd = selectedProducts.length < 3 && !isSelected;
-                
+
                 return (
-                  <div key={product.id} className="border rounded-lg p-3">
+                  <div key={product.id} className="card-hover border border-gray-100 rounded-xl p-3 bg-white shadow-sm hover:border-blue-200">
                     <Image
                       src={product.imageUrl}
                       alt={product.name}
@@ -239,11 +270,11 @@ export default function ComparePage() {
                         }
                       }}
                       disabled={!canAdd}
-                      className={`w-full py-1 px-2 rounded text-xs ${
+                      className={`w-full py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
                         isSelected
                           ? 'bg-green-100 text-green-800 cursor-not-allowed'
                           : canAdd
-                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-sm hover:shadow-md'
                           : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                       }`}
                     >
@@ -256,6 +287,8 @@ export default function ComparePage() {
           )}
         </div>
       </div>
+
+      <Footer />
     </main>
   );
 }

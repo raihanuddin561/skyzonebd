@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { requireAuth } from '@/lib/auth';
+import { UserRole, isAdmin } from '@/types/roles';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -103,6 +105,14 @@ function writePaymentMethods(methods: any) {
 // GET payment methods
 export async function GET(request: NextRequest) {
   try {
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     const methods = readPaymentMethods();
     
     // Convert object to array for frontend
@@ -113,6 +123,9 @@ export async function GET(request: NextRequest) {
       data: methodsArray,
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error fetching payment methods:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch payment methods' },
@@ -124,6 +137,14 @@ export async function GET(request: NextRequest) {
 // PUT - Update payment method
 export async function PUT(request: NextRequest) {
   try {
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { id, enabled, ...config } = body;
 
@@ -162,6 +183,9 @@ export async function PUT(request: NextRequest) {
       throw new Error('Failed to write payment methods');
     }
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error updating payment method:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update payment method' },

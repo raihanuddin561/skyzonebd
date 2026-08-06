@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 
 interface Order {
   id: number;
@@ -307,6 +308,8 @@ function OrderConfirmationContent() {
           </p>
         </div>
       </div>
+
+      <Footer />
     </main>
   );
 }

@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
-import { verify, JwtPayload } from 'jsonwebtoken';
-
-interface DecodedToken extends JwtPayload {
-  userId: string;
-  role: string;
-}
+import { requireAdmin } from '@/lib/auth';
 
 // Increase body size limit for this route
 export const runtime = 'nodejs';
@@ -13,37 +8,10 @@ export const maxDuration = 60; // 60 seconds timeout
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify admin authentication
-    const authHeader = request.headers.get('authorization');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    
-    let decoded: DecodedToken;
-    try {
-      const jwtSecret = process.env.JWT_SECRET || 'fallback-secret';
-      decoded = verify(token, jwtSecret) as DecodedToken;
-    } catch (error) {
-      console.error('❌ Token verification failed:', error);
-      return NextResponse.json(
-        { success: false, error: 'Invalid token', details: error instanceof Error ? error.message : 'Unknown' },
-        { status: 401 }
-      );
-    }
-
-    // Only admin can upload images (check both ADMIN and admin for case-insensitivity)
-    if (decoded.role.toUpperCase() !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Admin access required' },
-        { status: 403 }
-      );
-    }
+    // Canonical auth (ADR-009 / P2-9): previously a hand-rolled JWT decode +
+    // `role.toUpperCase() !== 'ADMIN'` check that excluded SUPER_ADMIN from
+    // uploading images (docs/architecture-review/14_Technical_Debt.md §22).
+    await requireAdmin(request);
 
     // Parse form data with error handling
     let formData: FormData;
@@ -150,6 +118,9 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Upload Image API Error:', error);
     console.error('Error details:', {
       message: error instanceof Error ? error.message : 'Unknown error',
@@ -171,33 +142,9 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    // Verify admin authentication
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-    try {
-      decoded = verify(token, process.env.JWT_SECRET || 'fallback-secret') as DecodedToken;
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Only admin can delete images (check both ADMIN and admin for case-insensitivity)
-    if (decoded.role.toUpperCase() !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Admin access required' },
-        { status: 403 }
-      );
-    }
+    // Canonical auth (ADR-009 / P2-9) — see POST above for why this replaced
+    // a hand-rolled, SUPER_ADMIN-excluding check.
+    await requireAdmin(request);
 
     const { url } = await request.json();
 
@@ -227,6 +174,9 @@ export async function DELETE(request: NextRequest) {
       message: 'Image deleted successfully',
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Delete Image API Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete image' },

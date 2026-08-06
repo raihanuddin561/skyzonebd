@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { checkPermission } from '@/middleware/permissionMiddleware';
+import { createOperationalCostEntry } from '@/lib/financialLedger';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -97,32 +98,52 @@ export async function POST(request: NextRequest) {
     const date = body.date ? new Date(body.date) : new Date();
     const month = date.getMonth() + 1;
     const year = date.getFullYear();
-    
-    const cost = await prisma.operationalCost.create({
-      data: {
-        category: body.category,
-        subCategory: body.subCategory,
-        description: body.description,
-        amount: parseFloat(body.amount),
-        date,
-        month,
-        year,
-        paymentStatus: body.paymentStatus || 'PENDING',
-        paymentDate: body.paymentDate ? new Date(body.paymentDate) : null,
-        paymentMethod: body.paymentMethod,
-        paymentReference: body.paymentReference,
-        vendor: body.vendor,
-        vendorContact: body.vendorContact,
-        isApproved: body.isApproved || false,
-        approvedBy: body.approvedBy,
-        approvedAt: body.approvedAt ? new Date(body.approvedAt) : null,
-        isRecurring: body.isRecurring || false,
-        recurringPeriod: body.recurringPeriod,
-        notes: body.notes,
-        attachmentUrl: body.attachmentUrl
+    const paymentStatus = body.paymentStatus || 'PENDING';
+    const amount = parseFloat(body.amount);
+
+    // Only PAID/PARTIAL costs are real expenses that should hit the ledger —
+    // a PENDING cost is a planned/recorded liability, not yet money spent
+    // (Amazon-style gap-closure Phase 2 part 1: ledger completeness).
+    const postsToLedger = paymentStatus === 'PAID' || paymentStatus === 'PARTIAL';
+
+    const cost = await prisma.$transaction(async (tx) => {
+      const created = await tx.operationalCost.create({
+        data: {
+          category: body.category,
+          subCategory: body.subCategory,
+          description: body.description,
+          amount,
+          date,
+          month,
+          year,
+          paymentStatus,
+          paymentDate: body.paymentDate ? new Date(body.paymentDate) : null,
+          paymentMethod: body.paymentMethod,
+          paymentReference: body.paymentReference,
+          vendor: body.vendor,
+          vendorContact: body.vendorContact,
+          isApproved: body.isApproved || false,
+          approvedBy: body.approvedBy,
+          approvedAt: body.approvedAt ? new Date(body.approvedAt) : null,
+          isRecurring: body.isRecurring || false,
+          recurringPeriod: body.recurringPeriod,
+          notes: body.notes,
+          attachmentUrl: body.attachmentUrl
+        }
+      });
+
+      if (postsToLedger) {
+        await createOperationalCostEntry({
+          id: created.id,
+          category: created.category,
+          amount: created.amount,
+          description: created.description,
+        }, tx);
       }
+
+      return created;
     });
-    
+
     return NextResponse.json({
       success: true,
       message: 'Cost entry created successfully',
