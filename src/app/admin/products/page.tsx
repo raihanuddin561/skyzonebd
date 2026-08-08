@@ -44,6 +44,12 @@ export default function ProductsManagement() {
     isActive: true 
   });
   const [isDeactivating, setIsDeactivating] = useState(false);
+  const [moqModal, setMoqModal] = useState<{ isOpen: boolean; mode: 'selected' | 'all'; value: string }>({
+    isOpen: false,
+    mode: 'selected',
+    value: '',
+  });
+  const [isSavingMoq, setIsSavingMoq] = useState(false);
   const productsPerPage = 12;
 
   useEffect(() => {
@@ -132,6 +138,47 @@ export default function ProductsManagement() {
 
   const handleBulkDelete = async () => {
     setBulkDeleteDialog(true);
+  };
+
+  const handleSaveMoq = async () => {
+    const minOrderQuantity = parseInt(moqModal.value, 10);
+    if (!Number.isFinite(minOrderQuantity) || minOrderQuantity < 1) {
+      toast.error('Enter a whole number of at least 1');
+      return;
+    }
+
+    setIsSavingMoq(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/products/bulk-moq', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(
+          moqModal.mode === 'all'
+            ? { applyToAll: true, minOrderQuantity }
+            : { productIds: selectedProducts, minOrderQuantity }
+        ),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success(result.message || 'Minimum order quantity updated');
+        setMoqModal({ isOpen: false, mode: 'selected', value: '' });
+        setSelectedProducts([]);
+        fetchProducts();
+      } else {
+        toast.error(result.error || 'Failed to update minimum order quantity');
+      }
+    } catch (error) {
+      console.error('Error updating MOQ:', error);
+      toast.error('Failed to update minimum order quantity');
+    } finally {
+      setIsSavingMoq(false);
+    }
   };
 
   const confirmBulkDelete = async () => {
@@ -274,13 +321,21 @@ export default function ProductsManagement() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">Products Management</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your product catalog, pricing, and inventory</p>
         </div>
-        <Link
-          href="/admin/products/new"
-          className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:text-base whitespace-nowrap touch-manipulation flex-shrink-0"
-        >
-          <span>+</span>
-          <span>Add Product</span>
-        </Link>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => setMoqModal({ isOpen: true, mode: 'all', value: '' })}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm sm:text-base whitespace-nowrap touch-manipulation"
+          >
+            Set MOQ for All Products
+          </button>
+          <Link
+            href="/admin/products/new"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:text-base whitespace-nowrap touch-manipulation"
+          >
+            <span>+</span>
+            <span>Add Product</span>
+          </Link>
+        </div>
       </div>
 
       {/* Filters and Search */}
@@ -347,8 +402,11 @@ export default function ProductsManagement() {
               <button className="flex-1 sm:flex-none px-3 py-2 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-sm font-medium touch-manipulation">
                 Export
               </button>
-              <button className="flex-1 sm:flex-none px-3 py-2 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-sm font-medium touch-manipulation">
-                Edit
+              <button
+                onClick={() => setMoqModal({ isOpen: true, mode: 'selected', value: '' })}
+                className="flex-1 sm:flex-none px-3 py-2 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-sm font-medium touch-manipulation"
+              >
+                Set Min Qty
               </button>
               <button
                 onClick={handleBulkDelete}
@@ -753,6 +811,55 @@ export default function ProductsManagement() {
         type={deactivateDialog.isActive ? 'warning' : 'info'}
         isLoading={isDeactivating}
       />
+
+      {/* Set Minimum Order Quantity Modal */}
+      {moqModal.isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget && !isSavingMoq) setMoqModal({ ...moqModal, isOpen: false }); }}
+        >
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              {moqModal.mode === 'all' ? 'Set MOQ for All Products' : `Set Min Qty for ${selectedProducts.length} Product(s)`}
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {moqModal.mode === 'all'
+                ? 'This will overwrite the Minimum Order Quantity for every product in your catalog, including inactive products.'
+                : 'This will overwrite the Minimum Order Quantity for the selected products.'}
+            </p>
+            <label htmlFor="bulkMoqValue" className="block text-sm font-medium text-gray-700 mb-1">
+              Minimum Order Quantity
+            </label>
+            <input
+              id="bulkMoqValue"
+              type="number"
+              min={1}
+              step={1}
+              autoFocus
+              value={moqModal.value}
+              onChange={(e) => setMoqModal({ ...moqModal, value: e.target.value })}
+              placeholder="e.g. 5"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={handleSaveMoq}
+                disabled={isSavingMoq || !moqModal.value}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                {isSavingMoq ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                onClick={() => setMoqModal({ ...moqModal, isOpen: false })}
+                disabled={isSavingMoq}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

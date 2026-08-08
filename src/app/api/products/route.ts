@@ -144,6 +144,7 @@ export async function GET(request: NextRequest) {
       wholesalePrice: product.wholesalePrice,
       basePrice: product.basePrice,
       moq: product.moq,
+      minOrderQuantity: product.moq,
       imageUrl: product.imageUrl,
       imageUrls: product.imageUrls,
       thumbnailUrl: product.thumbnailUrl,

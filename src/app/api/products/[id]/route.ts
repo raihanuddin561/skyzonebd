@@ -97,6 +97,7 @@ export async function GET(
       wholesalePrice: product.wholesalePrice,
       basePrice: product.basePrice,
       moq: product.moq,
+      minOrderQuantity: product.moq,
       imageUrl: product.imageUrl,
       imageUrls: product.imageUrls,
       thumbnailUrl: product.thumbnailUrl,
@@ -139,6 +140,7 @@ export async function GET(
       rating: p.rating,
       reviewCount: p.reviewCount,
       moq: p.moq,
+      minOrderQuantity: p.moq,
       availability: p.availability,
     }));
 
@@ -218,17 +220,19 @@ export async function PUT(
     }
 
     // Validate wholesale pricing rules if pricing fields are being updated
-    const hasePricingUpdate = 
-      body.basePrice !== undefined || 
-      body.wholesalePrice !== undefined || 
+    const hasePricingUpdate =
+      body.basePrice !== undefined ||
+      body.wholesalePrice !== undefined ||
       body.moq !== undefined ||
+      body.minOrderQuantity !== undefined ||
       body.wholesaleTiers !== undefined;
 
     if (hasePricingUpdate) {
+      const newMoq = body.moq !== undefined ? body.moq : body.minOrderQuantity;
       const validationResult = validateWholesalePricing({
         basePrice: body.basePrice !== undefined ? body.basePrice : existing.basePrice,
         wholesalePrice: body.wholesalePrice !== undefined ? body.wholesalePrice : existing.wholesalePrice,
-        moq: body.moq !== undefined ? body.moq : existing.moq,
+        moq: newMoq !== undefined ? newMoq : existing.moq,
         wholesaleTiers: body.wholesaleTiers || []
       });
 
@@ -255,7 +259,12 @@ export async function PUT(
     if (body.specifications !== undefined) updateData.specifications = body.specifications;
     if (body.basePrice !== undefined) updateData.basePrice = body.basePrice || body.price;
     if (body.wholesalePrice !== undefined) updateData.wholesalePrice = body.wholesalePrice || body.price;
-    if (body.moq !== undefined) updateData.moq = body.moq || body.minOrderQuantity;
+    // The admin edit form (src/app/admin/products/[id]/edit/page.tsx) sends
+    // `minOrderQuantity`, not `moq` — checking only `body.moq !== undefined`
+    // meant every MOQ edit from that form was silently dropped.
+    if (body.moq !== undefined || body.minOrderQuantity !== undefined) {
+      updateData.moq = body.moq !== undefined ? body.moq : body.minOrderQuantity;
+    }
     if (body.stockQuantity !== undefined) updateData.stockQuantity = body.stockQuantity;
     if (body.availability) updateData.availability = body.availability;
     // Don't update SKU to avoid unique constraint issues - SKU should not be changed after creation

@@ -119,9 +119,16 @@ export default function ProductCard({ product }: ProductCardProps) {
         </h4>
       </Link>
       
-      {/* Show MOQ ONLY for wholesale users, NOT for guests or retail */}
-      {isClient && user && user.userType === 'WHOLESALE' && (
-        <p className="text-xs sm:text-sm text-gray-600 mb-2">MOQ: {product.minOrderQuantity} units</p>
+      {/* Minimum Order Quantity — shown to everyone so shoppers know the bulk
+          requirement upfront; enforcement (below) still only applies to
+          wholesale accounts. */}
+      {isClient && product.minOrderQuantity != null && product.minOrderQuantity > 1 && (
+        <p className="text-xs sm:text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mb-2 inline-flex items-center gap-1 w-fit">
+          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+          Min. Order: {product.minOrderQuantity} units
+        </p>
       )}
       
       {/* Availability Badge */}

@@ -119,6 +119,7 @@ export async function GET(request: NextRequest) {
       wholesalePrice: product.wholesalePrice,
       basePrice: product.basePrice,
       moq: product.moq,
+      minOrderQuantity: product.moq,
       brand: product.brand,
       category: product.category?.name || 'Uncategorized',
       categoryId: product.categoryId,

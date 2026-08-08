@@ -389,9 +389,14 @@ export default function ProductDetailPage() {
                   </>
                 )}
               </div>
-              {/* Show MOQ ONLY for wholesale users and if MOQ is set */}
-              {user && user.userType === 'WHOLESALE' && product.minOrderQuantity && product.minOrderQuantity > 0 && (
-                <p className="text-sm text-gray-600">
+              {/* Minimum Order Quantity is shown to everyone so shoppers know
+                  the bulk requirement upfront; enforcement still only applies
+                  to wholesale accounts (see handleQuantityChange above). */}
+              {product.minOrderQuantity != null && product.minOrderQuantity > 1 && (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 inline-flex items-center gap-1.5 w-fit">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
                   Minimum Order Quantity: {product.minOrderQuantity} units
                 </p>
               )}
