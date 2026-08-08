@@ -48,6 +48,7 @@ export default function CheckoutPage() {
     mobile: '',
     companyName: ''
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Fetch payment configurations
   useEffect(() => {
@@ -80,6 +81,13 @@ export default function CheckoutPage() {
       ...prev,
       [name]: value
     }));
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
   const handleGuestInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,33 +96,53 @@ export default function CheckoutPage() {
       ...prev,
       [name]: value
     }));
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
   const handlePlaceOrder = async () => {
-    if (!orderData.shippingAddress || !orderData.billingAddress) {
-      toast.error('Please fill in all required fields');
-      return;
+    const errors: Record<string, string> = {};
+
+    // In Bangladesh, shipping and billing addresses are almost always the same —
+    // only require at least one of the two, and mirror it into the other below.
+    const shippingFilled = orderData.shippingAddress.trim().length > 0;
+    const billingFilled = orderData.billingAddress.trim().length > 0;
+    if (!shippingFilled && !billingFilled) {
+      errors.shippingAddress = 'Shipping Address is required (or fill in Billing Address instead)';
+      errors.billingAddress = 'Billing Address is required (or fill in Shipping Address instead)';
     }
 
     // Validate payment reference for manual payment methods
     if ((orderData.paymentMethod === 'bkash' || orderData.paymentMethod === 'bank_transfer') && !orderData.paymentReference) {
-      toast.error('Please enter the transaction ID / reference number');
-      return;
-    }
-
-    // Validate payment reference format
-    if (orderData.paymentReference && orderData.paymentReference.length < 5) {
-      toast.error('Transaction ID must be at least 5 characters');
-      return;
+      errors.paymentReference = 'Transaction ID / Reference Number is required for this payment method';
+    } else if (orderData.paymentReference && orderData.paymentReference.length < 5) {
+      errors.paymentReference = 'Transaction ID must be at least 5 characters';
     }
 
     // For guest checkout, validate required fields
     if (checkoutType === 'guest' && !user) {
-      if (!guestInfo.name || !guestInfo.mobile) {
-        toast.error('Please fill in name and mobile number');
-        return;
+      if (!guestInfo.name.trim()) {
+        errors.name = 'Full Name is required';
+      }
+      if (!guestInfo.mobile.trim()) {
+        errors.mobile = 'Mobile Number is required';
       }
     }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      const firstErrorField = Object.keys(errors)[0];
+      const el = document.querySelector(`[name="${firstErrorField}"]`) as HTMLElement | null;
+      el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      el?.focus?.();
+      return;
+    }
+    setFieldErrors({});
 
     // For logged-in users, validate they have required info
     if (user && (!user.name || !user.phone)) {
@@ -122,8 +150,12 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Mirror the filled address into the empty one so both are always populated
+    const finalShippingAddress = shippingFilled ? orderData.shippingAddress : orderData.billingAddress;
+    const finalBillingAddress = billingFilled ? orderData.billingAddress : orderData.shippingAddress;
+
     setIsProcessing(true);
-    
+
     try {
       const orderPayload = {
         items: items.map(item => ({
@@ -133,8 +165,8 @@ export default function CheckoutPage() {
           quantity: item.quantity,
           total: getLineTotal(item.product, item.quantity)
         })),
-        shippingAddress: orderData.shippingAddress,
-        billingAddress: orderData.billingAddress,
+        shippingAddress: finalShippingAddress,
+        billingAddress: finalBillingAddress,
         paymentMethod: orderData.paymentMethod,
         notes: orderData.notes,
         paymentReference: orderData.paymentReference || undefined, // Include transaction ID
@@ -342,9 +374,17 @@ export default function CheckoutPage() {
                         required
                         value={guestInfo.name}
                         onChange={handleGuestInfoChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-text"
+                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 cursor-text ${fieldErrors.name ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-500'}`}
                         placeholder="Enter your full name"
                       />
+                      {fieldErrors.name && (
+                        <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          {fieldErrors.name}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label htmlFor="guestMobile" className="block text-sm font-medium text-gray-700 mb-1">
@@ -357,9 +397,17 @@ export default function CheckoutPage() {
                         required
                         value={guestInfo.mobile}
                         onChange={handleGuestInfoChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-text"
+                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 cursor-text ${fieldErrors.mobile ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-500'}`}
                         placeholder="+880-1711-123456"
                       />
+                      {fieldErrors.mobile && (
+                        <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          {fieldErrors.mobile}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label htmlFor="guestEmail" className="block text-sm font-medium text-gray-700 mb-1">
@@ -395,30 +443,46 @@ export default function CheckoutPage() {
 
                 {/* Shipping Information */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                  <h2 className="text-xl font-semibold mb-4 text-gray-900">Shipping Address</h2>
+                  <h2 className="text-xl font-semibold mb-1 text-gray-900">Shipping Address</h2>
+                  <p className="text-xs text-gray-500 mb-3">Same as billing? You only need to fill in one of the two addresses.</p>
                   <textarea
                     name="shippingAddress"
                     value={orderData.shippingAddress}
                     onChange={handleInputChange}
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${fieldErrors.shippingAddress ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-500'}`}
                     placeholder="Enter your complete shipping address..."
-                    required
                   />
+                  {fieldErrors.shippingAddress && (
+                    <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      {fieldErrors.shippingAddress}
+                    </p>
+                  )}
                 </div>
 
                 {/* Billing Information */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                  <h2 className="text-xl font-semibold mb-4 text-gray-900">Billing Address</h2>
+                  <h2 className="text-xl font-semibold mb-1 text-gray-900">Billing Address</h2>
+                  <p className="text-xs text-gray-500 mb-3">Same as shipping? You only need to fill in one of the two addresses.</p>
                   <textarea
                     name="billingAddress"
                     value={orderData.billingAddress}
                     onChange={handleInputChange}
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${fieldErrors.billingAddress ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-500'}`}
                     placeholder="Enter your billing address..."
-                    required
                   />
+                  {fieldErrors.billingAddress && (
+                    <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      {fieldErrors.billingAddress}
+                    </p>
+                  )}
                 </div>
 
                 {/* Payment Method */}
@@ -517,12 +581,20 @@ export default function CheckoutPage() {
                               type="text"
                               value={orderData.paymentReference}
                               onChange={handleInputChange}
-                              className="w-full px-3 py-2 border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className={`w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring-2 ${fieldErrors.paymentReference ? 'border-red-400 focus:ring-red-400 focus:border-red-400' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
                               placeholder="Enter transaction reference number"
-                              required
                               minLength={5}
                             />
-                            <p className="text-xs text-gray-500 mt-1">This will help us verify your payment quickly.</p>
+                            {fieldErrors.paymentReference ? (
+                              <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                {fieldErrors.paymentReference}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-gray-500 mt-1">This will help us verify your payment quickly.</p>
+                            )}
                           </div>
                         </div>
                       );
@@ -590,14 +662,22 @@ export default function CheckoutPage() {
                               type="text"
                               value={orderData.paymentReference}
                               onChange={handleInputChange}
-                              className="w-full px-3 py-2 border-2 border-pink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 font-mono"
+                              className={`w-full px-3 py-2 border-2 rounded-md focus:outline-none focus:ring-2 font-mono ${fieldErrors.paymentReference ? 'border-red-400 focus:ring-red-400 focus:border-red-400' : 'border-pink-300 focus:ring-pink-500 focus:border-pink-500'}`}
                               placeholder="e.g., 9AB12CD34E"
-                              required
                               minLength={5}
                             />
-                            <p className="text-xs text-gray-500 mt-1">
-                              You can find this in your bKash transaction history or SMS.
-                            </p>
+                            {fieldErrors.paymentReference ? (
+                              <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                {fieldErrors.paymentReference}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-gray-500 mt-1">
+                                You can find this in your bKash transaction history or SMS.
+                              </p>
+                            )}
                           </div>
                         </div>
                       );
