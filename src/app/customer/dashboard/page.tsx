@@ -10,6 +10,9 @@ import { format } from 'date-fns';
 import StatCard from '@/components/dashboard/StatCard';
 import ProgressBar from '@/components/dashboard/ProgressBar';
 import Link from 'next/link';
+import Header from '@/app/components/Header';
+import Footer from '@/app/components/Footer';
+import ProtectedRoute from '@/app/components/ProtectedRoute';
 
 interface Analytics {
   stats: {
@@ -45,15 +48,18 @@ export default function CustomerDashboardPage() {
   const fetchAnalytics = async () => {
     setLoading(true);
     setError('');
-    
+
     try {
-      const response = await fetch('/api/customer/analytics');
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/customer/analytics', {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch analytics');
       }
-      
+
       setAnalytics(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load analytics');
@@ -61,36 +67,51 @@ export default function CustomerDashboardPage() {
       setLoading(false);
     }
   };
-  
+
   if (loading && !analytics) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <ProtectedRoute>
+        <main className="min-h-screen bg-gray-50">
+          <Header />
+          <div className="flex justify-center items-center h-96">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+          <Footer />
+        </main>
+      </ProtectedRoute>
     );
   }
-  
+
   if (error) {
     return (
-      <div className="p-8">
-        <div className="p-4 bg-red-50 border border-red-200 rounded text-red-700">
-          {error}
-        </div>
-      </div>
+      <ProtectedRoute>
+        <main className="min-h-screen bg-gray-50">
+          <Header />
+          <div className="max-w-7xl mx-auto px-4 py-8">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+              {error}
+            </div>
+          </div>
+          <Footer />
+        </main>
+      </ProtectedRoute>
     );
   }
-  
+
   if (!analytics) return null;
-  
+
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <ProtectedRoute>
+      <main className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
+          <span className="section-eyebrow">My Account</span>
+          <h1 className="text-3xl font-bold text-gray-900 mt-2">My Dashboard</h1>
           <p className="text-gray-600 mt-1">Track your orders and manage reviews</p>
         </div>
-        
+
         {/* Key Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
@@ -315,7 +336,9 @@ export default function CustomerDashboardPage() {
             )}
           </div>
         )}
-      </div>
-    </div>
+        </div>
+        <Footer />
+      </main>
+    </ProtectedRoute>
   );
 }

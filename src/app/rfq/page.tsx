@@ -66,7 +66,8 @@ export default function MyRFQsPage() {
 
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">My Quote Requests</h1>
+            <span className="section-eyebrow">My Account</span>
+            <h1 className="text-3xl font-bold text-gray-900 mt-2 mb-2">My Quote Requests</h1>
             <p className="text-gray-600">Track your RFQs and view quotes from our team</p>
           </div>
 
@@ -75,8 +76,12 @@ export default function MyRFQsPage() {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
           ) : rfqs.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-lg shadow-sm">
-              <div className="text-gray-300 text-6xl mb-4">📝</div>
+            <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100">
+              <div className="mx-auto w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">No quote requests yet</h3>
               <p className="text-gray-600">
                 Use the &quot;Request Quote&quot; button on any product to ask for bulk pricing.
@@ -85,7 +90,7 @@ export default function MyRFQsPage() {
           ) : (
             <div className="space-y-4">
               {rfqs.map((rfq) => (
-                <div key={rfq.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div key={rfq.id} className="card-hover bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
@@ -125,7 +130,7 @@ export default function MyRFQsPage() {
 
                   {rfq.status === 'QUOTED' && rfq.responseMessage && (
                     <div className="border-t border-gray-100 pt-4 mt-4">
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                         <h4 className="font-medium text-blue-900 mb-1">Quote from our team</h4>
                         {rfq.quotedPrice != null && (
                           <p className="text-lg font-bold text-blue-700 mb-2">

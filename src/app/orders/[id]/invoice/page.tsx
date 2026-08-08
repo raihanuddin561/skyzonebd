@@ -64,15 +64,19 @@ export default function InvoicePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <main className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+        <Footer />
+      </main>
     );
   }
 
   if (error || !invoice) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <main className="min-h-screen bg-gray-50">
         <Header />
         <div className="max-w-2xl mx-auto px-4 py-16 text-center">
           <p className="text-gray-600 mb-4">{error || 'Invoice not found'}</p>
@@ -80,12 +84,13 @@ export default function InvoicePage() {
             Back to order
           </Link>
         </div>
-      </div>
+        <Footer />
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gray-50">
       <div className="print:hidden">
         <Header />
       </div>
@@ -94,13 +99,16 @@ export default function InvoicePage() {
         <div className="print:hidden flex justify-end mb-4">
           <button
             onClick={() => window.print()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer"
           >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
             Print / Save as PDF
           </button>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 print:shadow-none print:border-none">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 print:shadow-none print:border-none">
           <div className="flex justify-between items-start mb-8">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">INVOICE</h1>
@@ -205,6 +213,6 @@ export default function InvoicePage() {
       <div className="print:hidden">
         <Footer />
       </div>
-    </div>
+    </main>
   );
 }

@@ -112,11 +112,24 @@ export default function CategoryPage() {
       </div>
 
       {/* Category Header */}
-      <section className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 text-center">
+      <section className="relative bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 text-white py-16 overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: 'radial-gradient(circle at 15% 25%, white 1px, transparent 1px), radial-gradient(circle at 85% 75%, white 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+          }}
+        />
+        <div className="relative max-w-7xl mx-auto px-4 text-center">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-amber-300 mb-3">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+            Category
+          </span>
           <div className="text-6xl mb-4">{category.icon || getCategoryIcon(category.name)}</div>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">{category.name}</h1>
-          <p className="text-xl opacity-90">
+          <p className="text-xl text-blue-100">
             Explore {products.length} products in {category.name}
           </p>
         </div>
@@ -150,15 +163,19 @@ export default function CategoryPage() {
 
         {/* Products Grid */}
         {displayedProducts.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">📦</div>
+          <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
+            <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
             <h3 className="text-xl font-semibold mb-2">No products found</h3>
             <p className="text-gray-600 mb-4">
               No products are available in this category at the moment.
             </p>
             <Link
               href="/products"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-block"
+              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all inline-block cursor-pointer"
             >
               Browse All Products
             </Link>
@@ -201,7 +218,7 @@ export default function CategoryPage() {
                   onClick={() => setCurrentPage(page)}
                   className={`px-4 py-2 rounded ${
                     currentPage === page
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-sm'
                       : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
                   }`}
                 >
@@ -225,14 +242,15 @@ export default function CategoryPage() {
         )}
 
         {/* Category Navigation */}
-        <div className="mt-16 bg-white rounded-lg p-6 shadow">
-          <h3 className="text-lg font-semibold mb-4">Browse Other Categories</h3>
+        <div className="card-hover mt-16 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <span className="section-eyebrow">Keep Browsing</span>
+          <h3 className="text-lg font-semibold mt-2 mb-4">Browse Other Categories</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             {categories.filter(c => c.id !== category.id).map(cat => (
               <Link
                 key={cat.id}
                 href={`/products/category/${cat.id}`}
-                className="flex items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex items-center p-3 border border-gray-100 rounded-xl hover:border-blue-200 hover:bg-blue-50/50 transition-colors"
               >
                 <span className="text-2xl mr-3">{cat.icon}</span>
                 <div>

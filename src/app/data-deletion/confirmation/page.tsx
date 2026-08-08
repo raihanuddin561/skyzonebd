@@ -14,11 +14,11 @@ export default function DeletionConfirmationPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gray-50">
       <Header />
-      
+
       <div className="max-w-2xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+        <div className="card-hover bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 text-center">
           {/* Success Icon */}
           <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
             <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -26,7 +26,8 @@ export default function DeletionConfirmationPage() {
             </svg>
           </div>
 
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Request Submitted Successfully</h1>
+          <span className="section-eyebrow">Your Data</span>
+          <h1 className="text-3xl font-bold text-gray-900 mt-3 mb-4">Request Submitted Successfully</h1>
           <p className="text-gray-600 mb-8">
             Your data deletion request has been received and is being processed.
           </p>
@@ -133,6 +134,6 @@ export default function DeletionConfirmationPage() {
       </div>
 
       <Footer />
-    </div>
+    </main>
   );
 }

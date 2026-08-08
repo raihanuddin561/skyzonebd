@@ -9,6 +9,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import PayoutTable from '@/components/payouts/PayoutTable';
 import PayoutStatusBadge from '@/components/payouts/PayoutStatusBadge';
+import Header from '@/app/components/Header';
+import Footer from '@/app/components/Footer';
+import ProtectedRoute from '@/app/components/ProtectedRoute';
 
 interface Payout {
   id: string;
@@ -52,9 +55,12 @@ export default function PartnerPayoutsPage() {
       const url = statusFilter === 'all'
         ? '/api/partner/financial/distributions'
         : `/api/partner/financial/distributions?status=${statusFilter}`;
-      
-      const response = await fetch(url);
-      
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
       if (!response.ok) {
         throw new Error('Failed to fetch payouts');
       }
@@ -80,15 +86,19 @@ export default function PartnerPayoutsPage() {
   };
   
   return (
-    <div className="container mx-auto px-4 py-8">
+    <ProtectedRoute allowedRoles={['SELLER', 'PARTNER', 'ADMIN', 'SUPER_ADMIN']}>
+      <main className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">My Payouts</h1>
+        <span className="section-eyebrow">Partner Portal</span>
+        <h1 className="text-3xl font-bold text-gray-900 mt-2">My Payouts</h1>
         <p className="mt-2 text-gray-600">
           View your profit distributions and payment history
         </p>
       </div>
-      
+
       {/* Error Message */}
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -99,7 +109,7 @@ export default function PartnerPayoutsPage() {
       {/* Summary Cards */}
       {summary && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <div className="card-hover bg-blue-50 border border-blue-200 rounded-xl p-6">
             <h3 className="text-sm font-medium text-blue-800">Total Earned</h3>
             <p className="mt-2 text-2xl font-bold text-blue-900">
               {formatCurrency(summary.totalEarned)}
@@ -108,8 +118,8 @@ export default function PartnerPayoutsPage() {
               All-time earnings
             </p>
           </div>
-          
-          <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+
+          <div className="card-hover bg-green-50 border border-green-200 rounded-xl p-6">
             <h3 className="text-sm font-medium text-green-800">Paid Out</h3>
             <p className="mt-2 text-2xl font-bold text-green-900">
               {formatCurrency(summary.totalPaid)}
@@ -118,8 +128,8 @@ export default function PartnerPayoutsPage() {
               Successfully received
             </p>
           </div>
-          
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+
+          <div className="card-hover bg-yellow-50 border border-yellow-200 rounded-xl p-6">
             <h3 className="text-sm font-medium text-yellow-800">Pending</h3>
             <p className="mt-2 text-2xl font-bold text-yellow-900">
               {formatCurrency(summary.totalPending)}
@@ -128,8 +138,8 @@ export default function PartnerPayoutsPage() {
               Awaiting approval
             </p>
           </div>
-          
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
+
+          <div className="card-hover bg-purple-50 border border-purple-200 rounded-xl p-6">
             <h3 className="text-sm font-medium text-purple-800">Outstanding</h3>
             <p className="mt-2 text-2xl font-bold text-purple-900">
               {formatCurrency(summary.outstanding)}
@@ -145,9 +155,9 @@ export default function PartnerPayoutsPage() {
       <div className="flex space-x-2 mb-6">
         <button
           onClick={() => setStatusFilter('all')}
-          className={`px-4 py-2 text-sm font-medium rounded-md ${
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
             statusFilter === 'all'
-              ? 'bg-blue-600 text-white'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-sm'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
           }`}
         >
@@ -157,7 +167,7 @@ export default function PartnerPayoutsPage() {
           onClick={() => setStatusFilter('PENDING')}
           className={`px-4 py-2 text-sm font-medium rounded-md ${
             statusFilter === 'PENDING'
-              ? 'bg-blue-600 text-white'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-sm'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
           }`}
         >
@@ -167,7 +177,7 @@ export default function PartnerPayoutsPage() {
           onClick={() => setStatusFilter('APPROVED')}
           className={`px-4 py-2 text-sm font-medium rounded-md ${
             statusFilter === 'APPROVED'
-              ? 'bg-blue-600 text-white'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-sm'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
           }`}
         >
@@ -177,7 +187,7 @@ export default function PartnerPayoutsPage() {
           onClick={() => setStatusFilter('PAID')}
           className={`px-4 py-2 text-sm font-medium rounded-md ${
             statusFilter === 'PAID'
-              ? 'bg-blue-600 text-white'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-sm'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
           }`}
         >
@@ -206,7 +216,7 @@ export default function PartnerPayoutsPage() {
       </div>
       
       {/* Payouts Table */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+      <div className="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
@@ -219,6 +229,9 @@ export default function PartnerPayoutsPage() {
           />
         )}
       </div>
-    </div>
+        </div>
+        <Footer />
+      </main>
+    </ProtectedRoute>
   );
 }

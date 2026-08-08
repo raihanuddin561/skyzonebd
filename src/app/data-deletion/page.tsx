@@ -14,12 +14,13 @@ export const metadata: Metadata = {
 
 export default function DataDeletionPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gray-50">
       <Header />
-      
+
       <div className="max-w-3xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Data Deletion Request</h1>
+        <div className="card-hover bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+          <span className="section-eyebrow">Your Data</span>
+          <h1 className="text-3xl font-bold text-gray-900 mt-3 mb-4">Data Deletion Request</h1>
           <p className="text-sm text-gray-600 mb-8">Request removal of your personal data from SkyzoneBD</p>
 
           <div className="prose prose-blue max-w-none">
@@ -222,6 +223,6 @@ export default function DataDeletionPage() {
       </div>
 
       <Footer />
-    </div>
+    </main>
   );
 }

@@ -8,6 +8,9 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import StarRating from '@/components/reviews/StarRating';
+import Header from '@/app/components/Header';
+import Footer from '@/app/components/Footer';
+import ProtectedRoute from '@/app/components/ProtectedRoute';
 
 interface Review {
   id: string;
@@ -64,7 +67,10 @@ export default function PartnerReviewsPage() {
         params.set('rating', ratingFilter.toString());
       }
       
-      const response = await fetch(`/api/partner/reviews?${params}`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/partner/reviews?${params}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = await response.json();
       
       if (!response.ok) {
@@ -82,10 +88,13 @@ export default function PartnerReviewsPage() {
   };
   
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Product Reviews</h1>
-        
+    <ProtectedRoute allowedRoles={['SELLER', 'PARTNER', 'ADMIN', 'SUPER_ADMIN']}>
+      <main className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <span className="section-eyebrow">Partner Portal</span>
+        <h1 className="text-3xl font-bold text-gray-900 mt-2 mb-8">Product Reviews</h1>
+
         {/* Summary Cards */}
         {summary && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -291,7 +300,9 @@ export default function PartnerReviewsPage() {
             </button>
           </div>
         )}
-      </div>
-    </div>
+        </div>
+        <Footer />
+      </main>
+    </ProtectedRoute>
   );
 }

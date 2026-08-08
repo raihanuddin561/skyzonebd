@@ -107,16 +107,17 @@ export default function DataDeletionRequestPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gray-50">
       <Header />
-      
+
       <div className="max-w-2xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-lg shadow-md p-8">
+        <div className="card-hover bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
           <div className="mb-8">
             <Link href="/data-deletion" className="text-blue-600 hover:underline text-sm mb-4 inline-block">
               ← Back to Data Deletion Info
             </Link>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Submit Deletion Request</h1>
+            <span className="section-eyebrow">Your Data</span>
+            <h1 className="text-3xl font-bold text-gray-900 mt-3 mb-2">Submit Deletion Request</h1>
             <p className="text-gray-600">Fill out the form below to request deletion of your account and data</p>
           </div>
 
@@ -238,6 +239,6 @@ export default function DataDeletionRequestPage() {
       </div>
 
       <Footer />
-    </div>
+    </main>
   );
 }

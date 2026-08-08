@@ -20,32 +20,38 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    
-    const order = await prisma.order.findUnique({
-      where: { id },
-      include: {
-        orderItems: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                imageUrl: true,
-                sku: true
-              }
+
+    const orderInclude = {
+      orderItems: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              imageUrl: true,
+              sku: true
             }
           }
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true
-          }
+        }
+      },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true
         }
       }
-    });
+    };
+
+    // Accept either the internal id or the human-readable order number (e.g.
+    // the checkout/order-confirmation flow only has the order number on
+    // hand) — try the id first since that's the common case everywhere else
+    // in the app, then fall back to a orderNumber lookup.
+    let order = await prisma.order.findUnique({ where: { id }, include: orderInclude });
+    if (!order) {
+      order = await prisma.order.findUnique({ where: { orderNumber: id }, include: orderInclude });
+    }
 
     if (!order) {
       return NextResponse.json(

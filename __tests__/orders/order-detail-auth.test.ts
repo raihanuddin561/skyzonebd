@@ -111,6 +111,28 @@ describe('GET /api/orders/[id]', () => {
     });
   });
 
+  describe('lookup by order number (e.g. /order-confirmation only has the order number, not the id)', () => {
+    it('falls back to an orderNumber lookup when no order matches the given id directly', async () => {
+      (mockPrismaClient.order.findUnique as jest.Mock)
+        .mockResolvedValueOnce(null) // no match by id
+        .mockResolvedValueOnce(baseOrder({ userId: null })); // match by orderNumber
+      const request = new MockNextRequest() as any;
+      const res = await GET(request, { params: Promise.resolve({ id: 'ORD-1' }) });
+      expect(res.status).toBe(200);
+      expect(mockPrismaClient.order.findUnique).toHaveBeenNthCalledWith(1, expect.objectContaining({ where: { id: 'ORD-1' } }));
+      expect(mockPrismaClient.order.findUnique).toHaveBeenNthCalledWith(2, expect.objectContaining({ where: { orderNumber: 'ORD-1' } }));
+    });
+
+    it('returns 404 when neither an id nor an orderNumber match', async () => {
+      (mockPrismaClient.order.findUnique as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      const request = new MockNextRequest() as any;
+      const res = await GET(request, { params: Promise.resolve({ id: 'no-such-order' }) });
+      expect(res.status).toBe(404);
+    });
+  });
+
   describe('orders belonging to a registered user (order.userId is set) — this is the vulnerability being closed', () => {
     it('rejects an unauthenticated request with 401 (previously: no check at all, full PII leaked)', async () => {
       (mockPrismaClient.order.findUnique as jest.Mock).mockResolvedValueOnce(baseOrder({ userId: 'customer-1' }));

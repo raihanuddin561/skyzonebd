@@ -11,6 +11,9 @@ import StatCard from '@/components/dashboard/StatCard';
 import ProgressBar from '@/components/dashboard/ProgressBar';
 import ProductListItem from '@/components/dashboard/ProductListItem';
 import PeriodSelector from '@/components/dashboard/PeriodSelector';
+import Header from '@/app/components/Header';
+import Footer from '@/app/components/Footer';
+import ProtectedRoute from '@/app/components/ProtectedRoute';
 
 interface Analytics {
   overview: {
@@ -46,7 +49,10 @@ export default function PartnerDashboardPage() {
     setError('');
     
     try {
-      const response = await fetch(`/api/partner/analytics?period=${period}`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/partner/analytics?period=${period}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = await response.json();
       
       if (!response.ok) {
@@ -63,36 +69,51 @@ export default function PartnerDashboardPage() {
   
   if (loading && !analytics) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <ProtectedRoute allowedRoles={['SELLER', 'PARTNER', 'ADMIN', 'SUPER_ADMIN']}>
+        <main className="min-h-screen bg-gray-50">
+          <Header />
+          <div className="flex justify-center items-center h-96">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+          <Footer />
+        </main>
+      </ProtectedRoute>
     );
   }
-  
+
   if (error) {
     return (
-      <div className="p-8">
-        <div className="p-4 bg-red-50 border border-red-200 rounded text-red-700">
-          {error}
-        </div>
-      </div>
+      <ProtectedRoute allowedRoles={['SELLER', 'PARTNER', 'ADMIN', 'SUPER_ADMIN']}>
+        <main className="min-h-screen bg-gray-50">
+          <Header />
+          <div className="max-w-7xl mx-auto px-4 py-8">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+              {error}
+            </div>
+          </div>
+          <Footer />
+        </main>
+      </ProtectedRoute>
     );
   }
-  
+
   if (!analytics) return null;
-  
+
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <ProtectedRoute allowedRoles={['SELLER', 'PARTNER', 'ADMIN', 'SUPER_ADMIN']}>
+      <main className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Partner Dashboard</h1>
+            <span className="section-eyebrow">Partner Portal</span>
+            <h1 className="text-3xl font-bold text-gray-900 mt-2">Partner Dashboard</h1>
             <p className="text-gray-600 mt-1">Your business performance at a glance</p>
           </div>
           <PeriodSelector value={period} onChange={setPeriod} />
         </div>
-        
+
         {/* Key Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
@@ -349,7 +370,9 @@ export default function PartnerDashboardPage() {
             )}
           </div>
         </div>
-      </div>
-    </div>
+        </div>
+        <Footer />
+      </main>
+    </ProtectedRoute>
   );
 }
