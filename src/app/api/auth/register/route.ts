@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
 async function handleRegister(request: NextRequest): Promise<NextResponse> {
   try {
-    const { name, email, password, companyName, phone } = await request.json();
+    const { name, email, password, companyName, phone, role, userType } = await request.json();
 
     if (!name || !email || !password || !companyName || !phone) {
       return NextResponse.json(
@@ -26,6 +26,17 @@ async function handleRegister(request: NextRequest): Promise<NextResponse> {
         { status: 400 }
       );
     }
+
+    // Self-registration may only create BUYER or SELLER accounts with
+    // RETAIL or WHOLESALE pricing — ADMIN/GUEST and other roles/types have
+    // their own creation paths and must never be reachable from this public
+    // endpoint. Previously this ignored the request body entirely and
+    // hardcoded every signup to BUYER/RETAIL, silently discarding the
+    // register page's account-type choice and its explicit WHOLESALE intent.
+    const requestedRole = typeof role === 'string' ? role.toUpperCase() : 'BUYER';
+    const requestedUserType = typeof userType === 'string' ? userType.toUpperCase() : 'RETAIL';
+    const finalRole: 'BUYER' | 'SELLER' = requestedRole === 'SELLER' ? 'SELLER' : 'BUYER';
+    const finalUserType: 'RETAIL' | 'WHOLESALE' = requestedUserType === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL';
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -50,8 +61,8 @@ async function handleRegister(request: NextRequest): Promise<NextResponse> {
         password: hashedPassword,
         companyName,
         phone,
-        role: 'BUYER',
-        userType: 'RETAIL',
+        role: finalRole,
+        userType: finalUserType,
         isVerified: false,
         isActive: true
       },
@@ -73,7 +84,7 @@ async function handleRegister(request: NextRequest): Promise<NextResponse> {
     // emailService.sendEmail never throws (returns { success, error }), so
     // no try/catch is needed, but a failure here must never fail a
     // registration that already committed to the database.
-    const emailResult = await emailService.sendWelcomeEmail(newUser.email, newUser.name, 'RETAIL');
+    const emailResult = await emailService.sendWelcomeEmail(newUser.email, newUser.name, finalUserType as 'RETAIL' | 'WHOLESALE');
     if (!emailResult.success) {
       console.error(`Welcome email failed for ${newUser.email}: ${emailResult.error}`);
     }

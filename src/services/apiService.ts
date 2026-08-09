@@ -133,10 +133,13 @@ class ApiService {
     });
   }
 
-  // Get auth token from localStorage
+  // Get auth token from localStorage. AuthContext is the sole place a
+  // session token is ever written, under the key 'token' — this used to
+  // read 'authToken', a key nothing in the app ever wrote, so every request
+  // through this service went out unauthenticated.
   private getAuthToken(): string | null {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('authToken');
+      return localStorage.getItem('token');
     }
     return null;
   }
@@ -144,14 +147,14 @@ class ApiService {
   // Set auth token
   setAuthToken(token: string): void {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('authToken', token);
+      localStorage.setItem('token', token);
     }
   }
 
   // Clear auth token
   clearAuthToken(): void {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('authToken');
+      localStorage.removeItem('token');
     }
   }
 }

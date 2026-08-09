@@ -77,3 +77,52 @@ it('does not attempt registration (or send an email) when the email already exis
   expect(res.status).toBe(409);
   expect(sendWelcomeEmail).not.toHaveBeenCalled();
 });
+
+// The register page always sends `userType: 'WHOLESALE'` and a `role` from
+// its account-type selector — the handler used to ignore both and hardcode
+// every signup to BUYER/RETAIL, silently discarding the platform's
+// wholesale-only intent for every self-registered user.
+describe('role/userType from the request body', () => {
+  it('creates a WHOLESALE/SELLER account when the request asks for one', async () => {
+    mockPrismaClient.user.create.mockImplementation(({ data }: any) => Promise.resolve({
+      id: 'user-3', name: data.name, email: data.email, companyName: data.companyName, phone: data.phone,
+      role: data.role, userType: data.userType, isVerified: false, isActive: true, createdAt: new Date(),
+    }));
+
+    const res = await POST(req({ ...validBody, email: 'seller@example.com', role: 'seller', userType: 'WHOLESALE' }));
+    const body = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(mockPrismaClient.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ role: 'SELLER', userType: 'WHOLESALE' }) })
+    );
+    expect(body.user.role).toBe('seller');
+    expect(body.user.userType).toBe('wholesale');
+  });
+
+  it('rejects an attempt to self-register as ADMIN, falling back to BUYER', async () => {
+    mockPrismaClient.user.create.mockImplementation(({ data }: any) => Promise.resolve({
+      id: 'user-4', name: data.name, email: data.email, companyName: data.companyName, phone: data.phone,
+      role: data.role, userType: data.userType, isVerified: false, isActive: true, createdAt: new Date(),
+    }));
+
+    await POST(req({ ...validBody, email: 'notadmin@example.com', role: 'ADMIN', userType: 'RETAIL' }));
+
+    expect(mockPrismaClient.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ role: 'BUYER' }) })
+    );
+  });
+
+  it('defaults to BUYER/RETAIL when role/userType are omitted', async () => {
+    mockPrismaClient.user.create.mockImplementation(({ data }: any) => Promise.resolve({
+      id: 'user-5', name: data.name, email: data.email, companyName: data.companyName, phone: data.phone,
+      role: data.role, userType: data.userType, isVerified: false, isActive: true, createdAt: new Date(),
+    }));
+
+    await POST(req({ ...validBody, email: 'default@example.com' }));
+
+    expect(mockPrismaClient.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ role: 'BUYER', userType: 'RETAIL' }) })
+    );
+  });
+});

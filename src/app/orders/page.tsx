@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
+import { useRouter } from 'next/navigation';
+import { toast } from 'react-toastify';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ProtectedRoute from '../components/ProtectedRoute';
@@ -24,11 +27,68 @@ interface Order {
 
 export default function OrdersPage() {
   const { user } = useAuth();
+  const { addBulkToCart } = useCart();
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed' | 'shipped' | 'delivered'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [cancellingId, setCancellingId] = useState<string | number | null>(null);
+  const [reorderingId, setReorderingId] = useState<string | number | null>(null);
+
+  const handleCancelOrder = async (orderId: string | number) => {
+    const reason = window.prompt('Please enter a cancellation reason:');
+    if (!reason) return;
+    if (!window.confirm('Are you sure you want to cancel this order? Stock will be restored.')) return;
+
+    setCancellingId(orderId);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/orders/cancel', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderId, reason }),
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success('Order cancelled successfully');
+        fetchOrders();
+      } else {
+        toast.error(result.error || 'Failed to cancel order');
+      }
+    } catch (err) {
+      console.error('Error cancelling order:', err);
+      toast.error('Failed to cancel order');
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const handleReorder = async (order: Order) => {
+    setReorderingId(order.id);
+    try {
+      const items = order.items
+        .filter((item) => item.productId)
+        .map((item) => ({ productId: item.productId, quantity: item.quantity }));
+
+      if (items.length === 0) {
+        toast.error('This order has no items that can be re-added to cart');
+        return;
+      }
+
+      const result = await addBulkToCart(items);
+      if (result.success) {
+        router.push('/cart');
+      }
+    } finally {
+      setReorderingId(null);
+    }
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -268,8 +328,12 @@ export default function OrdersPage() {
                         View Details
                       </Link>
                       {order.status === 'delivered' && (
-                        <button className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors cursor-pointer">
-                          Reorder
+                        <button
+                          onClick={() => handleReorder(order)}
+                          disabled={reorderingId === order.id}
+                          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {reorderingId === order.id ? 'Adding to cart...' : 'Reorder'}
                         </button>
                       )}
                       {order.paymentMethod?.toUpperCase().startsWith('INVOICE_NET') && (
@@ -281,8 +345,12 @@ export default function OrdersPage() {
                         </Link>
                       )}
                       {(order.status === 'pending' || order.status === 'confirmed') && (
-                        <button className="px-4 py-2 text-sm text-red-600 hover:text-red-700 font-medium transition-colors cursor-pointer">
-                          Cancel Order
+                        <button
+                          onClick={() => handleCancelOrder(order.id)}
+                          disabled={cancellingId === order.id}
+                          className="px-4 py-2 text-sm text-red-600 hover:text-red-700 font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {cancellingId === order.id ? 'Cancelling...' : 'Cancel Order'}
                         </button>
                       )}
                     </div>

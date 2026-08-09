@@ -91,6 +91,9 @@ export async function PATCH(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error updating user status:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update user status' },

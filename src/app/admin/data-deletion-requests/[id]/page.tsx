@@ -58,7 +58,10 @@ export default function DeletionRequestDetailPage() {
 
   const fetchRequestDetails = async () => {
     try {
-      const response = await fetch(`/api/admin/data-deletion-requests/${id}`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/admin/data-deletion-requests/${id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -83,9 +86,13 @@ export default function DeletionRequestDetailPage() {
 
     setActionLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/data-deletion-requests/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
         body: JSON.stringify({ action: 'approve' })
       });
 
@@ -113,12 +120,16 @@ export default function DeletionRequestDetailPage() {
 
     setActionLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/data-deletion-requests/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({
           action: 'reject',
-          notes: rejectNotes 
+          notes: rejectNotes
         })
       });
 
@@ -154,9 +165,13 @@ export default function DeletionRequestDetailPage() {
 
     setActionLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/data-deletion-requests/${id}/execute`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
       });
 
       const data = await response.json();

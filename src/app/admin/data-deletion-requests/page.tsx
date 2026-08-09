@@ -45,7 +45,10 @@ export default function DataDeletionRequestsPage() {
 
   const fetchRequests = async () => {
     try {
-      const response = await fetch('/api/admin/data-deletion-requests');
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/data-deletion-requests', {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = await response.json();
 
       if (data.success) {

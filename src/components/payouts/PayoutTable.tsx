@@ -25,6 +25,9 @@ interface Payout {
     businessName?: string | null;
     name: string;
   };
+  // The outstanding-payouts endpoint (the admin payouts page's data source)
+  // returns a flattened partner name instead of a nested `partner` object.
+  partnerName?: string | null;
 }
 
 interface PayoutTableProps {
@@ -115,10 +118,10 @@ export default function PayoutTable({ payouts, isAdmin = false, onStatusChange }
                   {formatDate(payout.startDate)} - {formatDate(payout.endDate)}
                 </div>
               </td>
-              {isAdmin && payout.partner && (
+              {isAdmin && (
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {payout.partner.businessName || payout.partner.name}
+                    {payout.partner?.businessName || payout.partner?.name || payout.partnerName || 'Unknown Partner'}
                   </div>
                 </td>
               )}

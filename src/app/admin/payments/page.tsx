@@ -1,22 +1,96 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { toast } from 'react-toastify';
 
-export default function PaymentsPage() {
-  const [methods, setMethods] = useState([
-    { id: '1', name: 'bKash', enabled: true, icon: '📱', type: 'mobile' },
-    { id: '2', name: 'Nagad', enabled: true, icon: '💸', type: 'mobile' },
-    { id: '3', name: 'Rocket', enabled: false, icon: '🚀', type: 'mobile' },
-    { id: '4', name: 'Bank Transfer', enabled: true, icon: '🏦', type: 'bank' },
-    { id: '5', name: 'Cash on Delivery', enabled: true, icon: '💵', type: 'cod' },
-    { id: '6', name: 'Credit/Debit Card', enabled: false, icon: '💳', type: 'card' },
-  ]);
+interface PaymentMethod {
+  id: string;
+  name: string;
+  enabled: boolean;
+  type: string;
+  icon?: string;
+}
 
-  const toggleMethod = (id: string) => {
-    setMethods(methods.map(m => m.id === id ? {...m, enabled: !m.enabled} : m));
-    toast.success('Payment method updated');
+const ICONS: Record<string, string> = {
+  bkash: '📱',
+  nagad: '💸',
+  rocket: '🚀',
+  bank: '🏦',
+  cod: '💵',
+  cards: '💳',
+};
+
+export default function PaymentsPage() {
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchMethods();
+  }, []);
+
+  const fetchMethods = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/payments', {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        setMethods(result.data);
+      } else {
+        toast.error(result.error || 'Failed to load payment methods');
+      }
+    } catch (error) {
+      console.error('Error fetching payment methods:', error);
+      toast.error('Failed to load payment methods');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const toggleMethod = async (id: string) => {
+    const method = methods.find(m => m.id === id);
+    if (!method) return;
+
+    setSavingId(id);
+    const nextEnabled = !method.enabled;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/payments', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({ id, enabled: nextEnabled }),
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        setMethods(methods.map(m => (m.id === id ? { ...m, enabled: nextEnabled } : m)));
+        toast.success('Payment method updated');
+      } else {
+        toast.error(result.error || 'Failed to update payment method');
+      }
+    } catch (error) {
+      console.error('Error updating payment method:', error);
+      toast.error('Failed to update payment method');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -56,32 +130,34 @@ export default function PaymentsPage() {
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="text-3xl sm:text-4xl">{method.icon}</div>
+                <div className="text-3xl sm:text-4xl">{ICONS[method.id] || '💰'}</div>
                 <div>
                   <h3 className="font-semibold text-gray-900">{method.name}</h3>
-                  <span className="text-xs text-gray-600 capitalize">{method.type}</span>
+                  <span className="text-xs text-gray-600 capitalize">{method.type.replace('_', ' ')}</span>
                 </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
                   checked={method.enabled}
+                  disabled={savingId === method.id}
                   onChange={() => toggleMethod(method.id)}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
               </label>
             </div>
-            
+
             <div className={`text-xs sm:text-sm font-medium mb-2 ${method.enabled ? 'text-green-600' : 'text-gray-500'}`}>
               {method.enabled ? '✓ Active' : '○ Inactive'}
             </div>
-            
-            <button
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+
+            <Link
+              href="/admin/payment-settings"
+              className="block w-full text-center px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              Configure
-            </button>
+              Configure Account Details
+            </Link>
           </div>
         ))}
       </div>

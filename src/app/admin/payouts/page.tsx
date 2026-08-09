@@ -74,7 +74,7 @@ export default function AdminPayoutsPage() {
       const partnersData = await partnersRes.json();
       
       setPayouts(payoutsData.data?.distributions || []);
-      setPartners(partnersData.data || []);
+      setPartners(partnersData.data?.partners || []);
     } catch (err) {
       setError('Failed to load payout data');
       console.error(err);

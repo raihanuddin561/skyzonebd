@@ -44,42 +44,8 @@ export default function B2BVerification() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0 });
 
-  useEffect(() => {
-    const fetchApplications = async () => {
-      try {
-        setLoading(true);
-        const params = new URLSearchParams({
-          status: filterStatus,
-          ...(searchTerm && { search: searchTerm }),
-        });
-
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/admin/verification?${params}`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch applications');
-        }
-
-        const result = await response.json();
-
-        if (result.success) {
-          setApplications(result.data.applications);
-        } else {
-          throw new Error(result.error || 'Failed to load applications');
-        }
-      } catch (err) {
-        console.error('Error fetching applications:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load applications');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchApplications();
-  }, [filterStatus, searchTerm]);
 
   const getStatusBadge = (status: string) => {
     const badges: { [key: string]: { class: string; text: string; icon: string } } = {
@@ -177,6 +143,9 @@ export default function B2BVerification() {
       
       if (result.success) {
         setApplications(result.data.applications);
+        if (result.data.stats) {
+          setStats(result.data.stats);
+        }
       } else {
         throw new Error(result.error || 'Failed to load applications');
       }
@@ -235,7 +204,7 @@ export default function B2BVerification() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Pending Review</p>
-              <p className="text-xl sm:text-2xl font-bold text-yellow-600">8</p>
+              <p className="text-xl sm:text-2xl font-bold text-yellow-600">{stats.pending}</p>
             </div>
             <span className="text-2xl sm:text-3xl">⏳</span>
           </div>
@@ -243,17 +212,17 @@ export default function B2BVerification() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
-              <p className="text-xs sm:text-sm text-gray-600">Under Review</p>
-              <p className="text-xl sm:text-2xl font-bold text-blue-600">3</p>
+              <p className="text-xs sm:text-sm text-gray-600">Total Applications</p>
+              <p className="text-xl sm:text-2xl font-bold text-blue-600">{stats.pending + stats.approved + stats.rejected}</p>
             </div>
-            <span className="text-2xl sm:text-3xl">🔍</span>
+            <span className="text-2xl sm:text-3xl">📋</span>
           </div>
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Approved</p>
-              <p className="text-xl sm:text-2xl font-bold text-green-600">156</p>
+              <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.approved}</p>
             </div>
             <span className="text-2xl sm:text-3xl">✅</span>
           </div>
@@ -262,7 +231,7 @@ export default function B2BVerification() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Rejected</p>
-              <p className="text-xl sm:text-2xl font-bold text-red-600">12</p>
+              <p className="text-xl sm:text-2xl font-bold text-red-600">{stats.rejected}</p>
             </div>
             <span className="text-2xl sm:text-3xl">❌</span>
           </div>
@@ -518,7 +487,7 @@ export default function B2BVerification() {
                 Cancel
               </button>
               <button
-                onClick={() => selectedApp && handleReject(selectedApp.id)}
+                onClick={handleRejectSubmit}
                 disabled={!rejectionReason.trim()}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >

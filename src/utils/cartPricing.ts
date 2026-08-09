@@ -1,19 +1,44 @@
 // utils/cartPricing.ts
-// Applies a product's bulk-pricing tiers (types/cart.ts's `Product.bulkPricing`
-// — a simple { quantity, price }[] list distinct from the wholesale-tier
-// shape utils/pricingEngine.ts expects) to a given quantity. Extracted from
-// duplicated inline logic that previously existed only on the product
-// detail page's pre-add-to-cart preview — the cart itself ignored bulk
-// pricing entirely and summed a flat `price * quantity`.
+// Applies a product's wholesale volume-pricing tiers to a given quantity so
+// the cart/checkout preview matches what the server will actually charge
+// (src/utils/pricingEngine.ts's calculateItemPrice, used at order-creation
+// time). Previously read a `bulkPricing` field the products API never
+// populated (the real field is `wholesaleTiers`), so cart/checkout always
+// silently fell back to the flat price even when a lower tier applied.
 
 import type { Product } from '@/types/cart';
 
 /**
+ * Returns the best matching wholesale tier for `quantity`, mirroring
+ * pricingEngine.ts's findApplicableTier: the highest `minQuantity` tier
+ * whose range (`minQuantity` to `maxQuantity`, inclusive, unbounded if
+ * `maxQuantity` is null) contains `quantity`.
+ */
+function findApplicableTier(
+  tiers: NonNullable<Product['wholesaleTiers']>,
+  quantity: number
+) {
+  const sorted = [...tiers].sort((a, b) => b.minQuantity - a.minQuantity);
+  for (const tier of sorted) {
+    if (quantity >= tier.minQuantity && (tier.maxQuantity === null || tier.maxQuantity === undefined || quantity <= tier.maxQuantity)) {
+      return tier;
+    }
+  }
+  return null;
+}
+
+/**
  * Returns the per-unit price for `quantity` of `product`, applying the best
- * matching bulk-pricing tier (highest `quantity` threshold at or below the
- * requested quantity) if one exists, otherwise the product's flat price.
+ * matching wholesale tier if one exists, otherwise the product's flat price.
  */
 export function getUnitPrice(product: Product, quantity: number): number {
+  if (product.wholesaleTiers && product.wholesaleTiers.length > 0) {
+    const applicableTier = findApplicableTier(product.wholesaleTiers, quantity);
+    if (applicableTier) {
+      return applicableTier.price;
+    }
+  }
+
   if (product.bulkPricing && product.bulkPricing.length > 0) {
     const applicableTier = product.bulkPricing
       .filter(tier => quantity >= tier.quantity)
@@ -27,7 +52,7 @@ export function getUnitPrice(product: Product, quantity: number): number {
   return product.price;
 }
 
-/** Returns the bulk-pricing-aware line total for one cart item. */
+/** Returns the tier-aware line total for one cart item. */
 export function getLineTotal(product: Product, quantity: number): number {
   return getUnitPrice(product, quantity) * quantity;
 }

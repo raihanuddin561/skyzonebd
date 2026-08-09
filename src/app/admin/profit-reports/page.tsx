@@ -49,6 +49,7 @@ export default function ProfitReportsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [generating, setGenerating] = useState<string | null>(null);
+  const [manualOrderId, setManualOrderId] = useState('');
 
   // Filters
   const [period, setPeriod] = useState('daily');
@@ -104,6 +105,7 @@ export default function ProfitReportsPage() {
 
       if (response.ok && data.success) {
         setSuccess('Profit report generated successfully!');
+        setManualOrderId('');
         fetchReports();
       } else {
         setError(data.error || 'Failed to generate report');
@@ -163,6 +165,32 @@ export default function ProfitReportsPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Profit Reports</h1>
           <p className="text-gray-600 mt-2">View and generate detailed profit reports for orders</p>
+        </div>
+
+        {/* Manual Report Generation — reports are normally created
+            automatically when an order is marked DELIVERED; this is a
+            backfill tool for orders that are missing one. */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Generate Report for an Order</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Reports generate automatically when an order is delivered. Use this to backfill a report for a specific order.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              value={manualOrderId}
+              onChange={(e) => setManualOrderId(e.target.value)}
+              placeholder="Order ID"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <button
+              onClick={() => manualOrderId.trim() && handleGenerateReport(manualOrderId.trim())}
+              disabled={!manualOrderId.trim() || generating === manualOrderId.trim()}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium whitespace-nowrap"
+            >
+              {generating === manualOrderId.trim() ? 'Generating...' : 'Generate Report'}
+            </button>
+          </div>
         </div>
 
         {/* Success/Error Messages */}

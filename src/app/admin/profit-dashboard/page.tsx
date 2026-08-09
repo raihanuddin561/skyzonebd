@@ -7,9 +7,17 @@ import { api } from '@/utils/apiClient';
 interface Partner {
   id: string;
   name: string;
+  email?: string | null;
+  phone?: string | null;
   profitSharePercentage: number;
   isActive: boolean;
   totalProfitReceived: number;
+  partnerType?: string | null;
+  initialInvestment?: number | null;
+  address?: string | null;
+  taxId?: string | null;
+  bankAccount?: string | null;
+  notes?: string | null;
 }
 
 interface DashboardStats {
@@ -203,7 +211,7 @@ export default function ProfitDashboardPage() {
     setSuccess('');
 
     try {
-      const response = await api.put(`/api/admin/partners/${editingPartner.id}`, partnerForm);
+      const response = await api.patch(`/api/admin/partners/${editingPartner.id}`, partnerForm);
 
       const data = await response.json();
 
@@ -226,15 +234,15 @@ export default function ProfitDashboardPage() {
     setEditingPartner(partner);
     setPartnerForm({
       name: partner.name || '',
-      email: '',
-      phone: '',
+      email: partner.email || '',
+      phone: partner.phone || '',
       profitSharePercentage: partner.profitSharePercentage,
-      partnerType: 'INVESTOR',
-      initialInvestment: 0,
-      address: '',
-      taxId: '',
-      bankAccount: '',
-      notes: ''
+      partnerType: partner.partnerType || 'INVESTOR',
+      initialInvestment: partner.initialInvestment || 0,
+      address: partner.address || '',
+      taxId: partner.taxId || '',
+      bankAccount: partner.bankAccount || '',
+      notes: partner.notes || ''
     });
     setShowPartnerModal(true);
   };

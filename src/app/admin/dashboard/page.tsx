@@ -45,7 +45,10 @@ export default function AdminDashboardPage() {
     setError('');
     
     try {
-      const response = await fetch(`/api/admin/analytics?period=${period}`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/admin/analytics?period=${period}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = await response.json();
       
       if (!response.ok) {

@@ -54,8 +54,11 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Get business verification applications with pagination
-    const [applications, totalCount] = await Promise.all([
+    // Get business verification applications with pagination, plus a
+    // status breakdown across ALL applications (unfiltered by the current
+    // `status` param) so the stats cards reflect real counts instead of
+    // hardcoded placeholder numbers.
+    const [applications, totalCount, statusCounts] = await Promise.all([
       prisma.businessInfo.findMany({
         where,
         include: {
@@ -76,7 +79,26 @@ export async function GET(request: NextRequest) {
         },
       }),
       prisma.businessInfo.count({ where }),
+      prisma.businessInfo.groupBy({
+        by: ['verificationStatus'],
+        _count: true,
+      }),
     ]);
+
+    // Note: VerificationStatus has no UNDER_REVIEW value (PENDING, APPROVED,
+    // REJECTED, RESUBMIT only) — the frontend's "Under Review" filter option
+    // is a pre-existing dead filter that can never match anything real.
+    const stats = {
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+    };
+    for (const group of statusCounts) {
+      const key = group.verificationStatus.toLowerCase() as keyof typeof stats;
+      if (key in stats) {
+        stats[key] = group._count;
+      }
+    }
 
     // Format applications data
     const formattedApplications = applications.map(app => ({
@@ -124,6 +146,7 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         applications: formattedApplications,
+        stats,
         pagination: {
           page,
           limit,

@@ -77,8 +77,8 @@ export default function PartnerReviewsPage() {
         throw new Error(data.error || 'Failed to load reviews');
       }
       
-      setReviews(data.reviews);
-      setSummary(data.summary);
+      setReviews(data.data.reviews);
+      setSummary(data.data.summary);
       setTotalPages(data.pagination.totalPages);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load reviews');

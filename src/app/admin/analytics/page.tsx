@@ -32,6 +32,7 @@ interface AnalyticsData {
 
 export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month' | 'year'>('month');
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
 
@@ -42,56 +43,67 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      // Convert timeRange to API format
-      const rangeMap = {
-        today: '1d',
-        week: '7d',
-        month: '30d',
-        year: '1y'
+      setError('');
+
+      // The API takes a plain day count via `period`, not a labeled range.
+      const periodDaysMap = {
+        today: 1,
+        week: 7,
+        month: 30,
+        year: 365,
       };
-      const apiRange = rangeMap[timeRange];
-      
-      const response = await fetch(`/api/admin/analytics?range=${apiRange}`);
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data) {
-          // Transform API data to match frontend interface
-          const apiData = result.data;
-          setAnalytics({
-            revenue: {
-              today: apiData.overview?.totalRevenue?.value || 0,
-              week: apiData.overview?.totalRevenue?.value || 0,
-              month: apiData.overview?.totalRevenue?.value || 0,
-              year: apiData.overview?.totalRevenue?.value || 0,
-              growth: apiData.overview?.totalRevenue?.growth || 0,
-            },
-            orders: {
-              total: apiData.overview?.totalOrders?.value || 0,
-              pending: apiData.orderDistribution?.find((o: any) => o.status === 'PENDING')?._count?.status || 0,
-              completed: apiData.orderDistribution?.find((o: any) => o.status === 'COMPLETED' || o.status === 'DELIVERED')?._count?.status || 0,
-              cancelled: apiData.orderDistribution?.find((o: any) => o.status === 'CANCELLED')?._count?.status || 0,
-            },
-            customers: {
-              total: apiData.overview?.newCustomers?.value || 0,
-              new: apiData.overview?.newCustomers?.value || 0,
-              active: apiData.overview?.newCustomers?.value || 0,
-              b2b: 0,
-            },
-            products: {
-              totalViews: 0,
-              topSelling: (apiData.topSellingProducts || []).map((p: any) => ({
-                name: p.name,
-                sold: p.unitsSold,
-                revenue: p.revenue,
-              })),
-              lowStock: 0,
-            },
-          });
-        }
+      const periodDays = periodDaysMap[timeRange];
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/admin/analytics?period=${periodDays}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to load analytics');
       }
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
+
+      // Transform API data (src/app/api/admin/analytics/route.ts's actual
+      // response shape: overview.{gmv,profit,orders,revenueGrowth},
+      // ordersByStatus[], topSellingProducts[]) to the frontend interface.
+      // There is no customer-count breakdown in this endpoint's response —
+      // shown as 0 rather than inventing a number for it.
+      setAnalytics({
+        revenue: {
+          today: result.overview?.gmv || 0,
+          week: result.overview?.gmv || 0,
+          month: result.overview?.gmv || 0,
+          year: result.overview?.gmv || 0,
+          growth: result.overview?.revenueGrowth || 0,
+        },
+        orders: {
+          total: result.overview?.orders || 0,
+          pending: result.ordersByStatus?.find((o: any) => o.status === 'PENDING')?.count || 0,
+          completed: result.ordersByStatus?.find((o: any) => o.status === 'DELIVERED')?.count || 0,
+          cancelled: result.ordersByStatus?.find((o: any) => o.status === 'CANCELLED')?.count || 0,
+        },
+        customers: {
+          total: 0,
+          new: 0,
+          active: 0,
+          b2b: 0,
+        },
+        products: {
+          totalViews: 0,
+          topSelling: (result.topSellingProducts || []).map((p: any) => ({
+            name: p.name,
+            sold: p.unitsSold,
+            revenue: p.revenue,
+          })),
+          lowStock: 0,
+        },
+      });
+    } catch (err) {
+      console.error('Error fetching analytics:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load analytics');
+      setAnalytics(null);
     } finally {
       setLoading(false);
     }
@@ -101,6 +113,21 @@ export default function AnalyticsPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <p className="text-red-600 font-semibold">Error loading analytics</p>
+        <p className="text-red-500 text-sm mt-1">{error}</p>
+        <button
+          onClick={fetchAnalytics}
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
@@ -138,11 +165,11 @@ export default function AnalyticsPage() {
           <div className="flex items-center justify-between mb-3">
             <span className="text-2xl sm:text-3xl">💰</span>
             <span className="text-xs sm:text-sm bg-white/20 px-2 py-1 rounded-full">
-              +{analytics?.revenue.growth || 12}%
+              {(analytics?.revenue.growth ?? 0) >= 0 ? '+' : ''}{(analytics?.revenue.growth ?? 0).toFixed(1)}%
             </span>
           </div>
           <div className="text-xl sm:text-2xl font-bold mb-1">
-            ৳{(analytics?.revenue.month || 2500000).toLocaleString()}
+            ৳{(analytics?.revenue.month || 0).toLocaleString()}
           </div>
           <div className="text-xs sm:text-sm text-blue-100">Total Revenue</div>
         </div>
@@ -243,27 +270,24 @@ export default function AnalyticsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Units Sold</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trend</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {(analytics?.products.topSelling || [
-                { name: 'Loading...', sold: 0, revenue: 0 }
-              ]).map((product, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-900 font-medium">{product.name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{product.sold} units</td>
-                  <td className="px-4 py-3 text-sm text-gray-900 font-semibold">৳{product.revenue.toLocaleString()}</td>
-                  <td className="px-4 py-3">
-                    <span className="text-green-600 text-sm flex items-center">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clipRule="evenodd" />
-                      </svg>
-                      +12%
-                    </span>
+              {!analytics?.products.topSelling.length ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">
+                    No sales in this period yet
                   </td>
                 </tr>
-              ))}
+              ) : (
+                analytics.products.topSelling.map((product, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-900 font-medium">{product.name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{product.sold} units</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 font-semibold">৳{product.revenue.toLocaleString()}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -281,7 +305,6 @@ export default function AnalyticsPage() {
               <div className="text-xl font-bold text-gray-900">{analytics?.customers.new || 0}</div>
             </div>
           </div>
-          <div className="text-xs text-green-600 font-medium">+18% from last period</div>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
@@ -294,7 +317,6 @@ export default function AnalyticsPage() {
               <div className="text-xl font-bold text-gray-900">{analytics?.customers.active || 0}</div>
             </div>
           </div>
-          <div className="text-xs text-green-600 font-medium">+8% from last period</div>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
@@ -307,7 +329,6 @@ export default function AnalyticsPage() {
               <div className="text-xl font-bold text-gray-900">{analytics?.customers.b2b || 0}</div>
             </div>
           </div>
-          <div className="text-xs text-green-600 font-medium">+15% from last period</div>
         </div>
       </div>
     </div>

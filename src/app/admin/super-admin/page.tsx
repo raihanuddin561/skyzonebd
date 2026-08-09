@@ -48,7 +48,10 @@ export default function SuperAdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await fetch('/api/admin/super-admin/dashboard');
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/super-admin/dashboard', {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = await response.json();
       
       if (data.success) {
@@ -64,9 +67,13 @@ export default function SuperAdminDashboard() {
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/users/${userId}/role`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
         body: JSON.stringify({ role: newRole })
       });
 
@@ -86,9 +93,13 @@ export default function SuperAdminDashboard() {
 
   const handleToggleUserStatus = async (userId: string, isActive: boolean) => {
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/users/${userId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
         body: JSON.stringify({ isActive: !isActive })
       });
 

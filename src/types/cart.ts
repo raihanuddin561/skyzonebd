@@ -27,6 +27,10 @@ export interface Product {
   companyVerified?: boolean;
   discount?: number;
   bulkPricing?: { quantity: number; price: number }[];
+  // The actual field the products API returns (src/app/api/products/route.ts,
+  // src/app/api/products/[id]/route.ts) — `bulkPricing` above is a different,
+  // never-populated shape that cartPricing.ts used to read exclusively.
+  wholesaleTiers?: { minQuantity: number; maxQuantity: number | null; price: number; discount?: number }[];
   leadTime?: string;
   shippingInfo?: string;
   returnPolicy?: string;

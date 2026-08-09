@@ -48,3 +48,44 @@ describe('getLineTotal', () => {
     expect(getLineTotal(product(), 3)).toBe(300);
   });
 });
+
+// wholesaleTiers is the field the products API actually returns
+// (src/app/api/products/route.ts, src/app/api/products/[id]/route.ts) —
+// `bulkPricing` above is a legacy shape nothing populates. Cart/checkout
+// used to read `bulkPricing` exclusively, so a wholesale customer would see
+// a higher, wrong total in the cart than the server (which correctly uses
+// wholesaleTiers via pricingEngine.calculateItemPrice) actually charged.
+describe('getUnitPrice / getLineTotal — wholesaleTiers (the real field)', () => {
+  it('falls back to the flat price when there are no tiers', () => {
+    expect(getUnitPrice(product(), 50)).toBe(100);
+  });
+
+  it('applies the matching tier for a bounded range and an unbounded top tier', () => {
+    const p = product({
+      wholesaleTiers: [
+        { minQuantity: 10, maxQuantity: 49, price: 90 },
+        { minQuantity: 50, maxQuantity: null, price: 80 },
+      ],
+    });
+
+    expect(getUnitPrice(p, 5)).toBe(100); // below first tier -> flat price
+    expect(getUnitPrice(p, 10)).toBe(90); // bottom of bounded tier
+    expect(getUnitPrice(p, 49)).toBe(90); // top of bounded tier
+    expect(getUnitPrice(p, 50)).toBe(80); // next tier, unbounded
+    expect(getUnitPrice(p, 1000)).toBe(80);
+  });
+
+  it('computes line totals using the tier-applied unit price', () => {
+    const p = product({ wholesaleTiers: [{ minQuantity: 20, maxQuantity: null, price: 75 }] });
+    expect(getLineTotal(p, 20)).toBe(1500);
+    expect(getLineTotal(p, 5)).toBe(500); // below tier, flat price
+  });
+
+  it('prefers wholesaleTiers over the legacy bulkPricing field when both are present', () => {
+    const p = product({
+      wholesaleTiers: [{ minQuantity: 10, maxQuantity: null, price: 85 }],
+      bulkPricing: [{ quantity: 10, price: 999 }],
+    });
+    expect(getUnitPrice(p, 10)).toBe(85);
+  });
+});

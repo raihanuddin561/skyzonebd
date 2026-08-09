@@ -54,61 +54,69 @@ export async function GET(request: NextRequest) {
         email: true,
         profitSharePercentage: true,
         isActive: true,
-        createdAt: true
+        createdAt: true,
+        userId: true
       }
     });
-    
+
     if (allPartners.length === 0) {
       notices.push('No partners found in the system');
     }
-    
+
     // Calculate metrics for each partner
     const partnerMetrics = await Promise.all(
       allPartners.map(async (partner) => {
-        // Current period data
-        const currentOrders = await prisma.order.findMany({
-          where: {
-            status: 'DELIVERED',
-            createdAt: {
-              gte: dateRange.startDate,
-              lte: dateRange.endDate
-            }
-          },
-          select: {
-            total: true,
-            grossProfit: true,
-            orderItems: {
-              select: {
-                quantity: true
+        // Order.total/grossProfit are order-level, not partner-level — an
+        // order can contain items from multiple sellers, so summing the
+        // whole order into every partner's row (as this previously did,
+        // with no partner filter applied at all) made every partner show
+        // identical, platform-wide totals. Only a partner linked to a
+        // seller/User account (Partner.userId) has any order-level revenue
+        // of their own; scope strictly to that partner's own order items.
+        // Partners with no linked account are pure profit-share investors —
+        // their row is driven entirely by partnerShare (below), not orders.
+        const currentOrderItems = partner.userId
+          ? await prisma.orderItem.findMany({
+              where: {
+                product: { sellerId: partner.userId },
+                order: {
+                  status: 'DELIVERED',
+                  createdAt: { gte: dateRange.startDate, lte: dateRange.endDate }
+                }
+              },
+              select: { quantity: true, total: true, totalProfit: true }
+            })
+          : [];
+
+        const currentRevenue = currentOrderItems.reduce((sum, i) => sum + i.total, 0);
+        const currentProfit = currentOrderItems.reduce((sum, i) => sum + (i.totalProfit || 0), 0);
+        const currentUnits = currentOrderItems.reduce((sum, i) => sum + i.quantity, 0);
+        const currentOrders_count = partner.userId
+          ? await prisma.order.count({
+              where: {
+                status: 'DELIVERED',
+                createdAt: { gte: dateRange.startDate, lte: dateRange.endDate },
+                orderItems: { some: { product: { sellerId: partner.userId } } }
               }
-            }
-          }
-        });
-        
-        const currentRevenue = currentOrders.reduce((sum, o) => sum + o.total, 0);
-        const currentProfit = currentOrders.reduce((sum, o) => sum + (o.grossProfit || 0), 0);
-        const currentOrders_count = currentOrders.length;
-        const currentUnits = currentOrders.reduce((sum, o) => 
-          sum + o.orderItems.reduce((itemSum, i) => itemSum + i.quantity, 0), 0
-        );
-        
-        // Previous period data
-        const previousOrders = await prisma.order.findMany({
-          where: {
-            status: 'DELIVERED',
-            createdAt: {
-              gte: previousPeriod.startDate,
-              lte: previousPeriod.endDate
-            }
-          },
-          select: {
-            total: true,
-            grossProfit: true
-          }
-        });
-        
-        const previousRevenue = previousOrders.reduce((sum, o) => sum + o.total, 0);
-        const previousProfit = previousOrders.reduce((sum, o) => sum + (o.grossProfit || 0), 0);
+            })
+          : 0;
+
+        // Previous period data — same seller-scoped filter.
+        const previousOrderItems = partner.userId
+          ? await prisma.orderItem.findMany({
+              where: {
+                product: { sellerId: partner.userId },
+                order: {
+                  status: 'DELIVERED',
+                  createdAt: { gte: previousPeriod.startDate, lte: previousPeriod.endDate }
+                }
+              },
+              select: { total: true, totalProfit: true }
+            })
+          : [];
+
+        const previousRevenue = previousOrderItems.reduce((sum, i) => sum + i.total, 0);
+        const previousProfit = previousOrderItems.reduce((sum, i) => sum + (i.totalProfit || 0), 0);
         
         // Distributions
         const distributions = await prisma.profitDistribution.findMany({

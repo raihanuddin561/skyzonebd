@@ -3,33 +3,39 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+// Matches the real shape returned by calculateComprehensiveProfit /
+// calculateYTDProfit / getProfitTrend (src/utils/comprehensiveProfitCalculation.ts)
+// — the previous interface here (totalCosts/profitMargin/revenueBreakdown/
+// costsByCategory) didn't exist on the API response at all, so every field
+// read from it was undefined; `profitMargin.toFixed(2)` on the monthly
+// summary card crashed the whole page the moment a report loaded.
 interface ProfitLossReport {
-  month: number;
-  year: number;
+  period: { month: number; year: number };
   totalRevenue: number;
-  totalCosts: number;
+  returnRevenue: number;
+  netRevenue: number;
+  cogs: number;
+  grossProfit: number;
+  grossMargin: number;
+  totalOperatingExpenses: number;
+  operatingProfit: number;
+  operatingMargin: number;
   netProfit: number;
-  profitMargin: number;
-  revenueBreakdown?: {
-    directSales: number;
-    orderSales: number;
-    totalSales: number;
-    returns: number;
-    netRevenue: number;
-  };
-  costsByCategory?: Array<{
+  netMargin: number;
+  topExpenseCategories: Array<{
     category: string;
-    total: number;
-    count: number;
+    amount: number;
     percentage: number;
   }>;
 }
 
 interface TrendData {
-  month: string;
-  revenue: number;
-  costs: number;
-  profit: number;
+  period: { month: number; year: number };
+  totalRevenue: number;
+  cogs: number;
+  totalOperatingExpenses: number;
+  netProfit: number;
+  netMargin: number;
 }
 
 export default function ProfitLossPage() {
@@ -257,7 +263,10 @@ export default function ProfitLossPage() {
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <p className="text-sm text-gray-600">Total Costs</p>
                 <p className="text-3xl font-bold text-red-600 mt-2">
-                  {formatCurrency(monthlyReport.totalCosts)}
+                  {formatCurrency(monthlyReport.cogs + monthlyReport.totalOperatingExpenses)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  COGS {formatCurrency(monthlyReport.cogs)} + Operating {formatCurrency(monthlyReport.totalOperatingExpenses)}
                 </p>
               </div>
               <div className="bg-white rounded-lg shadow-sm p-6">
@@ -266,49 +275,40 @@ export default function ProfitLossPage() {
                   {formatCurrency(monthlyReport.netProfit)}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  Margin: {monthlyReport.profitMargin.toFixed(2)}%
+                  Margin: {monthlyReport.netMargin.toFixed(2)}%
                 </p>
               </div>
             </div>
 
             {/* Revenue Breakdown */}
-            {monthlyReport.revenueBreakdown && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Revenue Breakdown</h2>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-gray-600">Direct Sales</span>
-                    <span className="font-semibold">{formatCurrency(monthlyReport.revenueBreakdown.directSales)}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-gray-600">Order-Based Sales</span>
-                    <span className="font-semibold">{formatCurrency(monthlyReport.revenueBreakdown.orderSales)}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-gray-600">Returns</span>
-                    <span className="font-semibold text-red-600">-{formatCurrency(monthlyReport.revenueBreakdown.returns)}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 pt-3 font-bold">
-                    <span className="text-gray-900">Net Revenue</span>
-                    <span className="text-green-600">{formatCurrency(monthlyReport.revenueBreakdown.netRevenue)}</span>
-                  </div>
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Revenue Breakdown</h2>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-600">Gross Sales</span>
+                  <span className="font-semibold">{formatCurrency(monthlyReport.totalRevenue)}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-600">Returns</span>
+                  <span className="font-semibold text-red-600">-{formatCurrency(monthlyReport.returnRevenue)}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 pt-3 font-bold">
+                  <span className="text-gray-900">Net Revenue</span>
+                  <span className="text-green-600">{formatCurrency(monthlyReport.netRevenue)}</span>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Costs by Category */}
-            {monthlyReport.costsByCategory && monthlyReport.costsByCategory.length > 0 && (
+            {monthlyReport.topExpenseCategories && monthlyReport.topExpenseCategories.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Costs by Category</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Top Expense Categories</h2>
                 <div className="mt-4 space-y-2">
-                  {monthlyReport.costsByCategory.map((category) => (
+                  {monthlyReport.topExpenseCategories.map((category) => (
                     <div key={category.category} className="flex justify-between items-center py-2 border-b">
-                      <div>
-                        <span className="text-gray-900 font-medium">{category.category}</span>
-                        <span className="text-gray-500 text-sm ml-2">({category.count} items)</span>
-                      </div>
+                      <span className="text-gray-900 font-medium capitalize">{category.category}</span>
                       <div className="text-right">
-                        <span className="font-semibold">{formatCurrency(category.total)}</span>
+                        <span className="font-semibold">{formatCurrency(category.amount)}</span>
                         <span className="text-gray-500 text-sm ml-2">({category.percentage.toFixed(1)}%)</span>
                       </div>
                     </div>
@@ -337,17 +337,22 @@ export default function ProfitLossPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {trendData.map((item, index) => (
-                    <tr key={index}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.month}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600">{formatCurrency(item.revenue)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600">{formatCurrency(item.costs)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-blue-600 font-semibold">{formatCurrency(item.profit)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600">
-                        {item.revenue > 0 ? ((item.profit / item.revenue) * 100).toFixed(1) : 0}%
-                      </td>
-                    </tr>
-                  ))}
+                  {trendData.map((item, index) => {
+                    const costs = item.cogs + item.totalOperatingExpenses;
+                    return (
+                      <tr key={index}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {months[item.period.month - 1]} {item.period.year}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600">{formatCurrency(item.totalRevenue)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600">{formatCurrency(costs)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-blue-600 font-semibold">{formatCurrency(item.netProfit)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600">
+                          {item.netMargin.toFixed(1)}%
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -367,7 +372,7 @@ export default function ProfitLossPage() {
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <p className="text-sm text-gray-600">YTD Costs</p>
                 <p className="text-3xl font-bold text-red-600 mt-2">
-                  {formatCurrency(ytdReport.totalCosts || 0)}
+                  {formatCurrency((ytdReport.cogs || 0) + (ytdReport.totalOperatingExpenses || 0))}
                 </p>
               </div>
               <div className="bg-white rounded-lg shadow-sm p-6">
@@ -376,38 +381,10 @@ export default function ProfitLossPage() {
                   {formatCurrency(ytdReport.netProfit || 0)}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  Margin: {ytdReport.profitMargin?.toFixed(2) || 0}%
+                  Margin: {(ytdReport.netMargin || 0).toFixed(2)}%
                 </p>
               </div>
             </div>
-
-            {ytdReport.monthlyBreakdown && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Monthly Breakdown</h2>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Month</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Revenue</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Costs</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Profit</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {ytdReport.monthlyBreakdown.map((item: any, index: number) => (
-                        <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.month}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600">{formatCurrency(item.revenue)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600">{formatCurrency(item.costs)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-blue-600 font-semibold">{formatCurrency(item.profit)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
           </div>
         )}
 

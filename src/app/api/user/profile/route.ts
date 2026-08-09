@@ -63,6 +63,9 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error fetching profile:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch profile' },
@@ -139,6 +142,9 @@ export async function PUT(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error updating profile:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update profile' },
@@ -205,6 +211,9 @@ export async function PATCH(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error updating password:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update password' },

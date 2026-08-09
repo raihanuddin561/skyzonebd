@@ -403,14 +403,16 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Bulk Pricing */}
-            {product.bulkPricing && (
+            {product.wholesaleTiers && product.wholesaleTiers.length > 0 && (
               <div className="mb-6">
                 <h3 className="font-semibold mb-2 text-gray-900">Bulk Pricing</h3>
                 <div className="grid grid-cols-2 gap-2">
-                  {product.bulkPricing.map((pricing, index) => (
+                  {product.wholesaleTiers.map((tier, index) => (
                     <div key={index} className="bg-gray-50 p-2 rounded text-sm">
-                      <span className="font-medium">{pricing.quantity}+ units:</span>
-                      <span className="text-blue-600 ml-2">৳{pricing.price}</span>
+                      <span className="font-medium">
+                        {tier.maxQuantity ? `${tier.minQuantity}-${tier.maxQuantity}` : `${tier.minQuantity}+`} units:
+                      </span>
+                      <span className="text-blue-600 ml-2">৳{tier.price}</span>
                     </div>
                   ))}
                 </div>
