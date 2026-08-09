@@ -278,14 +278,38 @@ export async function PUT(
     if (body.metaTitle !== undefined) updateData.metaTitle = body.metaTitle;
     if (body.metaDescription !== undefined) updateData.metaDescription = body.metaDescription;
     
-    // Update product
-    const product = await prisma.product.update({
-      where: { id: productId },
-      data: updateData,
-      include: {
-        category: true,
-        wholesaleTiers: true,
+    // Update product. Wholesale tiers have no incremental-update story on the
+    // client (the edit form always submits its full current tier list), so a
+    // full delete-and-recreate inside the same transaction as the product
+    // update is the simplest correct way to persist them — this endpoint
+    // previously accepted `wholesaleTiers` for validation only and silently
+    // discarded them, so editing a product's tiers never actually took effect.
+    const product = await prisma.$transaction(async (tx) => {
+      if (Array.isArray(body.wholesaleTiers)) {
+        await tx.wholesaleTier.deleteMany({ where: { productId } });
+
+        const validTiers = body.wholesaleTiers.filter((tier: any) => tier.minQuantity && tier.price);
+        if (validTiers.length > 0) {
+          await tx.wholesaleTier.createMany({
+            data: validTiers.map((tier: any) => ({
+              productId,
+              minQuantity: parseInt(tier.minQuantity),
+              maxQuantity: tier.maxQuantity ? parseInt(tier.maxQuantity) : null,
+              price: parseFloat(tier.price),
+              discount: tier.discount ? parseFloat(tier.discount) : 0,
+            })),
+          });
+        }
       }
+
+      return tx.product.update({
+        where: { id: productId },
+        data: updateData,
+        include: {
+          category: true,
+          wholesaleTiers: true,
+        }
+      });
     });
 
     // Get admin user info for logging

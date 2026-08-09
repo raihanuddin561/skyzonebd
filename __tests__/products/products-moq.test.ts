@@ -17,8 +17,14 @@ const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-on
 const mockPrismaClient: any = {
   user: { findUnique: jest.fn() },
   product: { findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+  wholesaleTier: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }), createMany: jest.fn().mockResolvedValue({ count: 0 }) },
   $disconnect: jest.fn().mockResolvedValue(undefined),
 };
+// PUT wraps the product update (and, when tiers are sent, a tier replace) in
+// prisma.$transaction — the callback receives a tx client, which here is
+// just the same mock object so assertions against e.g. product.update work
+// whether or not the code path goes through the transaction.
+mockPrismaClient.$transaction = jest.fn((fn: any) => fn(mockPrismaClient));
 
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
@@ -93,6 +99,75 @@ describe('PUT /api/products/[id] — MOQ field mapping', () => {
     expect(res.status).toBe(400);
     expect(mockPrismaClient.product.update).not.toHaveBeenCalled();
     expect(JSON.stringify(body)).toMatch(/Minimum Order Quantity/i);
+  });
+});
+
+describe('PUT /api/products/[id] — pricing fields (the "no pricing fields, validation error" bug)', () => {
+  const existingProduct = {
+    id: 'prod-1', slug: 'widget', sku: 'SKU-1', name: 'Widget',
+    basePrice: 60, wholesalePrice: 100, moq: 5,
+  };
+
+  beforeEach(() => {
+    mockPrismaClient.product.findUnique.mockResolvedValue(existingProduct);
+    mockPrismaClient.product.update.mockImplementation(({ data }: any) => Promise.resolve({
+      ...existingProduct, ...data, category: { name: 'Cat' }, wholesaleTiers: [],
+    }));
+  });
+
+  it('saves real basePrice and wholesalePrice edits together', async () => {
+    const res: any = await PUT(req({ basePrice: 70, wholesalePrice: 120, minOrderQuantity: 5 }, adminToken()), params('prod-1'));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(mockPrismaClient.product.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ basePrice: 70, wholesalePrice: 120, moq: 5 }) })
+    );
+    expect(body.data.wholesalePrice).toBe(120);
+  });
+
+  it('rejects a wholesale price that is not greater than the base price', async () => {
+    const res: any = await PUT(req({ basePrice: 100, wholesalePrice: 100 }, adminToken()), params('prod-1'));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(mockPrismaClient.product.update).not.toHaveBeenCalled();
+    expect(JSON.stringify(body)).toMatch(/Wholesale price/i);
+  });
+
+  it('replaces wholesale tiers when a tier list is sent (delete-then-recreate)', async () => {
+    const res: any = await PUT(
+      req({
+        wholesaleTiers: [
+          { minQuantity: 10, maxQuantity: 49, price: 90, discount: 10 },
+          { minQuantity: 50, maxQuantity: null, price: 80, discount: 20 },
+        ],
+      }, adminToken()),
+      params('prod-1')
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockPrismaClient.wholesaleTier.deleteMany).toHaveBeenCalledWith({ where: { productId: 'prod-1' } });
+    expect(mockPrismaClient.wholesaleTier.createMany).toHaveBeenCalledWith({
+      data: [
+        { productId: 'prod-1', minQuantity: 10, maxQuantity: 49, price: 90, discount: 10 },
+        { productId: 'prod-1', minQuantity: 50, maxQuantity: null, price: 80, discount: 20 },
+      ],
+    });
+  });
+
+  it('clears all tiers when an empty tier list is sent, without recreating any', async () => {
+    await PUT(req({ wholesaleTiers: [] }, adminToken()), params('prod-1'));
+
+    expect(mockPrismaClient.wholesaleTier.deleteMany).toHaveBeenCalledWith({ where: { productId: 'prod-1' } });
+    expect(mockPrismaClient.wholesaleTier.createMany).not.toHaveBeenCalled();
+  });
+
+  it('leaves tiers untouched when wholesaleTiers is omitted from the request', async () => {
+    await PUT(req({ name: 'Widget v2' }, adminToken()), params('prod-1'));
+
+    expect(mockPrismaClient.wholesaleTier.deleteMany).not.toHaveBeenCalled();
+    expect(mockPrismaClient.wholesaleTier.createMany).not.toHaveBeenCalled();
   });
 });
 

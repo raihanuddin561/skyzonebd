@@ -20,6 +20,13 @@ interface Unit {
   isActive: boolean;
 }
 
+interface WholesaleTierForm {
+  minQuantity: string;
+  maxQuantity: string;
+  price: string;
+  discount: string;
+}
+
 interface ProductFormData {
   name: string;
   slug: string;
@@ -28,14 +35,9 @@ interface ProductFormData {
   brand: string;
   unit: string;
   sku: string;
-  retailPrice: number;
-  salePrice: number | null;
-  comparePrice: number | null;
-  stockQuantity: number;
+  basePrice: number;
+  wholesalePrice: number;
   minOrderQuantity: number;
-  wholesaleEnabled: boolean;
-  wholesaleMOQ: number;
-  baseWholesalePrice: number | null;
   tags: string[];
   specifications: Record<string, string>;
   isFeatured: boolean;
@@ -55,7 +57,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  
+
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     slug: '',
@@ -64,14 +66,9 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
     brand: '',
     unit: '',
     sku: '',
-    retailPrice: 0,
-    salePrice: null,
-    comparePrice: null,
-    stockQuantity: 0,
-    minOrderQuantity: 0,
-    wholesaleEnabled: false,
-    wholesaleMOQ: 0,
-    baseWholesalePrice: null,
+    basePrice: 0,
+    wholesalePrice: 0,
+    minOrderQuantity: 1,
     tags: [],
     specifications: {},
     isFeatured: false,
@@ -79,6 +76,20 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
     metaTitle: '',
     metaDescription: '',
   });
+
+  const [wholesaleTiers, setWholesaleTiers] = useState<WholesaleTierForm[]>([]);
+
+  // Stock is managed separately from the rest of the form — it's an audited
+  // event (who changed it, why, by how much), not a plain field to overwrite
+  // as a side effect of saving unrelated product details.
+  const [currentStock, setCurrentStock] = useState(0);
+  const [stockModal, setStockModal] = useState<{ isOpen: boolean; type: 'add' | 'remove' | 'set'; quantity: string; reason: string }>({
+    isOpen: false,
+    type: 'add',
+    quantity: '',
+    reason: '',
+  });
+  const [isAdjustingStock, setIsAdjustingStock] = useState(false);
 
   const [images, setImages] = useState<string[]>([]);
   const [primaryImage, setPrimaryImage] = useState<string>('');
@@ -89,7 +100,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
   const [deleteProductDialog, setDeleteProductDialog] = useState(false);
   const [deactivateDialog, setDeactivateDialog] = useState(false);
   const [isDeactivating, setIsDeactivating] = useState(false);
-  
+
   // Hero Slider state
   const [addToHeroSlider, setAddToHeroSlider] = useState(false);
   const [heroSlideTitle, setHeroSlideTitle] = useState('');
@@ -137,14 +148,12 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           brand: product.brand || '',
           unit: product.unit || '',
           sku: product.sku || '',
-          retailPrice: product.retailPrice || 0,
-          salePrice: product.salePrice || null,
-          comparePrice: product.comparePrice || null,
-          stockQuantity: product.stockQuantity || 0,
-          minOrderQuantity: product.minOrderQuantity || 0,
-          wholesaleEnabled: product.wholesaleEnabled || false,
-          wholesaleMOQ: product.wholesaleMOQ || 0,
-          baseWholesalePrice: product.baseWholesalePrice || null,
+          basePrice: product.basePrice || 0,
+          wholesalePrice: product.wholesalePrice || 0,
+          // A product with no MOQ set (null) has no minimum, not a minimum of
+          // zero -- defaulting to 0 here would fail the backend's "MOQ must
+          // be greater than 0" rule the moment this form is saved unchanged.
+          minOrderQuantity: product.minOrderQuantity || 1,
           tags: product.tags || [],
           specifications: product.specifications || {},
           isFeatured: product.isFeatured || false,
@@ -152,7 +161,17 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           metaTitle: product.metaTitle || '',
           metaDescription: product.metaDescription || '',
         });
-        
+
+        setCurrentStock(product.stockQuantity || 0);
+        setWholesaleTiers(
+          (product.wholesaleTiers || []).map((tier: any) => ({
+            minQuantity: String(tier.minQuantity ?? ''),
+            maxQuantity: tier.maxQuantity != null ? String(tier.maxQuantity) : '',
+            price: String(tier.price ?? ''),
+            discount: tier.discount != null ? String(tier.discount) : '',
+          }))
+        );
+
         setImages(product.imageUrls || [product.imageUrl] || []);
         setPrimaryImage(product.imageUrl || '');
 
@@ -215,7 +234,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
       setLoadingUnits(true);
       const response = await fetch('/api/units?active=true');
       const data = await response.json();
-      
+
       if (data.success && data.data) {
         setUnits(data.data);
       } else {
@@ -251,7 +270,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
     try {
       const token = localStorage.getItem('token');
       const formData = new FormData();
-      
+
       Array.from(files).forEach((file) => {
         formData.append('files', file);
       });
@@ -321,8 +340,52 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
     }
   };
 
+  const addWholesaleTier = () => {
+    setWholesaleTiers([...wholesaleTiers, { minQuantity: '', maxQuantity: '', price: '', discount: '' }]);
+  };
+
+  const updateWholesaleTier = (index: number, field: keyof WholesaleTierForm, value: string) => {
+    const next = [...wholesaleTiers];
+    next[index] = { ...next[index], [field]: value };
+    setWholesaleTiers(next);
+  };
+
+  const removeWholesaleTier = (index: number) => {
+    setWholesaleTiers(wholesaleTiers.filter((_, i) => i !== index));
+  };
+
+  const validatePricing = (): string | null => {
+    if (!Number.isFinite(formData.basePrice) || formData.basePrice <= 0) {
+      return 'Base Price must be greater than 0';
+    }
+    if (!Number.isFinite(formData.wholesalePrice) || formData.wholesalePrice <= formData.basePrice) {
+      return `Wholesale Price (৳${formData.wholesalePrice}) must be greater than Base Price (৳${formData.basePrice})`;
+    }
+    if (!Number.isFinite(formData.minOrderQuantity) || formData.minOrderQuantity < 1) {
+      return 'Minimum Order Quantity must be at least 1';
+    }
+    for (const tier of wholesaleTiers) {
+      if (!tier.minQuantity || !tier.price) continue;
+      const tierPrice = parseFloat(tier.price);
+      if (tierPrice <= formData.basePrice) {
+        return `A wholesale tier's price (৳${tierPrice}) must be greater than Base Price (৳${formData.basePrice})`;
+      }
+      if (tierPrice > formData.wholesalePrice) {
+        return `A wholesale tier's price (৳${tierPrice}) cannot exceed Wholesale Price (৳${formData.wholesalePrice})`;
+      }
+    }
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const pricingError = validatePricing();
+    if (pricingError) {
+      toast.error(pricingError);
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -337,7 +400,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           ...formData,
           imageUrl: primaryImage,
           imageUrls: images,
-          price: formData.retailPrice,
+          wholesaleTiers,
         }),
       });
 
@@ -401,7 +464,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
         } else {
           toast.success('Product updated successfully');
         }
-        
+
         router.push('/admin/products');
       } else {
         toast.error(result.error || 'Failed to update product');
@@ -414,12 +477,56 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
     }
   };
 
+  const handleAdjustStock = async () => {
+    const quantity = parseInt(stockModal.quantity, 10);
+    if (!Number.isFinite(quantity) || quantity < 0) {
+      toast.error('Enter a valid quantity');
+      return;
+    }
+    if (!stockModal.reason || stockModal.reason.trim().length < 5) {
+      toast.error('Reason is required and must be at least 5 characters');
+      return;
+    }
+
+    setIsAdjustingStock(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/stock/adjust', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productId,
+          adjustmentType: stockModal.type,
+          quantity,
+          reason: stockModal.reason.trim(),
+        }),
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        setCurrentStock(result.newStock);
+        toast.success(`Stock updated: ${result.previousStock} → ${result.newStock} units`);
+        setStockModal({ isOpen: false, type: 'add', quantity: '', reason: '' });
+      } else {
+        toast.error(result.error || (result.details ? result.details.join(', ') : 'Failed to adjust stock'));
+      }
+    } catch (error) {
+      console.error('Stock adjustment error:', error);
+      toast.error('Failed to adjust stock');
+    } finally {
+      setIsAdjustingStock(false);
+    }
+  };
+
   const handleDeactivate = async () => {
     setIsDeactivating(true);
     try {
       const token = localStorage.getItem('token');
       const newActiveState = !formData.isActive;
-      
+
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
         headers: {
@@ -629,7 +736,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
         {/* Images */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Images</h2>
-          
+
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Upload Images
@@ -681,85 +788,161 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           </div>
         </div>
 
-        {/* Pricing - Retail pricing disabled (Enable later if needed) */}
+        {/* Pricing */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Pricing & Inventory</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Pricing</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Retail pricing hidden - wholesale only */}
-            {false && (
-            <>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Retail Price *
+                Base Price (Cost) *
               </label>
               <input
                 type="number"
-                value={formData.retailPrice}
-                onChange={(e) => setFormData({ ...formData, retailPrice: parseFloat(e.target.value) })}
+                value={formData.basePrice}
+                onChange={(e) => setFormData({ ...formData, basePrice: parseFloat(e.target.value) || 0 })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 required
                 min="0"
                 step="0.01"
               />
+              <p className="text-xs text-gray-500 mt-1">What the platform pays for this product</p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Sale Price
+                Wholesale Price (Selling Price) *
               </label>
               <input
                 type="number"
-                value={formData.salePrice || ''}
-                onChange={(e) => setFormData({ ...formData, salePrice: e.target.value ? parseFloat(e.target.value) : null })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                min="0"
-                step="0.01"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Compare Price
-              </label>
-              <input
-                type="number"
-                value={formData.comparePrice || ''}
-                onChange={(e) => setFormData({ ...formData, comparePrice: e.target.value ? parseFloat(e.target.value) : null })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                min="0"
-                step="0.01"
-              />
-            </div>
-            </>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Stock Quantity *
-              </label>
-              <input
-                type="number"
-                value={formData.stockQuantity}
-                onChange={(e) => setFormData({ ...formData, stockQuantity: parseInt(e.target.value) })}
+                value={formData.wholesalePrice}
+                onChange={(e) => setFormData({ ...formData, wholesalePrice: parseFloat(e.target.value) || 0 })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 required
                 min="0"
+                step="0.01"
               />
+              <p className="text-xs text-gray-500 mt-1">Must be greater than base price</p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Min Order Quantity
+                Minimum Order Quantity *
               </label>
               <input
                 type="number"
                 value={formData.minOrderQuantity}
-                onChange={(e) => setFormData({ ...formData, minOrderQuantity: parseInt(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, minOrderQuantity: parseInt(e.target.value) || 1 })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                required
                 min="1"
               />
             </div>
           </div>
+
+          {/* Wholesale Tiers */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-medium text-gray-900">Volume Pricing Tiers (optional)</h3>
+              <button
+                type="button"
+                onClick={addWholesaleTier}
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                + Add Tier
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              Give a lower per-unit price at higher quantities, e.g. &quot;50-99 units: ৳18&quot;, &quot;100+ units: ৳15&quot;.
+            </p>
+
+            {wholesaleTiers.length === 0 ? (
+              <div className="text-center p-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <p className="text-gray-500">No volume pricing tiers configured</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {wholesaleTiers.map((tier, index) => (
+                  <div key={index} className="grid grid-cols-5 gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Min Qty *</label>
+                      <input
+                        type="number"
+                        value={tier.minQuantity}
+                        onChange={(e) => updateWholesaleTier(index, 'minQuantity', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                        placeholder="e.g., 50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Max Qty</label>
+                      <input
+                        type="number"
+                        value={tier.maxQuantity}
+                        onChange={(e) => updateWholesaleTier(index, 'maxQuantity', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                        placeholder="Leave empty for ∞"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Price/Unit (৳) *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={tier.price}
+                        onChange={(e) => updateWholesaleTier(index, 'price', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                        placeholder="e.g., 100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Discount (%)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={tier.discount}
+                        onChange={(e) => updateWholesaleTier(index, 'discount', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                        placeholder="e.g., 10"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={() => removeWholesaleTier(index)}
+                        className="w-full px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Inventory */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Inventory</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div>
+              <p className="text-sm text-gray-600">Current Stock</p>
+              <p className="text-2xl font-bold text-gray-900">{currentStock} units</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStockModal({ isOpen: true, type: 'add', quantity: '', reason: '' })}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Adjust Stock
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Stock changes are logged with a reason so every adjustment can be audited later.
+          </p>
         </div>
 
         {/* Tags */}
@@ -871,15 +1054,6 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={formData.wholesaleEnabled}
-                onChange={(e) => setFormData({ ...formData, wholesaleEnabled: e.target.checked })}
-                className="rounded border-gray-300"
-              />
-              <span className="text-sm font-medium text-gray-700">Enable Wholesale</span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
                 checked={addToHeroSlider}
                 onChange={(e) => {
                   console.log('Hero slider checkbox toggled:', e.target.checked);
@@ -894,14 +1068,6 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
             </label>
           </div>
 
-          {/* Debug Info - Remove this after testing */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
-              <strong>Debug:</strong> addToHeroSlider={String(addToHeroSlider)}, 
-              existingHeroSlide={existingHeroSlide ? 'Found' : 'None'}
-            </div>
-          )}
-
           {/* Hero Slider Settings */}
           {addToHeroSlider && (
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
@@ -909,13 +1075,13 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                 Hero Slider Settings
                 {existingHeroSlide && <span className="text-xs ml-2">(Editing existing slide)</span>}
               </h4>
-              
+
               {existingHeroSlide && (
                 <p className="text-sm text-green-700 bg-green-50 p-2 rounded">
                   ✓ This product already has a hero slide. Changes will update it.
                 </p>
               )}
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Slide Title *
@@ -978,8 +1144,8 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
               type="button"
               onClick={() => setDeactivateDialog(true)}
               className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all shadow-sm ${
-                formData.isActive 
-                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white' 
+                formData.isActive
+                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white'
                   : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white'
               }`}
             >
@@ -1034,7 +1200,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">Create New Unit</h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1137,13 +1303,94 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
         </div>
       )}
 
+      {/* Adjust Stock Modal */}
+      {stockModal.isOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget && !isAdjustingStock) setStockModal({ ...stockModal, isOpen: false }); }}
+        >
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-semibold text-gray-900 mb-1">Adjust Stock</h3>
+            <p className="text-sm text-gray-600 mb-4">Current stock: <span className="font-semibold">{currentStock} units</span></p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Adjustment Type</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['add', 'remove', 'set'] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setStockModal({ ...stockModal, type })}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                        stockModal.type === type
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {type === 'add' ? 'Add' : type === 'remove' ? 'Remove' : 'Set To'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {stockModal.type === 'set' ? 'New Stock Quantity' : 'Quantity'}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={stockModal.quantity}
+                  onChange={(e) => setStockModal({ ...stockModal, quantity: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. 50"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Reason *</label>
+                <input
+                  type="text"
+                  value={stockModal.reason}
+                  onChange={(e) => setStockModal({ ...stockModal, reason: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. Received new shipment from supplier"
+                />
+                <p className="text-xs text-gray-500 mt-1">At least 5 characters. Recorded in the inventory audit log.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setStockModal({ ...stockModal, isOpen: false })}
+                disabled={isAdjustingStock}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAdjustStock}
+                disabled={isAdjustingStock || !stockModal.quantity}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+              >
+                {isAdjustingStock ? 'Saving...' : 'Confirm Adjustment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Deactivate/Activate Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deactivateDialog}
         onClose={() => !isDeactivating && setDeactivateDialog(false)}
         onConfirm={handleDeactivate}
         title={formData.isActive ? 'Deactivate Product' : 'Activate Product'}
-        message={formData.isActive 
+        message={formData.isActive
           ? `Are you sure you want to deactivate "${formData.name}"? The product will be hidden from customers but will remain in the system for order history.`
           : `Are you sure you want to activate "${formData.name}"? The product will become visible to customers again.`
         }

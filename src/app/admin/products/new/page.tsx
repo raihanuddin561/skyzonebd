@@ -39,14 +39,14 @@ export default function NewProduct() {
     brand: '',
     unit: '',
     
-    // Pricing
-    retailPrice: '',
-    salePrice: '',
-    retailMOQ: '1',
-    
-    // Wholesale
-    wholesaleEnabled: false,
-    wholesaleMOQ: '',
+    // Pricing — matches the actual Product schema (basePrice/wholesalePrice/
+    // moq); there is no separate "retail" price concept in this platform.
+    basePrice: '',
+    wholesalePrice: '',
+    minOrderQuantity: '1',
+
+    // Optional volume discount tiers on top of wholesalePrice
+    enableTiers: false,
     wholesaleTiers: [
       { minQuantity: '50', maxQuantity: '99', price: '', discount: '' },
       { minQuantity: '100', maxQuantity: '499', price: '', discount: '' },
@@ -224,7 +224,7 @@ export default function NewProduct() {
     setIsSubmitting(true);
 
     try {
-      // Validate required fields - Retail price not required (wholesale only)
+      // Validate required fields
       if (!formData.name || !formData.category) {
         toast.error('Please fill in all required fields');
         setIsSubmitting(false);
@@ -233,6 +233,26 @@ export default function NewProduct() {
 
       if (!mainImageFile) {
         toast.error('Please upload a main product image');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const basePrice = parseFloat(formData.basePrice);
+      const wholesalePrice = parseFloat(formData.wholesalePrice);
+      const minOrderQuantity = parseInt(formData.minOrderQuantity, 10) || 1;
+
+      if (!Number.isFinite(basePrice) || basePrice <= 0) {
+        toast.error('Base Price must be greater than 0');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!Number.isFinite(wholesalePrice) || wholesalePrice <= basePrice) {
+        toast.error(`Wholesale Price (৳${wholesalePrice || 0}) must be greater than Base Price (৳${basePrice})`);
+        setIsSubmitting(false);
+        return;
+      }
+      if (minOrderQuantity < 1) {
+        toast.error('Minimum Order Quantity must be at least 1');
         setIsSubmitting(false);
         return;
       }
@@ -256,12 +276,9 @@ export default function NewProduct() {
         categoryId: formData.category,
         brand: formData.brand,
         unit: formData.unit || null,
-        retailPrice: formData.retailPrice ? parseFloat(formData.retailPrice) : 0, // Default to 0 for wholesale-only
-        salePrice: formData.salePrice ? parseFloat(formData.salePrice) : null,
-        retailMOQ: formData.retailMOQ ? parseInt(formData.retailMOQ) : 1,
-        price: formData.retailPrice ? parseFloat(formData.retailPrice) : 0, // For backward compatibility
-        wholesaleEnabled: formData.wholesaleEnabled,
-        wholesaleMOQ: formData.wholesaleMOQ ? parseInt(formData.wholesaleMOQ) : null,
+        basePrice,
+        wholesalePrice,
+        minOrderQuantity,
         stockQuantity: parseInt(formData.stock),
         availability: formData.availability,
         imageUrl: mainImageUrl,
@@ -274,9 +291,8 @@ export default function NewProduct() {
         }, {} as Record<string, string>),
         tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
         isFeatured: formData.featured,
-        minOrderQuantity: formData.wholesaleMOQ ? parseInt(formData.wholesaleMOQ) : null,
-        // Include wholesale tiers if wholesale is enabled
-        wholesaleTiers: formData.wholesaleEnabled ? formData.wholesaleTiers.filter(
+        // Include wholesale tiers only if volume pricing is enabled
+        wholesaleTiers: formData.enableTiers ? formData.wholesaleTiers.filter(
           tier => tier.minQuantity && tier.price
         ) : [],
       };
@@ -481,93 +497,82 @@ export default function NewProduct() {
           </div>
         </div>
 
-        {/* Pricing - B2C - DISABLED (Enable this section later if retail pricing is needed) */}
-        {false && (
+        {/* Pricing */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Retail Pricing (B2C)</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Pricing</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Retail Price (৳) *
+                Base Price (Cost) (৳) *
               </label>
               <input
                 type="number"
-                name="retailPrice"
+                name="basePrice"
                 required
-                value={formData.retailPrice}
+                min="0"
+                step="0.01"
+                value={formData.basePrice}
                 onChange={handleInputChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="5000"
+                placeholder="e.g., 80"
               />
+              <p className="text-xs text-gray-500 mt-1">What the platform pays for this product</p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Sale Price (৳)
+                Wholesale Price (Selling Price) (৳) *
               </label>
               <input
                 type="number"
-                name="salePrice"
-                value={formData.salePrice}
+                name="wholesalePrice"
+                required
+                min="0"
+                step="0.01"
+                value={formData.wholesalePrice}
                 onChange={handleInputChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="4500"
+                placeholder="e.g., 100"
               />
+              <p className="text-xs text-gray-500 mt-1">Must be greater than base price</p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Retail MOQ
+                Minimum Order Quantity *
               </label>
               <input
                 type="number"
-                name="retailMOQ"
-                value={formData.retailMOQ}
+                name="minOrderQuantity"
+                required
+                min="1"
+                value={formData.minOrderQuantity}
                 onChange={handleInputChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="1"
               />
             </div>
           </div>
-        </div>
-        )}
 
-        {/* Wholesale Pricing - B2B */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Wholesale Pricing (B2B)</h2>
+          <div className="flex items-center justify-between mb-4 pt-4 border-t border-gray-100">
+            <h3 className="font-medium text-gray-900">Volume Pricing Tiers (optional)</h3>
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
-                name="wholesaleEnabled"
-                checked={formData.wholesaleEnabled}
+                name="enableTiers"
+                checked={formData.enableTiers}
                 onChange={handleInputChange}
                 className="rounded border-gray-300"
               />
-              <span className="text-sm font-medium text-gray-700">Enable Wholesale</span>
+              <span className="text-sm font-medium text-gray-700">Enable Volume Pricing Tiers</span>
             </label>
           </div>
 
-          {formData.wholesaleEnabled && (
+          {formData.enableTiers && (
             <>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Wholesale MOQ *
-                </label>
-                <input
-                  type="number"
-                  name="wholesaleMOQ"
-                  value={formData.wholesaleMOQ}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="50"
-                />
-              </div>
-
               <div className="space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-gray-900">Pricing Tiers (Alibaba-style Bulk Pricing)</h3>
+                <div className="flex items-center justify-end mb-2">
                   <button
                     type="button"
                     onClick={() => setFormData({
