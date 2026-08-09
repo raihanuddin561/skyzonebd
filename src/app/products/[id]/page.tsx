@@ -15,6 +15,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-toastify';
 import ImageZoomLightbox from '@/components/common/ImageZoomLightbox';
 import QuantityInput from '@/components/common/QuantityInput';
+import ReviewList from '@/components/reviews/ReviewList';
+import ReviewForm from '@/components/reviews/ReviewForm';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -32,6 +34,9 @@ export default function ProductDetailPage() {
   const [activeTab, setActiveTab] = useState<string>('description');
   const [showImageModal, setShowImageModal] = useState<boolean>(false);
   const [modalImageIndex, setModalImageIndex] = useState<number>(0);
+  const [reviewableOrderId, setReviewableOrderId] = useState<string | null>(null);
+  const [showReviewForm, setShowReviewForm] = useState<boolean>(false);
+  const [reviewListKey, setReviewListKey] = useState<number>(0);
 
   // Update page title and meta tags dynamically
   useEffect(() => {
@@ -61,6 +66,42 @@ export default function ProductDetailPage() {
       }
     }
   }, [product]);
+
+  // Find a delivered order containing this product so the user can leave a
+  // verified-purchase review (the reviews API requires a real orderId).
+  useEffect(() => {
+    if (!user || !productId) {
+      setReviewableOrderId(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const findReviewableOrder = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/orders', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (!response.ok || cancelled) return;
+
+        const orders = data.data || [];
+        const match = orders.find((order: any) =>
+          order.status === 'delivered' &&
+          order.items?.some((item: any) => item.productId === productId)
+        );
+
+        setReviewableOrderId(match?.id || null);
+      } catch (err) {
+        console.error('Failed to check review eligibility:', err);
+      }
+    };
+
+    findReviewableOrder();
+
+    return () => { cancelled = true; };
+  }, [user, productId]);
 
   useEffect(() => {
     if (product) {
@@ -655,23 +696,35 @@ export default function ProductDetailPage() {
 
             {activeTab === 'reviews' && (
               <div>
-                <h3 className="text-lg font-semibold mb-4 text-gray-900">Customer Reviews</h3>
-                {product.rating && product.reviews ? (
-                  <div className="text-center py-8">
-                    <div className="text-4xl mb-2">{product.rating}/5</div>
-                    <div className="flex justify-center text-yellow-400 mb-2">
-                      {[...Array(5)].map((_, i) => (
-                        <span key={i} className={i < Math.floor(product.rating!) ? 'text-yellow-400' : 'text-gray-300'}>
-                          ★
-                        </span>
-                      ))}
-                    </div>
-                    <p className="text-gray-600">{product.reviews} reviews</p>
-                    <p className="text-gray-500 mt-4">Review system coming soon...</p>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Customer Reviews</h3>
+                  {reviewableOrderId && !showReviewForm && (
+                    <button
+                      onClick={() => setShowReviewForm(true)}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer"
+                    >
+                      Write a Review
+                    </button>
+                  )}
+                </div>
+
+                {showReviewForm && reviewableOrderId && (
+                  <div className="mb-6">
+                    <ReviewForm
+                      productId={productId}
+                      productName={product.name}
+                      orderId={reviewableOrderId}
+                      onSuccess={() => {
+                        setShowReviewForm(false);
+                        toast.success('Review submitted! It will appear after moderation.');
+                        setReviewListKey((k) => k + 1);
+                      }}
+                      onCancel={() => setShowReviewForm(false)}
+                    />
                   </div>
-                ) : (
-                  <p className="text-gray-500">No reviews available</p>
                 )}
+
+                <ReviewList key={reviewListKey} productId={productId} />
               </div>
             )}
           </div>

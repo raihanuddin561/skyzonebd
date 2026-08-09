@@ -32,6 +32,13 @@ export const API_ENDPOINTS = {
     GET_ORDERS: '/api/user/orders',
     GET_WISHLIST: '/api/user/wishlist',
     DELETE_ACCOUNT: '/api/user/delete',
+    GET_ADDRESSES: '/api/user/addresses',
+    ADD_ADDRESS: '/api/user/addresses',
+    UPDATE_ADDRESS: '/api/user/addresses/:id',
+    DELETE_ADDRESS: '/api/user/addresses/:id',
+    SET_DEFAULT_ADDRESS: '/api/user/addresses/:id',
+    GET_BUSINESS_INFO: '/api/user/business-info',
+    SAVE_BUSINESS_INFO: '/api/user/business-info',
   },
 
   // Product endpoints

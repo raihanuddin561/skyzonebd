@@ -114,9 +114,9 @@ export async function GET(request: NextRequest) {
         businessType: app.companyType || 'N/A',
         registrationNumber: app.registrationNumber || 'N/A',
         taxNumber: app.taxId || 'N/A',
-        address: 'N/A', // Not in schema
-        city: 'N/A', // Not in schema
-        country: 'Bangladesh',
+        address: app.businessAddress || 'N/A',
+        city: app.businessCity || 'N/A',
+        country: app.businessCountry,
         website: app.website || undefined,
         employeeCount: app.employeeCount || 'N/A',
         annualPurchaseVolume: app.annualPurchaseVolume || 'N/A',

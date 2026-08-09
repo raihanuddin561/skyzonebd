@@ -44,6 +44,7 @@ export async function GET(
     });
 
   } catch (error) {
+    if (error instanceof Response) return error;
     console.error('Error fetching address:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch address' },
@@ -125,6 +126,7 @@ export async function PUT(
     });
 
   } catch (error) {
+    if (error instanceof Response) return error;
     console.error('Error updating address:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update address' },
@@ -188,6 +190,7 @@ export async function DELETE(
     });
 
   } catch (error) {
+    if (error instanceof Response) return error;
     console.error('Error deleting address:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete address' },
@@ -247,6 +250,7 @@ export async function PATCH(
     });
 
   } catch (error) {
+    if (error instanceof Response) return error;
     console.error('Error setting default address:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to set default address' },

@@ -65,15 +65,15 @@ export default function ReviewList({ productId, showFilters = true }: ReviewList
       }
       
       const response = await fetch(`/api/reviews/product/${productId}?${params}`);
-      const data = await response.json();
-      
+      const json = await response.json();
+
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to load reviews');
+        throw new Error(json.error || 'Failed to load reviews');
       }
-      
-      setReviews(data.reviews);
-      setAggregation(data.aggregation);
-      setTotalPages(data.pagination.totalPages);
+
+      setReviews(json.data.reviews);
+      setAggregation(json.data.aggregation);
+      setTotalPages(json.pagination.pages);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load reviews');
     } finally {

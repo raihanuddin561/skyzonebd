@@ -335,6 +335,38 @@ export const userService = {
   },
 };
 
+export const addressService = {
+  getAddresses: async () => {
+    return apiService.get(API_ENDPOINTS.USER.GET_ADDRESSES);
+  },
+
+  addAddress: async (address: Record<string, unknown>) => {
+    return apiService.post(API_ENDPOINTS.USER.ADD_ADDRESS, address);
+  },
+
+  updateAddress: async (id: string, address: Record<string, unknown>) => {
+    return apiService.put(API_ENDPOINTS.USER.UPDATE_ADDRESS, address, { id });
+  },
+
+  setDefaultAddress: async (id: string) => {
+    return apiService.put(API_ENDPOINTS.USER.UPDATE_ADDRESS, { isDefault: true }, { id });
+  },
+
+  deleteAddress: async (id: string) => {
+    return apiService.delete(API_ENDPOINTS.USER.DELETE_ADDRESS, { id });
+  },
+};
+
+export const businessInfoService = {
+  getBusinessInfo: async () => {
+    return apiService.get(API_ENDPOINTS.USER.GET_BUSINESS_INFO);
+  },
+
+  saveBusinessInfo: async (businessInfo: Record<string, unknown>) => {
+    return apiService.post(API_ENDPOINTS.USER.SAVE_BUSINESS_INFO, businessInfo);
+  },
+};
+
 export const searchService = {
   searchProducts: async (query: string, filters?: Record<string, string | number | boolean>) => {
     return apiService.get(API_ENDPOINTS.SEARCH.PRODUCTS, undefined, { q: query, ...filters });

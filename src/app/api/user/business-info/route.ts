@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) return error;
     console.error('Error fetching business info:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch business info' },
@@ -121,6 +122,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) return error;
     console.error('Error saving business info:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to save business info' },
@@ -149,6 +151,7 @@ export async function DELETE(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) return error;
     console.error('Error deleting business info:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete business info' },
