@@ -100,7 +100,7 @@ describe('admin-protected verbs reject when requireAdmin rejects (P2-4)', () => 
 describe('orders/[id] GET is unaffected (still uses requireAuth, not requireAdmin)', () => {
   it('does not call requireAdmin for guest-order reads', async () => {
     mockPrismaClient.order.findUnique.mockResolvedValueOnce({
-      id: 'x1', userId: null, orderItems: [], createdAt: new Date(), updatedAt: new Date(),
+      id: 'x1', userId: null, orderItems: [], payments: [], createdAt: new Date(), updatedAt: new Date(),
     });
 
     await orderByIdRoute.GET(req(), { params: idParams });

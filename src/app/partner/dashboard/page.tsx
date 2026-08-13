@@ -347,8 +347,8 @@ export default function PartnerDashboardPage() {
                           <p className="text-gray-500">Qty: {item.quantity}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium text-gray-900">৳{item.revenue.toLocaleString()}</p>
-                          <p className="text-sm text-green-600">Your: ৳{item.payout.toLocaleString()}</p>
+                          <p className="font-medium text-gray-900">৳{(typeof item.revenue === 'number' ? item.revenue : 0).toLocaleString()}</p>
+                          <p className="text-sm text-green-600">Your: ৳{(typeof item.payout === 'number' ? item.payout : 0).toLocaleString()}</p>
                         </div>
                       </div>
                     ))}

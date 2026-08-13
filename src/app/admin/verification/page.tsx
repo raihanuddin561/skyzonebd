@@ -391,22 +391,31 @@ export default function B2BVerification() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Uploaded Documents</h3>
                 <div className="space-y-3">
                   {selectedApp.documents.map((doc, idx) => (
-                    <div key={idx} className="flex items-center justify-between bg-gray-50 rounded-lg p-4">
-                      <div className="flex items-center gap-3">
-                        <span className="text-3xl">📄</span>
-                        <div>
+                    <div key={idx} className="flex flex-wrap items-center justify-between gap-3 bg-gray-50 rounded-lg p-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-3xl flex-shrink-0">📄</span>
+                        <div className="min-w-0">
                           <p className="font-medium text-gray-900">{doc.type}</p>
-                          <p className="text-sm text-gray-600">{doc.name}</p>
+                          <p className="text-sm text-gray-600 truncate">{doc.name}</p>
                           <p className="text-xs text-gray-500">Uploaded: {new Date(doc.uploadedAt).toLocaleString('en-GB')}</p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+                      <div className="flex gap-2 flex-shrink-0">
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                        >
                           View
-                        </button>
-                        <button className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+                        </a>
+                        <a
+                          href={doc.url}
+                          download
+                          className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
+                        >
                           Download
-                        </button>
+                        </a>
                       </div>
                     </div>
                   ))}

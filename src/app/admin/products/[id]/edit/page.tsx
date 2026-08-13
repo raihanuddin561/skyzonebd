@@ -862,7 +862,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
             ) : (
               <div className="space-y-3">
                 {wholesaleTiers.map((tier, index) => (
-                  <div key={index} className="grid grid-cols-5 gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div key={index} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">Min Qty *</label>
                       <input

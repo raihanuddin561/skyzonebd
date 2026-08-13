@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ProtectedRoute from '../components/ProtectedRoute';
+import { NetworkErrorState } from '@/components/ui/ErrorState';
 
 interface RFQItem {
   productId: string;
@@ -38,24 +39,31 @@ const STATUS_STYLES: Record<string, string> = {
 export default function MyRFQsPage() {
   const [rfqs, setRfqs] = useState<RFQ[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const fetchRfqs = async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/rfq', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setRfqs(data.data || []);
+      } else {
+        setError(true);
+      }
+    } catch (error) {
+      console.error('Error fetching RFQs:', error);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchRfqs = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/rfq', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setRfqs(data.data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching RFQs:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchRfqs();
   }, []);
 
@@ -75,6 +83,8 @@ export default function MyRFQsPage() {
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
+          ) : error ? (
+            <NetworkErrorState onRetry={fetchRfqs} />
           ) : rfqs.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100">
               <div className="mx-auto w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">

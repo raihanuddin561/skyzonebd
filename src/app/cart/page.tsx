@@ -126,7 +126,7 @@ export default function CartPage() {
                       
                       {/* Price */}
                       <p className="text-lg sm:text-xl font-bold text-blue-700 mt-2">
-                        ৳{item.product.price.toLocaleString()}
+                        ৳{(typeof item.product.price === 'number' ? item.product.price : 0).toLocaleString()}
                         {item.product.unit && <span className="text-xs text-gray-600">/{item.product.unit}</span>}
                       </p>
                       

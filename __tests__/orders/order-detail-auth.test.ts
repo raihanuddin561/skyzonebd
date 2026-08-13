@@ -70,6 +70,7 @@ function baseOrder(overrides: Record<string, any> = {}) {
     guestEmail: null,
     guestPhone: null,
     orderItems: [],
+    payments: [],
     user: null,
     shippingAddress: '123 St',
     billingAddress: '123 St',

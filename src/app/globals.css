@@ -1,40 +1,26 @@
 @import "tailwindcss";
 
+/* This app has no real dark theme — every page uses hardcoded light
+   Tailwind classes (bg-white, text-gray-900, etc.) with zero `dark:`
+   variants anywhere in src/. The design is pinned to light intentionally;
+   a `prefers-color-scheme: dark` override was previously defined here but
+   only flipped the <body> background/text (nothing else in the app
+   responds to it), which just showed a near-black strip behind every page
+   on OLED/dark-mode devices. Removed rather than half-implemented.
+   If real dark-mode support is ever wanted, it needs `dark:` variants
+   added throughout every component, not just here. */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #111827;
 }
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 @theme inline {
   --font-family-sans: 'Arial', 'Helvetica', 'sans-serif';
-  --color-background: 240 10% 3.9%;
-  --color-foreground: 0 0% 98%;
-  --color-card: 240 10% 3.9%;
-  --color-card-foreground: 0 0% 98%;
-  --color-popover: 240 10% 3.9%;
-  --color-popover-foreground: 0 0% 98%;
-  --color-primary: 0 0% 98%;
-  --color-primary-foreground: 240 5.9% 10%;
-  --color-secondary: 240 3.7% 15.9%;
-  --color-secondary-foreground: 0 0% 98%;
-  --color-muted: 240 3.7% 15.9%;
-  --color-muted-foreground: 240 5% 64.9%;
-  --color-accent: 240 3.7% 15.9%;
-  --color-accent-foreground: 0 0% 98%;
-  --color-destructive: 0 62.8% 30.6%;
-  --color-destructive-foreground: 0 0% 98%;
-  --color-border: 240 3.7% 15.9%;
-  --color-input: 240 3.7% 15.9%;
-  --color-ring: 240 4.9% 83.9%;
 }
 
 body {
-  background: white;
-  color: #111827; /* Dark text for body */
+  background: var(--background);
+  color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -74,19 +60,6 @@ label {
 option {
   color: #111827 !important;
   background: white !important;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
 /* Responsive Touch Improvements */

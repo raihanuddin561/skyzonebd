@@ -41,6 +41,12 @@ export async function GET(
           email: true,
           phone: true
         }
+      },
+      payments: {
+        select: {
+          amount: true,
+          status: true
+        }
       }
     };
 
@@ -77,6 +83,14 @@ export async function GET(
       }
     }
 
+    // Real amount paid/due from actual Payment records — the order-detail
+    // page used to show a fabricated 60%/40% paid/due split as a
+    // "placeholder" for PARTIAL orders, presenting made-up numbers as fact.
+    const amountPaid = order.payments
+      .filter((p) => p.status === 'PAID')
+      .reduce((sum, p) => sum + p.amount, 0);
+    const amountDue = Math.max(0, order.total - amountPaid);
+
     // Format response
     const formattedOrder = {
       id: order.id,
@@ -100,6 +114,11 @@ export async function GET(
       shippingAddress: order.shippingAddress,
       billingAddress: order.billingAddress,
       paymentMethod: order.paymentMethod,
+      paymentReference: order.paymentReference,
+      paymentProofUrl: order.paymentProofUrl,
+      paymentVerifiedAt: order.paymentVerifiedAt?.toISOString() || null,
+      paymentVerifiedBy: order.paymentVerifiedBy,
+      paymentNotes: order.paymentNotes,
       notes: order.notes,
       subtotal: order.subtotal,
       shipping: order.shipping,
@@ -107,6 +126,8 @@ export async function GET(
       total: order.total,
       status: order.status,
       paymentStatus: order.paymentStatus,
+      amountPaid,
+      amountDue,
       createdAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString()
     };

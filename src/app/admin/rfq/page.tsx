@@ -43,6 +43,7 @@ interface RFQ {
 
 export default function RFQPage() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [rfqs, setRfqs] = useState<RFQ[]>([]);
   const [filter, setFilter] = useState<'all' | 'PENDING' | 'QUOTED' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED'>('all');
   const [selectedRFQ, setSelectedRFQ] = useState<RFQ | null>(null);
@@ -56,6 +57,7 @@ export default function RFQPage() {
   const fetchRFQs = async () => {
     try {
       setLoading(true);
+      setError(false);
       const token = localStorage.getItem('token');
       const response = await fetch('/api/rfq', {
         headers: { 'Authorization': `Bearer ${token}` },
@@ -64,9 +66,12 @@ export default function RFQPage() {
       if (response.ok) {
         const data = await response.json();
         setRfqs(data.data || []);
+      } else {
+        setError(true);
       }
     } catch (error) {
       console.error('Error fetching RFQs:', error);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -193,7 +198,17 @@ export default function RFQPage() {
       {/* RFQ List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="divide-y divide-gray-200">
-          {filteredRFQs.length === 0 ? (
+          {error ? (
+            <div className="p-8 text-center">
+              <p className="text-gray-600 mb-4">Couldn&apos;t load RFQ requests. Please try again.</p>
+              <button
+                onClick={fetchRFQs}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
+          ) : filteredRFQs.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
               <p>No RFQ requests found</p>
             </div>

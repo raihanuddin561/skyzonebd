@@ -43,11 +43,37 @@ export default function ReviewList({ productId, showFilters = true }: ReviewList
   const [sortBy, setSortBy] = useState('createdAt');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  
+  const [votedReviewIds, setVotedReviewIds] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     fetchReviews();
   }, [productId, ratingFilter, sortBy, page]);
-  
+
+  const handleVote = async (reviewId: string, vote: 'helpful' | 'not_helpful') => {
+    if (votedReviewIds.has(reviewId)) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/reviews/${reviewId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ vote }),
+      });
+      const data = await response.json();
+      if (!response.ok) return;
+
+      setVotedReviewIds((prev) => new Set(prev).add(reviewId));
+      setReviews((prev) =>
+        prev.map((r) => (r.id === reviewId ? { ...r, helpfulCount: data.review.helpfulCount, notHelpfulCount: data.review.notHelpfulCount } : r))
+      );
+    } catch (err) {
+      console.error('Failed to record review vote:', err);
+    }
+  };
+
   const fetchReviews = async () => {
     setLoading(true);
     setError('');
@@ -102,20 +128,20 @@ export default function ReviewList({ productId, showFilters = true }: ReviewList
       {/* Rating Summary */}
       {aggregation && (
         <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-start gap-8">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-8">
             {/* Overall Rating */}
-            <div className="text-center">
+            <div className="text-center flex-shrink-0">
               <div className="text-4xl font-bold text-gray-900 mb-2">
-                {aggregation.averageRating.toFixed(1)}
+                {(aggregation.averageRating ?? 0).toFixed(1)}
               </div>
-              <StarRating rating={aggregation.averageRating} showNumber={false} />
+              <StarRating rating={aggregation.averageRating ?? 0} showNumber={false} />
               <p className="text-sm text-gray-600 mt-2">
                 {aggregation.totalReviews} review{aggregation.totalReviews !== 1 ? 's' : ''}
               </p>
             </div>
             
             {/* Rating Distribution */}
-            <div className="flex-1">
+            <div className="w-full sm:flex-1">
               {[5, 4, 3, 2, 1].map((star) => {
                 const count = aggregation.ratingDistribution[star] || 0;
                 const percentage = aggregation.ratingPercentages[star] || 0;
@@ -187,7 +213,13 @@ export default function ReviewList({ productId, showFilters = true }: ReviewList
           </div>
         ) : (
           reviews.map((review) => (
-            <ReviewCard key={review.id} review={review} />
+            <ReviewCard
+              key={review.id}
+              review={review}
+              hasVoted={votedReviewIds.has(review.id)}
+              onHelpful={(id) => handleVote(id, 'helpful')}
+              onNotHelpful={(id) => handleVote(id, 'not_helpful')}
+            />
           ))
         )}
       </div>

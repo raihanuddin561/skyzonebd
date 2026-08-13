@@ -251,10 +251,10 @@ export default function CustomerDashboardPage() {
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-gray-900 truncate">{item.name}</h4>
                           <p className="text-sm text-gray-500">Seller: {item.seller}</p>
-                          <p className="text-sm text-gray-600">Qty: {item.quantity} × ৳{item.unitPrice.toLocaleString()}</p>
+                          <p className="text-sm text-gray-600">Qty: {item.quantity} × ৳{(typeof item.unitPrice === 'number' ? item.unitPrice : 0).toLocaleString()}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-gray-900">৳{item.totalPrice.toLocaleString()}</p>
+                          <p className="font-semibold text-gray-900">৳{(typeof item.totalPrice === 'number' ? item.totalPrice : 0).toLocaleString()}</p>
                         </div>
                       </div>
                     ))}

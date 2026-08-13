@@ -49,7 +49,7 @@ export function getUnitPrice(product: Product, quantity: number): number {
     }
   }
 
-  return product.price;
+  return typeof product.price === 'number' && !Number.isNaN(product.price) ? product.price : 0;
 }
 
 /** Returns the tier-aware line total for one cart item. */

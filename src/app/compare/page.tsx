@@ -14,15 +14,22 @@ export default function ComparePage() {
   const [productId, setProductId] = useState<string>('');
   const [popularProducts, setPopularProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
+  const [popularLoading, setPopularLoading] = useState(true);
+  const [popularError, setPopularError] = useState(false);
 
   useEffect(() => {
     // Load popular products
     const fetchPopularProducts = async () => {
+      setPopularLoading(true);
+      setPopularError(false);
       try {
         const data = await dataService.products.getFeatured();
         setPopularProducts((data as Product[]).slice(0, 8));
       } catch (error) {
         console.error('Error loading popular products:', error);
+        setPopularError(true);
+      } finally {
+        setPopularLoading(false);
       }
     };
     fetchPopularProducts();
@@ -56,7 +63,7 @@ export default function ComparePage() {
   };
 
   const comparisonAttributes = [
-    { key: 'price', label: 'Price', format: (value: any) => `৳${value.toLocaleString()}` },
+    { key: 'price', label: 'Price', format: (value: any) => `৳${(typeof value === 'number' ? value : 0).toLocaleString()}` },
     { key: 'minOrderQuantity', label: 'Min Order Qty', format: (value: any) => `${value} units` },
     { key: 'brand', label: 'Brand', format: (value: any) => value || 'N/A' },
     { key: 'rating', label: 'Rating', format: (value: any) => value ? `${value}/5` : 'N/A' },
@@ -242,10 +249,14 @@ export default function ComparePage() {
         {/* Quick Add Popular Products */}
         <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-900">Popular Products</h3>
-          {loading && popularProducts.length === 0 ? (
+          {popularLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
             </div>
+          ) : popularError ? (
+            <p className="text-center py-8 text-gray-500">Couldn&apos;t load popular products right now. Please try again later.</p>
+          ) : popularProducts.length === 0 ? (
+            <p className="text-center py-8 text-gray-500">No popular products to show yet.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {popularProducts.map(product => {

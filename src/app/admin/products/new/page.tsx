@@ -588,7 +588,7 @@ export default function NewProduct() {
                   <strong>💡 Tip:</strong> Like Alibaba, create multiple price tiers. Example: "1-5 pcs: ৳20/pc", "6-10 pcs: ৳18/pc", "11+ pcs: ৳15/pc"
                 </div>
                 {formData.wholesaleTiers.map((tier, index) => (
-                  <div key={index} className="grid grid-cols-5 gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
+                  <div key={index} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Min Qty *

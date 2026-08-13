@@ -9,6 +9,7 @@ import ProductCard from '../components/ProductCard';
 import { useProductSearch } from '@/hooks/useProducts';
 import { usePopularSearches } from '@/hooks/useSearch';
 import { Product } from '@/types/cart';
+import Pagination from '@/components/common/Pagination';
 
 // Popular Searches Component
 function PopularSearches() {
@@ -52,7 +53,7 @@ function PopularSearches() {
 function SearchContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
-  const { products: searchResults, loading } = useProductSearch(query);
+  const { products: searchResults, loading, error: searchError } = useProductSearch(query);
   const [sortedResults, setSortedResults] = useState<Product[]>([]);
   const [sortBy, setSortBy] = useState<string>('relevance');
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -157,8 +158,27 @@ function SearchContent() {
           </div>
         )}
 
+        {/* Search Error */}
+        {!loading && query && searchError && (
+          <div className="text-center py-16 bg-white rounded-xl border border-gray-100 shadow-sm">
+            <div className="w-20 h-20 rounded-full bg-red-50 text-red-400 flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold mb-2 text-gray-900">Search is temporarily unavailable</h2>
+            <p className="text-gray-500 mb-6">Please check your connection and try searching again.</p>
+            <Link
+              href="/products"
+              className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
+            >
+              Browse All Products
+            </Link>
+          </div>
+        )}
+
         {/* No Results */}
-        {!loading && query && sortedResults.length === 0 && (
+        {!loading && query && !searchError && sortedResults.length === 0 && (
           <div className="text-center py-16 bg-white rounded-xl border border-gray-100 shadow-sm">
             <div className="w-20 h-20 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-6">
               <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -187,7 +207,7 @@ function SearchContent() {
         )}
 
         {/* Search Results */}
-        {!loading && query && sortedResults.length > 0 && (
+        {!loading && query && !searchError && sortedResults.length > 0 && (
           <>
             <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
               <p className="text-gray-600 text-sm font-medium">
@@ -210,49 +230,9 @@ function SearchContent() {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-center mt-12">
-                <nav className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className={`px-4 py-2 rounded ${
-                      currentPage === 1 
-                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                    }`}
-                  >
-                    Previous
-                  </button>
-                  
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-all cursor-pointer ${
-                        currentPage === page
-                          ? 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-md'
-                          : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-700 border border-gray-300'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                  
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className={`px-4 py-2 rounded ${
-                      currentPage === totalPages 
-                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                    }`}
-                  >
-                    Next
-                  </button>
-                </nav>
-              </div>
-            )}
+            <div className="mt-12">
+              <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+            </div>
           </>
         )}
 

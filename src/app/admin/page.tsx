@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getOrderStatusColor } from '@/utils/orderStatus';
 
 interface StatCard {
   title: string;
@@ -50,17 +51,6 @@ export default function AdminDashboard() {
 
     fetchDashboardData();
   }, []);
-
-  const getStatusColor = (status: string) => {
-    const colors: { [key: string]: string } = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      processing: 'bg-blue-100 text-blue-800',
-      shipped: 'bg-purple-100 text-purple-800',
-      delivered: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
 
   return (
     <div className="space-y-4 sm:space-y-6 px-2 sm:px-4 lg:px-0">
@@ -183,7 +173,7 @@ export default function AdminDashboard() {
                             <Link href={`/admin/orders/${order.id}`} className="text-blue-600 hover:text-blue-700 font-medium text-xs sm:text-sm">
                               #{order.id}
                             </Link>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getOrderStatusColor(order.status)}`}>
                               {order.status}
                             </span>
                           </div>
@@ -217,7 +207,7 @@ export default function AdminDashboard() {
                           <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-900 text-sm">{order.customer}</td>
                           <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-gray-900 text-sm">৳{order.amount.toLocaleString()}</td>
                           <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getOrderStatusColor(order.status)}`}>
                               {order.status}
                             </span>
                           </td>

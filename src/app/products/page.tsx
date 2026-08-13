@@ -8,6 +8,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ProductCard from '../components/ProductCard';
 import QuickQuantityGrid from '@/components/wholesale/QuickQuantityGrid';
+import Pagination from '@/components/common/Pagination';
 import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,7 +18,7 @@ import { getCategoryIcon } from '@/utils/categoryIcons';
 
 function ProductsContent() {
   const searchParams = useSearchParams();
-  const { products: allProducts, loading: productsLoading } = useProducts({ limit: 100 }); // Fetch up to 100 products
+  const { products: allProducts, loading: productsLoading, error: productsError, refetch: refetchProducts } = useProducts({ limit: 100 }); // Fetch up to 100 products
   const { categories, loading: categoriesLoading } = useCategories();
   const { user } = useAuth();
   const { addBulkToCart } = useCart();
@@ -403,7 +404,25 @@ function ProductsContent() {
             </div>
 
             {/* Products Display - Grid or Wholesale View */}
-            {displayedProducts.length === 0 ? (
+            {productsError ? (
+              <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">
+                <div className="w-20 h-20 rounded-full bg-red-50 text-red-400 flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-3">Couldn&apos;t load products</h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  Something went wrong while loading the catalog. Please check your connection and try again.
+                </p>
+                <button
+                  onClick={() => refetchProducts()}
+                  className="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl cursor-pointer"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : displayedProducts.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">
                 <div className="w-20 h-20 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-6">
                   <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -451,54 +470,9 @@ function ProductsContent() {
             )}
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-center mt-12">
-                <nav className="bg-white rounded-lg shadow-sm border border-gray-100 p-2">
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                      disabled={currentPage === 1}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                        currentPage === 1 
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                          : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-700 border border-gray-200 cursor-pointer'
-                      }`}
-                      suppressHydrationWarning
-                    >
-                      Previous
-                    </button>
-                    
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`px-4 py-2 rounded-lg font-semibold transition-all cursor-pointer ${
-                          currentPage === page
-                            ? 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-md'
-                            : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-700 border border-gray-200'
-                        }`}
-                        suppressHydrationWarning
-                      >
-                        {page}
-                      </button>
-                    ))}
-                    
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                      disabled={currentPage === totalPages}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                        currentPage === totalPages 
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                          : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-700 border border-gray-200 cursor-pointer'
-                      }`}
-                      suppressHydrationWarning
-                    >
-                      Next
-                    </button>
-                  </div>
-                </nav>
-              </div>
-            )}
+            <div className="mt-12">
+              <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+            </div>
           </div>
         </div>
       </div>

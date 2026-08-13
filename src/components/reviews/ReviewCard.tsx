@@ -27,13 +27,15 @@ interface ReviewCardProps {
     notHelpfulCount?: number;
   };
   showProduct?: boolean;
+  hasVoted?: boolean;
   onHelpful?: (reviewId: string) => void;
   onNotHelpful?: (reviewId: string) => void;
 }
 
-export default function ReviewCard({ 
-  review, 
+export default function ReviewCard({
+  review,
   showProduct = false,
+  hasVoted = false,
   onHelpful,
   onNotHelpful
 }: ReviewCardProps) {
@@ -90,13 +92,13 @@ export default function ReviewCard({
       
       {/* Review Images */}
       {review.images && review.images.length > 0 && (
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide">
           {review.images.map((image, index) => (
             <img
               key={index}
               src={image}
               alt={`Review image ${index + 1}`}
-              className="w-20 h-20 object-cover rounded cursor-pointer hover:opacity-80"
+              className="w-20 h-20 object-cover rounded cursor-pointer hover:opacity-80 flex-shrink-0"
               onClick={() => window.open(image, '_blank')}
             />
           ))}
@@ -108,7 +110,8 @@ export default function ReviewCard({
         <span className="text-sm text-gray-600">Was this helpful?</span>
         <button
           onClick={() => onHelpful?.(review.id)}
-          className="flex items-center gap-1 text-sm text-gray-600 hover:text-green-600"
+          disabled={hasVoted}
+          className="flex items-center gap-1 text-sm text-gray-600 hover:text-green-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
@@ -117,7 +120,8 @@ export default function ReviewCard({
         </button>
         <button
           onClick={() => onNotHelpful?.(review.id)}
-          className="flex items-center gap-1 text-sm text-gray-600 hover:text-red-600"
+          disabled={hasVoted}
+          className="flex items-center gap-1 text-sm text-gray-600 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />

@@ -108,8 +108,8 @@ export default function InvoicePage() {
           </button>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 print:shadow-none print:border-none">
-          <div className="flex justify-between items-start mb-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-8 print:shadow-none print:border-none">
+          <div className="flex flex-wrap gap-4 justify-between items-start mb-8">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">INVOICE</h1>
               <p className="text-gray-600 mt-1">{invoice.invoiceNumber}</p>
@@ -129,7 +129,7 @@ export default function InvoicePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 mb-8">
             <div>
               <h2 className="text-sm font-semibold text-gray-500 uppercase mb-2">Bill To</h2>
               <p className="text-gray-900 font-medium">{invoice.customer?.companyName || invoice.customer?.name}</p>
@@ -137,7 +137,7 @@ export default function InvoicePage() {
               {invoice.customer?.phone && <p className="text-gray-600 text-sm">{invoice.customer.phone}</p>}
               <p className="text-gray-600 text-sm mt-2 whitespace-pre-line">{invoice.order.billingAddress}</p>
             </div>
-            <div className="text-right">
+            <div className="sm:text-right">
               <div className="grid grid-cols-2 gap-1 text-sm">
                 <span className="text-gray-500">Order Number:</span>
                 <span className="text-gray-900 font-medium">{invoice.order.orderNumber}</span>
@@ -151,29 +151,31 @@ export default function InvoicePage() {
             </div>
           </div>
 
-          <table className="w-full mb-8">
-            <thead className="border-b border-gray-200">
-              <tr>
-                <th className="text-left py-2 text-sm font-semibold text-gray-500">Item</th>
-                <th className="text-right py-2 text-sm font-semibold text-gray-500">Qty</th>
-                <th className="text-right py-2 text-sm font-semibold text-gray-500">Price</th>
-                <th className="text-right py-2 text-sm font-semibold text-gray-500">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {invoice.order.orderItems.map((item, idx) => (
-                <tr key={idx}>
-                  <td className="py-2 text-sm text-gray-900">
-                    {item.product.name}
-                    {item.product.sku && <span className="text-gray-500"> ({item.product.sku})</span>}
-                  </td>
-                  <td className="py-2 text-sm text-gray-600 text-right">{item.quantity}</td>
-                  <td className="py-2 text-sm text-gray-600 text-right">৳{item.price.toFixed(2)}</td>
-                  <td className="py-2 text-sm text-gray-900 text-right">৳{item.total.toFixed(2)}</td>
+          <div className="overflow-x-auto mb-8">
+            <table className="w-full min-w-[480px]">
+              <thead className="border-b border-gray-200">
+                <tr>
+                  <th className="text-left py-2 text-sm font-semibold text-gray-500">Item</th>
+                  <th className="text-right py-2 text-sm font-semibold text-gray-500">Qty</th>
+                  <th className="text-right py-2 text-sm font-semibold text-gray-500">Price</th>
+                  <th className="text-right py-2 text-sm font-semibold text-gray-500">Total</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {invoice.order.orderItems.map((item, idx) => (
+                  <tr key={idx}>
+                    <td className="py-2 text-sm text-gray-900">
+                      {item.product.name}
+                      {item.product.sku && <span className="text-gray-500"> ({item.product.sku})</span>}
+                    </td>
+                    <td className="py-2 text-sm text-gray-600 text-right">{item.quantity}</td>
+                    <td className="py-2 text-sm text-gray-600 text-right">৳{item.price.toFixed(2)}</td>
+                    <td className="py-2 text-sm text-gray-900 text-right">৳{item.total.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <div className="flex justify-end">
             <div className="w-64 space-y-1 text-sm">

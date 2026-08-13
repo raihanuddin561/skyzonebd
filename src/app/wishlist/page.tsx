@@ -104,6 +104,7 @@ export default function WishlistPage() {
                 />
                 <button
                   onClick={() => handleRemoveFromWishlist(product.id)}
+                  aria-label={`Remove ${product.name} from wishlist`}
                   className="absolute top-2 right-2 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-gray-100 cursor-pointer transition-transform hover:scale-110"
                 >
                   <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
@@ -117,7 +118,7 @@ export default function WishlistPage() {
                 <p className="text-sm text-gray-600 mb-2">{product.companyName}</p>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xl font-bold text-blue-700">
-                    ৳{product.price.toLocaleString()}
+                    ৳{(typeof product.price === 'number' ? product.price : 0).toLocaleString()}
                     {product.unit && <span className="text-sm text-gray-600">/{product.unit}</span>}
                   </span>
                   {product.rating && (
@@ -169,7 +170,7 @@ export default function WishlistPage() {
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                ৳{items.reduce((total, item) => total + item.price, 0).toLocaleString()}
+                ৳{items.reduce((total, item) => total + (typeof item.price === 'number' ? item.price : 0), 0).toLocaleString()}
               </div>
               <div className="text-gray-600">Total Value</div>
             </div>

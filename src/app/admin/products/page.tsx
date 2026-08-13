@@ -23,6 +23,7 @@ interface Product {
 export default function ProductsManagement() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -59,10 +60,12 @@ export default function ProductsManagement() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
+      setFetchError(false);
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         console.error('No token found');
+        setFetchError(true);
         setLoading(false);
         return;
       }
@@ -75,15 +78,8 @@ export default function ProductsManagement() {
       });
 
       const result = await response.json();
-      
+
       if (result.success && result.data) {
-        // Debug: Log first product to see raw data
-        if (result.data.products.length > 0) {
-          console.log('Sample product from API:', result.data.products[0]);
-          console.log('isActive value:', result.data.products[0].isActive);
-          console.log('isActive type:', typeof result.data.products[0].isActive);
-        }
-        
         const transformedProducts = result.data.products.map((product: any) => ({
           id: product.id.toString(),
           name: product.name,
@@ -103,9 +99,12 @@ export default function ProductsManagement() {
         const total = result.data.pagination?.total || result.data.total || 0;
         setTotalProducts(total);
         setTotalPages(result.data.pagination?.totalPages || Math.ceil(total / productsPerPage));
+      } else {
+        setFetchError(true);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -428,6 +427,20 @@ export default function ProductsManagement() {
               <p className="mt-3 text-gray-600 text-sm">Loading products...</p>
             </div>
           </div>
+        ) : fetchError ? (
+          <div className="text-center py-12 sm:py-16 px-4">
+            <div className="text-gray-300 text-5xl sm:text-6xl mb-4">⚠️</div>
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Couldn&apos;t load products</h3>
+            <p className="text-sm sm:text-base text-gray-600 mb-4">
+              Something went wrong while loading the catalog. Please try again.
+            </p>
+            <button
+              onClick={fetchProducts}
+              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base font-medium cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
         ) : (() => {
           // Filter products based on active status
           const filteredProducts = products.filter(product => {
@@ -435,14 +448,7 @@ export default function ProductsManagement() {
             if (filterActiveStatus === 'inactive') return !product.isActive;
             return true; // 'all'
           });
-          
-          // Debug logging
-          console.log('Filter Status:', filterActiveStatus);
-          console.log('Total Products:', products.length);
-          console.log('Active Products:', products.filter(p => p.isActive).length);
-          console.log('Inactive Products:', products.filter(p => !p.isActive).length);
-          console.log('Filtered Products:', filteredProducts.length);
-          
+
           return filteredProducts.length === 0 ? (
           <div className="text-center py-12 sm:py-16 px-4">
             <div className="text-gray-300 text-5xl sm:text-6xl mb-4">📦</div>

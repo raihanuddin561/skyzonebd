@@ -109,7 +109,7 @@ export default function Header() {
                 className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 font-medium cursor-pointer transition-colors"
               >
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-sm">
-                  {user?.name.charAt(0).toUpperCase()}
+                  {user?.name?.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <span className="hidden sm:inline">{user?.name}</span>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

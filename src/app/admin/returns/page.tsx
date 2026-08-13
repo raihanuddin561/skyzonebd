@@ -25,6 +25,7 @@ const STATUS_STYLES: Record<string, string> = {
 
 export default function AdminReturnsPage() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [returns, setReturns] = useState<ReturnListItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'REFUNDED' | 'CANCELLED'>('all');
 
@@ -35,6 +36,7 @@ export default function AdminReturnsPage() {
   const fetchReturns = async () => {
     try {
       setLoading(true);
+      setError(false);
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/returns?status=${filter}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -42,9 +44,12 @@ export default function AdminReturnsPage() {
       if (response.ok) {
         const data = await response.json();
         setReturns(data.data || []);
+      } else {
+        setError(true);
       }
     } catch (error) {
       console.error('Error fetching returns:', error);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -105,7 +110,17 @@ export default function AdminReturnsPage() {
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="divide-y divide-gray-200">
-          {returns.length === 0 ? (
+          {error ? (
+            <div className="p-8 text-center">
+              <p className="text-gray-600 mb-4">Couldn&apos;t load return requests. Please try again.</p>
+              <button
+                onClick={fetchReturns}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
+          ) : returns.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
               <p>No return requests found</p>
             </div>

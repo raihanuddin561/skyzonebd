@@ -45,6 +45,8 @@ interface Order {
   total: number;
   status: string;
   paymentStatus: string;
+  amountPaid: number;
+  amountDue: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -777,14 +779,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                         <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                           <span className="text-sm font-medium text-green-700">Amount Paid</span>
                           <span className="text-lg font-semibold text-green-600">
-                            ৳{((order.total || 0) * 0.6).toLocaleString()} {/* Placeholder - will be dynamic */}
+                            ৳{(order.amountPaid || 0).toLocaleString()}
                           </span>
                         </div>
-                        
+
                         <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg border-2 border-red-200">
                           <span className="text-sm font-bold text-red-700">Outstanding Due</span>
                           <span className="text-xl font-bold text-red-600">
-                            ৳{((order.total || 0) * 0.4).toLocaleString()} {/* Placeholder - will be dynamic */}
+                            ৳{(order.amountDue || 0).toLocaleString()}
                           </span>
                         </div>
                       </>

@@ -12,6 +12,7 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import { OrderListSkeleton } from '@/components/ui/Skeleton';
 import { EmptyOrdersState, EmptySearchState } from '@/components/ui/EmptyState';
 import { NetworkErrorState } from '@/components/ui/ErrorState';
+import { getOrderStatusColor, getOrderStatusIcon } from '@/utils/orderStatus';
 
 interface Order {
   id: number;
@@ -142,24 +143,6 @@ export default function OrdersPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'processing':
-      case 'confirmed':
-        return 'bg-blue-100 text-blue-800';
-      case 'shipped':
-        return 'bg-purple-100 text-purple-800';
-      case 'delivered':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const getPaymentStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'paid':
@@ -175,23 +158,6 @@ export default function OrdersPage() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'pending':
-        return '⏳';
-      case 'processing':
-      case 'confirmed':
-        return '✅';
-      case 'shipped':
-        return '🚚';
-      case 'delivered':
-        return '📦';
-      case 'cancelled':
-        return '❌';
-      default:
-        return '❓';
-    }
-  };
 
   // Filter and search logic
   const filteredOrders = orders.filter(order => {
@@ -243,6 +209,8 @@ export default function OrdersPage() {
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
+          ) : error ? (
+            <NetworkErrorState onRetry={fetchOrders} />
           ) : filteredOrders.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">
               <div className="w-24 h-24 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-6">
@@ -283,8 +251,8 @@ export default function OrdersPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-4 mt-3 sm:mt-0">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                        <span className="mr-1">{getStatusIcon(order.status)}</span>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getOrderStatusColor(order.status)}`}>
+                        <span className="mr-1">{getOrderStatusIcon(order.status)}</span>
                         {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                       </span>
                       <div className="text-right">

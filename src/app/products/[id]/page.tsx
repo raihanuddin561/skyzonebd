@@ -218,16 +218,14 @@ export default function ProductDetailPage() {
           <div className="lg:sticky lg:top-6 self-start">
             {/* Main Image Container */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4 transition-shadow hover:shadow-md">
-              <div 
-                className="relative w-full cursor-zoom-in bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center group"
-                style={{ minHeight: '450px', height: '500px' }}
+              <div
+                className="relative w-full cursor-zoom-in bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center group h-[320px] sm:h-[400px] lg:h-[500px]"
                 onClick={() => openImageModal(getProductImages().indexOf(selectedImage || product.imageUrl))}
               >
                 <img
                   src={selectedImage || product.imageUrl}
                   alt={product.name}
-                  className="max-w-full max-h-full w-auto h-auto object-contain p-8 transition-transform group-hover:scale-105 duration-300"
-                  style={{ maxHeight: '484px' }}
+                  className="max-w-full max-h-full w-auto h-auto object-contain p-4 sm:p-8 transition-transform group-hover:scale-105 duration-300"
                   onError={(e) => {
                     console.error('Image load error:', selectedImage || product.imageUrl);
                     const target = e.target as HTMLImageElement;
@@ -605,13 +603,13 @@ export default function ProductDetailPage() {
 
         {/* Product Details Tabs */}
         <div className="mt-12">
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8">
+          <div className="border-b border-gray-200 overflow-x-auto scrollbar-hide">
+            <nav className="flex gap-4 sm:gap-8 min-w-max px-0.5">
               {['description', 'specifications', 'shipping', 'reviews'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap cursor-pointer ${
                     activeTab === tab
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
