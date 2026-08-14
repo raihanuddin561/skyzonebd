@@ -765,7 +765,13 @@ model ProfitReport {
   order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
-  @@index([orderId])
+  // Enforces the "one report per order" idempotency that
+  // utils/profitReportGeneration.ts relies on — closes the race where two
+  // concurrent calls (an automatic DELIVERED-transition + a manual admin
+  // "Generate Report" click, or two overlapping requests) each pass a
+  // plain existence check before either writes, doubling that order's
+  // recognized revenue/COGS. Requires a migration to take effect.
+  @@unique([orderId])
   @@index([productId])
   @@index([reportDate])
   @@map("profit_reports")
@@ -1207,6 +1213,12 @@ model ProfitDistribution {
   // Relations
   partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
 
+  // Closes the race in admin/payouts/generate/route.ts where two concurrent
+  // "Generate Payout" clicks for the same partner/period both pass a plain
+  // existence check before either writes, each creating a PENDING
+  // distribution for the full amount — double-paying the partner once both
+  // are approved. Requires a migration to take effect.
+  @@unique([partnerId, startDate, endDate])
   @@index([partnerId])
   @@index([periodType])
   @@index([startDate, endDate])

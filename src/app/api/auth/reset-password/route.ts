@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { rateLimiters, withRateLimit } from '@/lib/rate-limiter';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -18,7 +19,15 @@ function hashToken(rawToken: string): string {
   return createHash('sha256').update(rawToken).digest('hex');
 }
 
+// Unlike forgot-password and login, this endpoint had no rate limiting at
+// all — the token itself is a random 32-byte value (low brute-force risk),
+// but nothing stopped unlimited reset attempts per IP, unlike every other
+// auth-adjacent endpoint in this app.
 export async function POST(request: NextRequest) {
+  return withRateLimit(request, rateLimiters.auth, () => handleResetPassword(request));
+}
+
+async function handleResetPassword(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await request.json();
     const token = typeof body?.token === 'string' ? body.token : '';

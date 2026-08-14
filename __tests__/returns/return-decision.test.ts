@@ -15,7 +15,15 @@ const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-on
 
 const mockPrismaClient: any = {
   user: { findUnique: jest.fn() },
-  return: { findUnique: jest.fn(), update: jest.fn() },
+  // updateMany is the actual concurrency guard (conditional on
+  // status='REQUESTED'); findUniqueOrThrow re-fetches the full record with
+  // includes afterward, for the response/email. Defaults to count:1 (guard
+  // passes) — a test simulating a lost race overrides with {count:0}.
+  return: {
+    findUnique: jest.fn(),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    findUniqueOrThrow: jest.fn(),
+  },
   product: { findUnique: jest.fn(), update: jest.fn() },
   inventoryLog: { create: jest.fn() },
   $transaction: jest.fn((cb: any) => cb(mockPrismaClient)),
@@ -81,6 +89,7 @@ const existingReturn = (overrides: any = {}) => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockPrismaClient.$transaction.mockImplementation((cb: any) => cb(mockPrismaClient));
+  mockPrismaClient.return.updateMany.mockResolvedValue({ count: 1 });
 });
 
 it('rejects an unauthenticated request (401)', async () => {
@@ -113,7 +122,7 @@ describe('APPROVED', () => {
     mockAdmin('admin-1');
     mockPrismaClient.return.findUnique.mockResolvedValueOnce(existingReturn());
     mockPrismaClient.product.findUnique.mockResolvedValueOnce({ stockQuantity: 10 });
-    mockPrismaClient.return.update.mockResolvedValueOnce({
+    mockPrismaClient.return.findUniqueOrThrow.mockResolvedValueOnce({
       id: 'ret-1', returnNumber: 'RET-000001', status: 'APPROVED', refundAmount: 200,
       user: { email: 'c@example.com' },
     });
@@ -130,8 +139,12 @@ describe('APPROVED', () => {
         data: expect.objectContaining({ productId: 'p1', action: 'RETURN', quantity: 2, previousStock: 10, newStock: 12 }),
       })
     );
-    expect(mockPrismaClient.return.update).toHaveBeenCalledWith(
+    // The status transition is the conditional updateMany guard (WHERE
+    // status='REQUESTED') — a plain update() would let two concurrent
+    // APPROVE calls both pass and both restock the same quantity twice.
+    expect(mockPrismaClient.return.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: { id: 'ret-1', status: 'REQUESTED' },
         data: expect.objectContaining({ status: 'APPROVED', decidedBy: 'admin-1', refundAmount: 200 }),
       })
     );
@@ -143,7 +156,7 @@ describe('APPROVED', () => {
     mockAdmin('admin-1');
     mockPrismaClient.return.findUnique.mockResolvedValueOnce(existingReturn());
     mockPrismaClient.product.findUnique.mockResolvedValueOnce({ stockQuantity: 10 });
-    mockPrismaClient.return.update.mockResolvedValueOnce({
+    mockPrismaClient.return.findUniqueOrThrow.mockResolvedValueOnce({
       id: 'ret-1', returnNumber: 'RET-000001', status: 'APPROVED', refundAmount: 200,
       user: { email: 'c@example.com' },
     });
@@ -151,13 +164,25 @@ describe('APPROVED', () => {
     await PATCH(req('admin-1', { status: 'APPROVED' }), { params: params('ret-1') });
     expect(sendReturnStatusUpdate).toHaveBeenCalledWith('c@example.com', 'RET-000001', 'APPROVED', {});
   });
+
+  it('returns 409 instead of double-restocking when a concurrent request already decided this return', async () => {
+    mockAdmin('admin-1');
+    mockPrismaClient.return.findUnique.mockResolvedValueOnce(existingReturn());
+    mockPrismaClient.return.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    const res = await PATCH(req('admin-1', { status: 'APPROVED' }), { params: params('ret-1') });
+
+    expect(res.status).toBe(409);
+    expect(mockPrismaClient.product.update).not.toHaveBeenCalled();
+    expect(mockPrismaClient.inventoryLog.create).not.toHaveBeenCalled();
+  });
 });
 
 describe('REJECTED', () => {
   it('records the rejection reason with no stock or money movement', async () => {
     mockAdmin('admin-1');
     mockPrismaClient.return.findUnique.mockResolvedValueOnce(existingReturn());
-    mockPrismaClient.return.update.mockResolvedValueOnce({
+    mockPrismaClient.return.findUniqueOrThrow.mockResolvedValueOnce({
       id: 'ret-1', returnNumber: 'RET-000001', status: 'REJECTED', rejectionReason: 'Item shows signs of use',
       user: { email: 'c@example.com' },
     });
@@ -165,12 +190,23 @@ describe('REJECTED', () => {
     const res = await PATCH(req('admin-1', { status: 'REJECTED', rejectionReason: 'Item shows signs of use' }), { params: params('ret-1') });
     expect(res.status).toBe(200);
 
-    expect(mockPrismaClient.return.update).toHaveBeenCalledWith(
+    expect(mockPrismaClient.return.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: { id: 'ret-1', status: 'REQUESTED' },
         data: expect.objectContaining({ status: 'REJECTED', rejectionReason: 'Item shows signs of use', decidedBy: 'admin-1' }),
       })
     );
     expect(mockPrismaClient.product.update).not.toHaveBeenCalled();
     expect(mockPrismaClient.inventoryLog.create).not.toHaveBeenCalled();
+  });
+
+  it('returns 409 instead of double-rejecting when a concurrent request already decided this return', async () => {
+    mockAdmin('admin-1');
+    mockPrismaClient.return.findUnique.mockResolvedValueOnce(existingReturn());
+    mockPrismaClient.return.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    const res = await PATCH(req('admin-1', { status: 'REJECTED', rejectionReason: 'Item shows signs of use' }), { params: params('ret-1') });
+
+    expect(res.status).toBe(409);
   });
 });

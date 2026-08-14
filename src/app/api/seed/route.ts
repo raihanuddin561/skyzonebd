@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, getJwtSecret } from '@/lib/auth';
+import { getJwtSecret } from '@/lib/auth';
 import { verify } from 'jsonwebtoken';
 
 // Vercel configuration
@@ -11,8 +11,16 @@ export const maxDuration = 60; // 60 seconds timeout
 
 export async function POST(request: Request) {
   try {
-    // Only allow in development OR with SUPER_ADMIN role
-    if (process.env.NODE_ENV === 'production') {
+    // Only allow with no auth in a genuine local dev environment. This
+    // used to check `=== 'production'` — fail-OPEN for anything that isn't
+    // literally that exact string (an unset NODE_ENV, a staging/preview
+    // value, a misconfigured deployment), meaning a common deployment
+    // mistake would leave this destructive endpoint (wipes every Product
+    // and Category, then reseeds with hardcoded sample data) reachable by
+    // anyone with the URL, no auth at all. Checking against the permissive
+    // case instead — fail-CLOSED by default — matches the doctrine already
+    // established for JWT_SECRET/MIGRATION_SECRET_KEY elsewhere.
+    if (process.env.NODE_ENV !== 'development') {
       const authHeader = request.headers.get('authorization');
       
       if (!authHeader || !authHeader.startsWith('Bearer ')) {

@@ -309,6 +309,9 @@ export async function GET(request: NextRequest) {
     });
     
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Revenue Analytics Error:', error);
     return NextResponse.json(
       { 

@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { startOfDay, endOfDay } from 'date-fns';
@@ -179,31 +180,53 @@ export async function POST(request: NextRequest) {
     const distributionAmount = Math.max(0, partnerShare);
     
     // === CREATE PROFIT DISTRIBUTION ===
-    const profitDistribution = await prisma.profitDistribution.create({
-      data: {
-        partnerId,
-        periodType: periodType || 'CUSTOM',
-        startDate: start,
-        endDate: end,
-        totalRevenue,
-        totalCosts: totalCOGS + totalOperationalCosts,
-        netProfit,
-        partnerShare: partnerSharePercentage,
-        distributionAmount,
-        status: 'PENDING',
-        notes: notes || `Generated on ${new Date().toISOString()}`
-      },
-      include: {
-        partner: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            profitSharePercentage: true
+    // The `existingPayout` check above is a plain read, not a lock — two
+    // concurrent "Generate Payout" requests for the same partner/period can
+    // both pass it before either writes, each creating a PENDING
+    // distribution for the full amount and double-paying the partner once
+    // both are approved. The real guard is the
+    // `@@unique([partnerId, startDate, endDate])` constraint on
+    // ProfitDistribution (prisma/schema.prisma) — a concurrent second
+    // create() throws Prisma's unique-violation error (P2002), caught
+    // below. NOTE: that constraint is prepared in the schema but requires a
+    // migration to take effect — until then this catch is a no-op and the
+    // plain read-check above remains the only protection.
+    let profitDistribution;
+    try {
+      profitDistribution = await prisma.profitDistribution.create({
+        data: {
+          partnerId,
+          periodType: periodType || 'CUSTOM',
+          startDate: start,
+          endDate: end,
+          totalRevenue,
+          totalCosts: totalCOGS + totalOperationalCosts,
+          netProfit,
+          partnerShare: partnerSharePercentage,
+          distributionAmount,
+          status: 'PENDING',
+          notes: notes || `Generated on ${new Date().toISOString()}`
+        },
+        include: {
+          partner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              profitSharePercentage: true
+            }
           }
         }
+      });
+    } catch (createError) {
+      if (createError instanceof Prisma.PrismaClientKnownRequestError && createError.code === 'P2002') {
+        return NextResponse.json(
+          { success: false, error: 'A payout already exists for this partner and period (created concurrently)' },
+          { status: 409 }
+        );
       }
-    });
+      throw createError;
+    }
     
     return NextResponse.json({
       success: true,

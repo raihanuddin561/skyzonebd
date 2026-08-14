@@ -104,6 +104,9 @@ export async function POST(request: NextRequest) {
       stockLot,
     });
   } catch (error: any) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Restock error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to add stock' },
@@ -164,6 +167,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Failed to fetch stock lots:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to fetch stock lots' },

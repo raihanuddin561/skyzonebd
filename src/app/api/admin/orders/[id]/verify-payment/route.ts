@@ -116,22 +116,57 @@ export async function PATCH(
       paymentVerifiedBy: admin.id,
       paymentNotes: note || null,
     };
-    
+
     // If payment is verified as PAID, also update order status if it's still PENDING
     if (status === 'PAID' && order.status === 'PENDING') {
       updateData.status = 'CONFIRMED';
     }
-    
-    const updatedOrder = await prisma.order.update({
-      where: { id: orderId },
-      data: updateData,
-      include: {
-        orderItems: {
-          include: {
-            product: true
+
+    // A verified manual payment (bKash/bank transfer) previously only ever
+    // flipped Order.paymentStatus — no Payment row was ever created for it.
+    // That left GET /api/orders/[id]'s amountPaid/amountDue (computed by
+    // summing real Payment rows) showing ৳0 paid for every order verified
+    // this way, even though the customer's money had, in fact, been
+    // received and confirmed. This only creates the Payment row itself —
+    // it deliberately does NOT post a FinancialLedger revenue entry, since
+    // this app recognizes order revenue at the DELIVERED transition
+    // (createOrderLedgerEntries, triggered via autoGenerateProfitReport),
+    // not at payment time. Posting a second REVENUE entry here would
+    // double-count that order's revenue once delivered.
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      const result = await tx.order.update({
+        where: { id: orderId },
+        data: updateData,
+        include: {
+          orderItems: {
+            include: {
+              product: true
+            }
           }
         }
+      });
+
+      if (status === 'PAID') {
+        const validMethods = ['BANK_TRANSFER', 'BKASH', 'NAGAD', 'ROCKET', 'CREDIT_CARD', 'INVOICE_NET30', 'INVOICE_NET60', 'INVOICE_NET90', 'LC'];
+        const normalizedMethod = order.paymentMethod?.toUpperCase();
+        const paymentMethod = validMethods.includes(normalizedMethod || '') ? normalizedMethod : 'BANK_TRANSFER';
+
+        await tx.payment.create({
+          data: {
+            orderId,
+            amount: order.total,
+            method: paymentMethod as any,
+            status: 'PAID',
+            transactionId: (order as any).paymentReference || undefined,
+            notes: note || 'Manually verified by admin',
+            receivedBy: admin.id,
+            paidAt: new Date(),
+            confirmedAt: new Date(),
+          },
+        });
       }
+
+      return result;
     });
 
     // Log the verification activity

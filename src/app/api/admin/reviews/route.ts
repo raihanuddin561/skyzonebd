@@ -88,9 +88,16 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    // Calculate summary statistics
+    // Calculate summary statistics — scoped to the same productId/userId/
+    // rating filters as the list above (but never `status`, since that's
+    // the dimension being grouped by) so the summary counts actually match
+    // what's being browsed. Previously this ran with no where clause at
+    // all, so filtering the list by e.g. a specific productId still showed
+    // the whole table's pending/approved/hidden/rejected counts.
+    const { status: _statusFilter, ...summaryWhere } = where;
     const statusCounts = await prisma.review.groupBy({
       by: ['status'],
+      where: summaryWhere,
       _count: {
         status: true
       }
@@ -120,6 +127,9 @@ export async function GET(request: NextRequest) {
     });
     
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Admin Get Reviews Error:', error);
     return NextResponse.json(
       { 

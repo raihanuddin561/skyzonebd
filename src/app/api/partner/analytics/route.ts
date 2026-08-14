@@ -313,6 +313,9 @@ export async function GET(req: NextRequest) {
     });
     
   } catch (error: any) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Partner analytics error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to fetch analytics' },

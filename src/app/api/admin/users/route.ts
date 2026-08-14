@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { UserRole, isAdmin, isSuperAdmin } from '@/types/roles';
@@ -317,11 +318,32 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const result = await prisma.user.deleteMany({
-      where: {
-        id: { in: idsToDelete },
-      },
-    });
+    // deleteMany compiles to a single DELETE ... WHERE id IN (...) statement
+    // — if ANY selected user has a related row that blocks deletion (e.g.
+    // RFQ.user is a required relation with no onDelete, defaulting to
+    // RESTRICT), Postgres rejects the whole statement and NONE of the
+    // selected users are deleted, not just the blocked one. That used to
+    // surface as an opaque 500 "Failed to delete users" with no indication
+    // of which user or relation caused it.
+    let result;
+    try {
+      result = await prisma.user.deleteMany({
+        where: {
+          id: { in: idsToDelete },
+        },
+      });
+    } catch (deleteError) {
+      if (deleteError instanceof Prisma.PrismaClientKnownRequestError && deleteError.code === 'P2003') {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'One or more selected users have related records (RFQs, orders, reviews, etc.) that must be removed or reassigned first — no users were deleted.',
+          },
+          { status: 409 }
+        );
+      }
+      throw deleteError;
+    }
 
     return NextResponse.json({
       success: true,

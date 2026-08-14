@@ -165,6 +165,9 @@ export async function GET(request: NextRequest) {
     });
     
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Partner Get Reviews Error:', error);
     return NextResponse.json(
       { 

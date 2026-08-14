@@ -122,7 +122,11 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    // Get all categories for filter
+    // Get all categories for filter. The product count must match the same
+    // isActive scoping the product list itself uses (where.isActive above) —
+    // otherwise a category can show e.g. "7 products" while actually
+    // returning zero results when clicked, because every one of its
+    // products is inactive and this count never excluded them.
     const categories = await prisma.category.findMany({
       where: { isActive: true },
       select: {
@@ -130,7 +134,7 @@ export async function GET(request: NextRequest) {
         name: true,
         slug: true,
         _count: {
-          select: { products: true }
+          select: { products: { where: where.isActive !== undefined ? { isActive: where.isActive } : {} } }
         }
       }
     });

@@ -103,6 +103,9 @@ export async function PATCH(
     });
     
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Moderate Review Error:', error);
     return NextResponse.json(
       { 
@@ -153,6 +156,9 @@ export async function DELETE(
     });
     
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Delete Review Error:', error);
     return NextResponse.json(
       { 

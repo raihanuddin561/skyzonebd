@@ -104,17 +104,37 @@ export async function PATCH(
       );
     }
 
+    // Both branches below re-guard the REQUESTED -> {APPROVED,REJECTED}
+    // transition with a conditional updateMany INSIDE the transaction. The
+    // plain existingReturn.status check above is only a fast/friendly error
+    // for the common case — it does not close the race: two concurrent
+    // PATCH calls on the same REQUESTED return could both pass that read
+    // before either writes. Without this guard, two concurrent APPROVE
+    // calls would both run the restock loop below and double-credit the
+    // returned quantity back into stock.
+
     if (status === 'REJECTED') {
-      const updated = await prisma.return.update({
-        where: { id },
-        data: {
-          status: 'REJECTED',
-          decidedBy: admin.id,
-          decidedAt: new Date(),
-          rejectionReason,
-        },
-        include: RETURN_INCLUDE,
-      });
+      let updated;
+      try {
+        updated = await prisma.$transaction(async (tx) => {
+          const guard = await tx.return.updateMany({
+            where: { id, status: 'REQUESTED' },
+            data: { status: 'REJECTED', decidedBy: admin.id, decidedAt: new Date(), rejectionReason },
+          });
+          if (guard.count === 0) {
+            throw new Error('RETURN_ALREADY_DECIDED');
+          }
+          return tx.return.findUniqueOrThrow({ where: { id }, include: RETURN_INCLUDE });
+        });
+      } catch (txError) {
+        if (txError instanceof Error && txError.message === 'RETURN_ALREADY_DECIDED') {
+          return NextResponse.json(
+            { success: false, error: 'This return was already decided (possibly by a concurrent request)' },
+            { status: 409 }
+          );
+        }
+        throw txError;
+      }
 
       const emailResult = await emailService.sendReturnStatusUpdate(
         updated.user.email, updated.returnNumber, 'REJECTED', { rejectionReason }
@@ -131,47 +151,57 @@ export async function PATCH(
     // stock updated without its InventoryLog entry (or vice versa).
     const totalRefundAmount = existingReturn.items.reduce((sum, item) => sum + item.refundAmount, 0);
 
-    const updated = await prisma.$transaction(async (tx) => {
-      for (const item of existingReturn.items) {
-        const product = await tx.product.findUnique({
-          where: { id: item.orderItem.productId },
-          select: { stockQuantity: true },
+    let updated;
+    try {
+      updated = await prisma.$transaction(async (tx) => {
+        const guard = await tx.return.updateMany({
+          where: { id, status: 'REQUESTED' },
+          data: { status: 'APPROVED', decidedBy: admin.id, decidedAt: new Date(), refundAmount: totalRefundAmount },
         });
-        if (!product) continue;
+        if (guard.count === 0) {
+          throw new Error('RETURN_ALREADY_DECIDED');
+        }
 
-        const previousStock = product.stockQuantity;
-        const newStock = previousStock + item.quantity;
+        for (const item of existingReturn.items) {
+          const product = await tx.product.findUnique({
+            where: { id: item.orderItem.productId },
+            select: { stockQuantity: true },
+          });
+          if (!product) continue;
 
-        await tx.product.update({
-          where: { id: item.orderItem.productId },
-          data: { stockQuantity: newStock },
-        });
+          const previousStock = product.stockQuantity;
+          const newStock = previousStock + item.quantity;
 
-        await tx.inventoryLog.create({
-          data: {
-            productId: item.orderItem.productId,
-            action: 'RETURN',
-            quantity: item.quantity,
-            previousStock,
-            newStock,
-            reference: existingReturn.returnNumber,
-            notes: `Restocked from return ${existingReturn.returnNumber}`,
-            performedBy: admin.id,
-          },
-        });
-      }
+          await tx.product.update({
+            where: { id: item.orderItem.productId },
+            data: { stockQuantity: newStock },
+          });
 
-      return tx.return.update({
-        where: { id },
-        data: {
-          status: 'APPROVED',
-          decidedBy: admin.id,
-          decidedAt: new Date(),
-          refundAmount: totalRefundAmount,
-        },
-        include: RETURN_INCLUDE,
+          await tx.inventoryLog.create({
+            data: {
+              productId: item.orderItem.productId,
+              action: 'RETURN',
+              quantity: item.quantity,
+              previousStock,
+              newStock,
+              reference: existingReturn.returnNumber,
+              notes: `Restocked from return ${existingReturn.returnNumber}`,
+              performedBy: admin.id,
+            },
+          });
+        }
+
+        return tx.return.findUniqueOrThrow({ where: { id }, include: RETURN_INCLUDE });
       });
-    });
+    } catch (txError) {
+      if (txError instanceof Error && txError.message === 'RETURN_ALREADY_DECIDED') {
+        return NextResponse.json(
+          { success: false, error: 'This return was already decided (possibly by a concurrent request)' },
+          { status: 409 }
+        );
+      }
+      throw txError;
+    }
 
     const emailResult = await emailService.sendReturnStatusUpdate(
       updated.user.email, updated.returnNumber, 'APPROVED', {}

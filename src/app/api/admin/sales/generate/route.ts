@@ -10,7 +10,7 @@ export const maxDuration = 60; // 60 seconds timeout
 
 
 // POST - Generate sales from delivered orders
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<NextResponse | Response> {
   try {
     // Verify admin access
     const admin = await requireAdmin(request);
@@ -152,6 +152,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error generating sales from order:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to generate sales from order' },
@@ -161,7 +164,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 // GET - Get sales statistics
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse | Response> {
   try {
     // Verify admin access
     await requireAdmin(request);
@@ -251,6 +254,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error fetching sales statistics:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch statistics' },

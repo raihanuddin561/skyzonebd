@@ -269,6 +269,9 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error fetching dashboard data:', error);
     return NextResponse.json(
       { 

@@ -153,6 +153,9 @@ export async function POST(request: NextRequest) {
     );
     
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Reconciliation Error:', error);
     return NextResponse.json(
       { 

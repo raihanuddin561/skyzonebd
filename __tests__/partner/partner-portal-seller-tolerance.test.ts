@@ -39,6 +39,7 @@ const mockPrismaClient = {
   },
   profitReport: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
   review: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
+  operationalCost: { aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 0 } }) },
 };
 
 jest.mock('@/lib/prisma', () => ({

@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
+import { autoGenerateProfitReport } from '@/utils/profitReportGeneration';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -108,6 +109,9 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error fetching profit reports:', error);
     return NextResponse.json(
       { 
@@ -123,15 +127,24 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/admin/profit-reports
- * Generate profit report for an order
+ * Manually (re)generate the profit report for a delivered order — a backfill
+ * tool for orders that somehow missed the automatic generation that runs
+ * when an order transitions to DELIVERED (src/app/api/orders/[id]/route.ts).
+ *
+ * This used to independently reimplement the entire profit calculation —
+ * a second, divergent copy of autoGenerateProfitReport's logic that never
+ * called createOrderLedgerEntries at all (so a manually-generated report
+ * updated Order.grossProfit/etc. but posted nothing to the ledger) and had
+ * no idempotency check, so clicking "Generate Report" twice on the same
+ * order — or once manually after the automatic path already ran — created
+ * a second ProfitReport row and double-counted that order's revenue/COGS.
+ * Delegating to the single canonical implementation fixes both at once.
  */
 export async function POST(request: NextRequest) {
-  const notices: string[] = [];
-
   try {
     // Require admin authentication
     await requireAdmin(request);
-    
+
     const body = await request.json();
     const { orderId } = body;
 
@@ -142,122 +155,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch order with items
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
-        orderItems: {
-          include: {
-            product: true
-          }
-        }
-      }
-    });
+    const result = await autoGenerateProfitReport(orderId);
 
-    if (!order) {
+    if (!result.success) {
       return NextResponse.json(
-        { success: false, error: 'Order not found' },
-        { status: 404 }
+        { success: false, error: result.message },
+        { status: 400 }
       );
     }
 
-    // Calculate totals
-    let totalRevenue = 0;
-    let totalCost = 0;
-    let totalPlatformProfit = 0;
-    let totalSellerProfit = 0;
-
-    for (const item of order.orderItems) {
-      const revenue = item.total || 0;
-      
-      // Use snapshotted values from order item if available (preferred)
-      // Fall back to current product prices only for old orders without snapshots
-      const costPerUnit = item.costPerUnit ?? item.product.costPerUnit ?? item.product.basePrice ?? 0;
-      
-      if (!costPerUnit || costPerUnit === 0) {
-        notices.push(`Order item ${item.id} missing costPerUnit - using 0 for calculation`);
-      }
-      
-      const cost = costPerUnit * (item.quantity || 0);
-      const grossProfit = item.totalProfit ?? (revenue - cost);
-
-      // Calculate profit distribution using current product config
-      // (This is for distribution, not recalculation of profit amount)
-      const platformProfitPercent = item.product.platformProfitPercentage || 0;
-      const sellerCommissionPercent = item.product.sellerCommissionPercentage || 0;
-
-      const platformProfit = (grossProfit * platformProfitPercent) / 100;
-      const remainingProfit = grossProfit - platformProfit;
-      const sellerProfit = (remainingProfit * sellerCommissionPercent) / 100;
-
-      totalRevenue += revenue;
-      totalCost += cost;
-      totalPlatformProfit += platformProfit + (remainingProfit - sellerProfit);
-      totalSellerProfit += sellerProfit;
-
-      // Only update order item if profit data is missing (don't overwrite historical snapshots)
-      if (item.costPerUnit === null || item.totalProfit === null) {
-        await prisma.orderItem.update({
-          where: { id: item.id },
-          data: {
-            costPerUnit,
-            profitPerUnit: grossProfit / (item.quantity || 1),
-            totalProfit: grossProfit,
-            profitMargin: revenue > 0 ? (grossProfit / revenue) * 100 : 0
-          }
-        });
-      }
-    }
-
-    const grossProfit = totalRevenue - totalCost;
-    const netProfit = grossProfit; // Simplified, could subtract other expenses
-    const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
-
-    // Create profit report
-    const report = await prisma.profitReport.create({
-      data: {
-        orderId,
-        revenue: totalRevenue,
-        costOfGoods: totalCost,
-        grossProfit,
-        totalExpenses: 0,
-        netProfit,
-        profitMargin,
-        platformProfit: totalPlatformProfit,
-        platformProfitPercent: grossProfit > 0 ? (totalPlatformProfit / grossProfit) * 100 : 0,
-        sellerProfit: totalSellerProfit,
-        sellerProfitPercent: grossProfit > 0 ? (totalSellerProfit / grossProfit) * 100 : 0,
-        reportPeriod: 'daily',
-        reportDate: new Date()
-      }
-    });
-
-    // Update order with profit info
-    await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        totalCost,
-        grossProfit,
-        platformProfit: totalPlatformProfit,
-        sellerProfit: totalSellerProfit,
-        profitMargin
-      }
-    });
-
     return NextResponse.json({
       success: true,
-      notices,
-      report
+      notices: result.ledgerPosted === false ? [result.message] : [],
+      report: { id: result.reportId },
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error generating profit report:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to generate profit report',
         details: error instanceof Error ? error.message : 'Unknown error',
-        notices: ['Server error occurred']
       },
       { status: 500 }
     );

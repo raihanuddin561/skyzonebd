@@ -31,6 +31,18 @@ jest.mock('@/lib/email', () => ({
   emailService: { sendPasswordReset: (...args: any[]) => mockSendPasswordReset(...args) },
 }));
 
+// Both forgot-password and reset-password (P2-6: reset-password previously
+// had no rate limiting at all, unlike every other auth-adjacent endpoint)
+// share the real rateLimiters.auth singleton (10 requests/15min per
+// identifier). This file's many it() blocks all funnel through the same
+// mock identifier, which would otherwise exhaust that limit partway
+// through the suite and turn later assertions into 429s instead of the
+// 400/200s they're actually testing.
+jest.mock('@/lib/rate-limiter', () => ({
+  rateLimiters: { auth: {} },
+  withRateLimit: (_req: any, _limiter: any, handler: () => Promise<any>) => handler(),
+}));
+
 import { prisma } from '@/lib/prisma';
 import { POST as forgotPassword } from '@/app/api/auth/forgot-password/route';
 import { POST as resetPassword } from '@/app/api/auth/reset-password/route';

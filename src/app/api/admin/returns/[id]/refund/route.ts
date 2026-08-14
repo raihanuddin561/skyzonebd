@@ -60,33 +60,60 @@ export async function POST(
       0
     );
 
-    const result = await prisma.$transaction(async (tx) => {
-      const payment = await tx.payment.create({
-        data: {
-          orderId: existingReturn.orderId,
-          amount: -refundAmount,
-          method: existingReturn.order.paymentMethod as any,
-          status: 'REFUNDED',
-          notes: `REFUND for return ${existingReturn.returnNumber}`,
-          receivedBy: admin.id,
-          paidAt: new Date(),
-          confirmedAt: new Date(),
-        },
-      });
+    let result;
+    try {
+      result = await prisma.$transaction(async (tx) => {
+        // The plain read above is just for a fast, friendly error message —
+        // it does not close the race. Two concurrent refund requests for the
+        // same APPROVED return could both pass that check before either
+        // writes. This conditional updateMany is the actual guard: only the
+        // request that still sees status='APPROVED' at write time can flip
+        // it, so a second concurrent call gets count=0 and is rejected
+        // instead of creating a second -refundAmount Payment row and a
+        // second ledger reversal for money that was only refunded once.
+        const statusGuard = await tx.return.updateMany({
+          where: { id, status: 'APPROVED' },
+          data: {
+            status: 'REFUNDED',
+            refundAmount,
+            refundedBy: admin.id,
+            refundedAt: new Date(),
+          },
+        });
 
-      const updatedReturn = await tx.return.update({
-        where: { id },
-        data: {
-          status: 'REFUNDED',
-          refundAmount,
-          refundedBy: admin.id,
-          refundedAt: new Date(),
-          paymentReference: paymentReference || payment.id,
-        },
-      });
+        if (statusGuard.count === 0) {
+          throw new Error('RETURN_ALREADY_REFUNDED');
+        }
 
-      return { payment, updatedReturn };
-    });
+        const payment = await tx.payment.create({
+          data: {
+            orderId: existingReturn.orderId,
+            amount: -refundAmount,
+            method: existingReturn.order.paymentMethod as any,
+            status: 'REFUNDED',
+            notes: `REFUND for return ${existingReturn.returnNumber}`,
+            receivedBy: admin.id,
+            paidAt: new Date(),
+            confirmedAt: new Date(),
+          },
+        });
+
+        const updatedReturn = await tx.return.update({
+          where: { id },
+          data: { paymentReference: paymentReference || payment.id },
+        });
+
+        return { payment, updatedReturn };
+      });
+    } catch (txError) {
+      if (txError instanceof Error && txError.message === 'RETURN_ALREADY_REFUNDED') {
+        return NextResponse.json(
+          { success: false, error: 'This return was already refunded (possibly by a concurrent request)' },
+          { status: 409 }
+        );
+      }
+      throw txError;
+    }
 
     // Full ledger reversal — outside the row-update transaction above but
     // still before responding, since createRefundReversalEntries wraps its

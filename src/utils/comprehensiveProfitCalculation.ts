@@ -91,7 +91,9 @@ export async function calculateComprehensiveProfit(
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 0, 23, 59, 59, 999);
   
-  // 1. Calculate Revenue from Orders
+  // Orders placed in the period — used below only for volume metrics
+  // (orderCount/customerCount/averageOrderValue), which are legitimately
+  // about order-placement activity, not revenue recognition.
   const orders = await prisma.order.findMany({
     where: {
       createdAt: {
@@ -110,23 +112,41 @@ export async function calculateComprehensiveProfit(
       }
     }
   });
-  
-  const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-  
-  // Calculate returns
-  const returnedOrders = await prisma.order.findMany({
+
+  // Revenue previously summed order.total for every non-cancelled order
+  // placed in the period — including PENDING/CONFIRMED orders that
+  // haven't even shipped yet, let alone been paid for — while `cogs`
+  // (below) only ever reflects DELIVERED orders' ledger entries (COGS is
+  // posted at the DELIVERED transition, not at order placement). A month
+  // full of unpaid pending orders and zero deliveries would report
+  // totalRevenue > 0, cogs = 0, and a fabricated 100% gross margin.
+  //
+  // `returnRevenue` also always read as 0: it filtered
+  // `Order.status === 'RETURNED'`, but nothing in this app ever sets that
+  // status — refunds go through admin/returns/[id]/refund, which
+  // deliberately leaves Order.status at DELIVERED and only changes
+  // paymentStatus. That silently let a fully-refunded order's full total
+  // stay counted as revenue here, while its COGS (ledger-derived) had
+  // already been reduced by that same return's reversal — net effect: a
+  // refunded order showed as *extra* profit instead of none.
+  //
+  // Both figures now come from the same ledger basis as `cogs`, so
+  // revenue/COGS/refunds are all recognized at the same point (DELIVERED)
+  // and refunds actually reduce reported revenue instead of vanishing.
+  const financialSummary = await getFinancialSummary(startDate, endDate);
+  const netRevenue = financialSummary.revenue;
+  const returnRevenueEntries = await prisma.financialLedger.aggregate({
     where: {
-      createdAt: {
-        gte: startDate,
-        lte: endDate
-      },
-      status: 'RETURNED'
-    }
+      createdAt: { gte: startDate, lte: endDate },
+      direction: 'DEBIT',
+      sourceType: 'REFUND',
+      category: 'REVENUE',
+    },
+    _sum: { amount: true },
   });
-  
-  const returnRevenue = returnedOrders.reduce((sum, order) => sum + order.total, 0);
-  const netRevenue = totalRevenue - returnRevenue;
-  
+  const returnRevenue = returnRevenueEntries._sum.amount || 0;
+  const totalRevenue = netRevenue + returnRevenue;
+
   // 2. Calculate COGS (Cost of Goods Sold)
   // Opening stock value (stock at beginning of month)
   const prevMonth = month === 1 ? 12 : month - 1;
@@ -152,14 +172,14 @@ export async function calculateComprehensiveProfit(
   
   const purchases = inventoryPurchases._sum.amount || 0;
 
-  // COGS is now derived from FinancialLedger's real COGS debits (Amazon-
-  // style gap-closure Phase 2 part 2: "one true ledger") rather than the
+  // COGS is derived from FinancialLedger's real COGS debits (Amazon-style
+  // gap-closure Phase 2 part 2: "one true ledger") rather than the
   // openingStock+purchases-closingStock inventory-valuation snapshot —
   // this reflects what was actually paid for stock actually sold (WAC-
   // accurate since Phase 1), not a point-in-time valuation guess.
   // openingStock/purchases/closingStock above are kept and still returned
   // for informational display; they no longer derive `cogs` itself.
-  const { cogs } = await getFinancialSummary(startDate, endDate);
+  const { cogs } = financialSummary;
 
   // 3. Gross Profit
   const grossProfit = netRevenue - cogs;

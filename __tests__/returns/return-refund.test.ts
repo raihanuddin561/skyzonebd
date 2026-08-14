@@ -16,7 +16,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-on
 
 const mockPrismaClient: any = {
   user: { findUnique: jest.fn() },
-  return: { findUnique: jest.fn(), update: jest.fn() },
+  // updateMany is the actual concurrency guard (conditional on
+  // status='APPROVED'); update is only used afterward, to set
+  // paymentReference. Defaults to count:1 (guard passes) — tests that need
+  // to simulate a lost race can override with mockResolvedValueOnce({count:0}).
+  return: { findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
   payment: { create: jest.fn() },
   financialLedger: { create: jest.fn().mockResolvedValue({ id: 'ledger-entry' }) },
   returnItem: { findMany: jest.fn().mockResolvedValue([]) },
@@ -94,6 +98,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockPrismaClient.$transaction.mockImplementation((cb: any) => cb(mockPrismaClient));
   mockPrismaClient.returnItem.findMany.mockResolvedValue([]);
+  mockPrismaClient.return.updateMany.mockResolvedValue({ count: 1 });
 });
 
 it('rejects an unauthenticated request (401)', async () => {
@@ -159,9 +164,18 @@ it('marks the Return REFUNDED with refundedBy/refundedAt/paymentReference', asyn
 
   await POST(req('admin-1', { paymentReference: 'REF-XYZ' }), { params: params('ret-1') });
 
+  // status/refundedBy/refundedAt are set by the conditional updateMany
+  // guard (WHERE status='APPROVED'); paymentReference is set afterward by
+  // a plain update, since it depends on the just-created Payment's id.
+  expect(mockPrismaClient.return.updateMany).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: { id: 'ret-1', status: 'APPROVED' },
+      data: expect.objectContaining({ status: 'REFUNDED', refundedBy: 'admin-1' }),
+    })
+  );
   expect(mockPrismaClient.return.update).toHaveBeenCalledWith(
     expect.objectContaining({
-      data: expect.objectContaining({ status: 'REFUNDED', refundedBy: 'admin-1', paymentReference: 'REF-XYZ' }),
+      data: expect.objectContaining({ paymentReference: 'REF-XYZ' }),
     })
   );
 });
@@ -210,6 +224,21 @@ it('never touches Order.status — Return.status is its own independent state ma
   if (mockPrismaClient.order.update.mock.calls.length > 0) {
     expect(mockPrismaClient.order.update.mock.calls[0][0].data.status).toBeUndefined();
   }
+});
+
+it('returns 409 instead of double-refunding when a concurrent request already flipped the status (updateMany count=0)', async () => {
+  mockAdmin('admin-1');
+  mockPrismaClient.return.findUnique.mockResolvedValueOnce(existingReturn());
+  // Simulates a second request losing the race: the conditional updateMany
+  // guard (WHERE status='APPROVED') matches zero rows because a concurrent
+  // request already flipped it to REFUNDED first.
+  mockPrismaClient.return.updateMany.mockResolvedValueOnce({ count: 0 });
+
+  const res = await POST(req('admin-1'), { params: params('ret-1') });
+
+  expect(res.status).toBe(409);
+  expect(mockPrismaClient.payment.create).not.toHaveBeenCalled();
+  expect(mockPrismaClient.financialLedger.create).not.toHaveBeenCalled();
 });
 
 it('sends a best-effort REFUNDED notification email with the refund amount', async () => {

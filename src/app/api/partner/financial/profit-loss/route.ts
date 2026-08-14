@@ -130,11 +130,33 @@ export async function GET(request: NextRequest) {
       // Calculate shipping revenue (what customers paid)
       shippingRevenue = deliveredOrders.reduce((sum, o) => sum + o.shipping, 0);
 
-      // Estimate shipping costs (assume 70% of shipping revenue is actual cost)
-      estimatedShippingCost = shippingRevenue * 0.7;
-
-      // Estimate payment gateway fees (2% of total)
-      estimatedPaymentFees = totalRevenue * 0.02;
+      // Real recorded operational costs for the period, scoped to the
+      // categories this statement is trying to report — this used to
+      // invent both figures (`shippingRevenue * 0.7`, `totalRevenue * 0.02`)
+      // and present them to the partner as real accounting data with no
+      // "estimated" label anywhere in the API response, even though the
+      // app already tracks actual costs via OperationalCost (categories
+      // SHIPPING / BANK_CHARGES exist specifically for this).
+      const [shippingCosts, paymentFees] = await Promise.all([
+        prisma.operationalCost.aggregate({
+          where: {
+            category: 'SHIPPING',
+            date: { gte: startDate, lte: endDate },
+            paymentStatus: { in: ['PAID', 'PARTIAL'] },
+          },
+          _sum: { amount: true },
+        }),
+        prisma.operationalCost.aggregate({
+          where: {
+            category: 'BANK_CHARGES',
+            date: { gte: startDate, lte: endDate },
+            paymentStatus: { in: ['PAID', 'PARTIAL'] },
+          },
+          _sum: { amount: true },
+        }),
+      ]);
+      estimatedShippingCost = shippingCosts._sum.amount || 0;
+      estimatedPaymentFees = paymentFees._sum.amount || 0;
 
       // Total expenses
       totalExpenses = estimatedShippingCost + estimatedPaymentFees;
@@ -218,7 +240,14 @@ export async function GET(request: NextRequest) {
       averageCostPerOrder = totalOrders > 0 ? totalCOGS / totalOrders : 0;
       shippingRevenue = 0;
       estimatedShippingCost = 0;
-      estimatedPaymentFees = totalRevenue * 0.02;
+      // Same reasoning as shippingRevenue/estimatedShippingCost above:
+      // payment gateway fees are charged per order, mixing potentially
+      // multiple sellers' items, so they aren't cleanly attributable to
+      // this single seller either. This used to invent a flat 2%-of-
+      // revenue estimate and present it as a real fee — reporting 0 here
+      // (like shipping) is honest about what isn't actually known at the
+      // per-seller level, rather than fabricating a number.
+      estimatedPaymentFees = 0;
       totalExpenses = estimatedShippingCost + estimatedPaymentFees;
       grossProfit = deliveredItems.reduce((sum, i) => sum + (i.totalProfit || 0), 0);
       netProfit = grossProfit - totalExpenses;
@@ -304,6 +333,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(response);
     
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Partner P&L Error:', error);
     return NextResponse.json(
       { 

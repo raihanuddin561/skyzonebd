@@ -42,14 +42,40 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Validate rating
-    if (rating < 1 || rating > 5) {
+    // Validate rating — previously only checked `rating < 1 || rating > 5`,
+    // which JS happily coerces for a string like "5", passing this check
+    // and then crashing inside prisma.review.create (rating is a schema
+    // Int column) with a raw PrismaClientValidationError leaked straight to
+    // the client via `details: error.message` in the catch block below.
+    const ratingNumber = typeof rating === 'number' ? rating : Number(rating);
+    if (!Number.isInteger(ratingNumber) || ratingNumber < 1 || ratingNumber > 5) {
       return NextResponse.json(
-        { success: false, error: 'Rating must be between 1 and 5' },
+        { success: false, error: 'Rating must be a whole number between 1 and 5' },
         { status: 400 }
       );
     }
-    
+
+    if (typeof comment !== 'string' || comment.trim().length === 0 || comment.length > 1000) {
+      return NextResponse.json(
+        { success: false, error: 'Comment is required and must be 1000 characters or fewer' },
+        { status: 400 }
+      );
+    }
+
+    if (title !== undefined && title !== null && (typeof title !== 'string' || title.length > 100)) {
+      return NextResponse.json(
+        { success: false, error: 'Title must be text of 100 characters or fewer' },
+        { status: 400 }
+      );
+    }
+
+    if (images !== undefined && (!Array.isArray(images) || !images.every((img: unknown) => typeof img === 'string'))) {
+      return NextResponse.json(
+        { success: false, error: 'Images must be an array of URL strings' },
+        { status: 400 }
+      );
+    }
+
     // Verify product exists
     const product = await prisma.product.findUnique({
       where: { id: productId }
@@ -129,7 +155,7 @@ export async function POST(request: NextRequest) {
         productId,
         userId,
         orderId,
-        rating,
+        rating: ratingNumber,
         title: title || null,
         comment,
         images: images || [],

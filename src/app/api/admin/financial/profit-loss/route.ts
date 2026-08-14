@@ -289,6 +289,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(response);
     
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Admin P&L Error:', error);
     return NextResponse.json(
       { 
