@@ -250,8 +250,11 @@ export async function PUT(
     if (body.name) updateData.name = body.name;
     if (body.slug && body.slug !== existing.slug) updateData.slug = body.slug;
     if (body.description !== undefined) updateData.description = body.description;
-    if (body.imageUrl) updateData.imageUrl = body.imageUrl;
-    if (body.imageUrls) updateData.imageUrls = body.imageUrls;
+    // Use !== undefined (not truthy) so that an explicit empty-string imageUrl
+    // (user deleted the only image) or an empty imageUrls array propagates to
+    // the DB rather than being silently skipped.
+    if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl;
+    if (body.imageUrls !== undefined) updateData.imageUrls = body.imageUrls;
     if (body.thumbnailUrl !== undefined) updateData.thumbnailUrl = body.thumbnailUrl;
     if (body.brand !== undefined) updateData.brand = body.brand;
     if (body.unit !== undefined) updateData.unit = body.unit;

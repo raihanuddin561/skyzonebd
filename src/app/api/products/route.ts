@@ -216,7 +216,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // Validate required fields - Removed retailPrice requirement (wholesale only mode)
-    const requiredFields = ['name', 'slug', 'categoryId', 'imageUrl', 'price'];
+    // NOTE: 'price' is intentionally absent here — the frontend sends 'wholesalePrice'
+    // and 'basePrice', never a field literally called 'price'. The downstream data
+    // mapping (body.wholesalePrice || body.price) handles both forms.
+    const requiredFields = ['name', 'slug', 'categoryId', 'imageUrl'];
     for (const field of requiredFields) {
       if (!body[field]) {
         return NextResponse.json(

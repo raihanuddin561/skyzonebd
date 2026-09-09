@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
         position: position || 0,
         bgColor: bgColor || '#3B82F6',
         textColor: textColor || '#FFFFFF',
+        isActive: body.isActive !== undefined ? body.isActive : true,
       },
       include: {
         product: true

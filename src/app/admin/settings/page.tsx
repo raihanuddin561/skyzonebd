@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 
 export default function SettingsPage() {
@@ -37,9 +37,62 @@ export default function SettingsPage() {
   });
   const [loading, setLoading] = useState(true);
 
+  // ── DB Migration state ────────────────────────────────────────────────
+  const [migrationStatus, setMigrationStatus] = useState<{
+    status: 'pending' | 'already_applied' | 'loading' | 'unknown';
+    message: string;
+    affectedCount?: number;
+    appliedAt?: string;
+    details?: Record<string, unknown>;
+  }>({ status: 'loading', message: 'Checking...' });
+  const [runningMigration, setRunningMigration] = useState(false);
+
+  const fetchMigrationStatus = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/admin/migrate-image-urls', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setMigrationStatus({
+        status: data.status ?? 'unknown',
+        message: data.message ?? '',
+        affectedCount: data.affectedCount,
+        appliedAt: data.appliedAt,
+        details: data.details,
+      });
+    } catch {
+      setMigrationStatus({ status: 'unknown', message: 'Could not reach migration API.' });
+    }
+  }, []);
+
+  const handleRunMigration = async () => {
+    if (
+      !confirm(
+        'Run the one-time imageUrls backfill migration?\n\nThis copies the primary imageUrl into the imageUrls gallery array for legacy products that have an empty gallery. Safe to run — it will only run once.'
+      )
+    ) return;
+    setRunningMigration(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/admin/migrate-image-urls', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.status === 409) { toast.info('Migration was already applied — nothing to do.'); }
+      else if (data.success) { toast.success(data.message); }
+      else { toast.error(data.error || 'Migration failed'); }
+      await fetchMigrationStatus();
+    } catch { toast.error('Failed to run migration'); }
+    finally { setRunningMigration(false); }
+  };
+  // ── End DB Migration state ────────────────────────────────────────────
+
   useEffect(() => {
     fetchSettings();
-  }, []);
+    fetchMigrationStatus();
+  }, [fetchMigrationStatus]);
 
   const fetchSettings = async () => {
     try {
@@ -289,6 +342,56 @@ export default function SettingsPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Database Migrations */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Database Migrations</h3>
+            <p className="text-sm text-gray-500 mt-1">One-time data migrations that fix legacy data. Each migration runs exactly once and cannot be repeated.</p>
+          </div>
+          <button type="button" onClick={fetchMigrationStatus} className="text-xs text-blue-600 hover:text-blue-700 font-medium px-2 py-1 border border-blue-200 rounded">
+            &#8635; Refresh
+          </button>
+        </div>
+        <div className="border border-gray-200 rounded-lg p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-medium text-gray-900 text-sm">Backfill Product Image Gallery</span>
+                {migrationStatus.status === 'loading' && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">Checking...</span>
+                )}
+                {migrationStatus.status === 'already_applied' && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">&#10003; Already Applied</span>
+                )}
+                {migrationStatus.status === 'pending' && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">&#9888; Pending</span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mb-1">Copies the primary <code className="bg-gray-100 px-1 rounded">imageUrl</code> into the <code className="bg-gray-100 px-1 rounded">imageUrls</code> gallery array for legacy products that have an empty gallery.</p>
+              {migrationStatus.status === 'pending' && migrationStatus.affectedCount !== undefined && (
+                <p className="text-xs text-amber-700 font-medium">{migrationStatus.affectedCount} product(s) will be updated.</p>
+              )}
+              {migrationStatus.status === 'already_applied' && migrationStatus.appliedAt && (
+                <p className="text-xs text-green-700">Ran {new Date(migrationStatus.appliedAt).toLocaleString()}.</p>
+              )}
+            </div>
+            <button
+              type="button"
+              id="btn-run-imageurls-migration"
+              onClick={handleRunMigration}
+              disabled={runningMigration || migrationStatus.status === 'already_applied' || migrationStatus.status === 'loading'}
+              className={migrationStatus.status === 'already_applied'
+                ? 'shrink-0 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'shrink-0 px-4 py-2 rounded-lg text-sm font-medium bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed'}
+            >
+              {runningMigration ? 'Running...' : migrationStatus.status === 'already_applied' ? 'Already Applied' : 'Run Migration'}
+            </button>
+          </div>
+        </div>
+        <p className="text-xs text-gray-400 mt-3">Migrations are idempotent — clicking &quot;Run Migration&quot; when already applied is safe and changes nothing.</p>
       </div>
 
       {/* Save Button */}
