@@ -14,6 +14,7 @@ type MigrationStatusValue = 'up_to_date' | 'pending' | 'unknown' | 'loading';
 interface MigrationStatusState {
   status: MigrationStatusValue;
   pendingMigrations: string[];
+  raw?: string;
 }
 
 interface ImportRowResult {
@@ -45,7 +46,7 @@ export default function DatabaseManagementPage() {
       const res = await fetch('/api/admin/database/migration-status', { headers: authHeaders() });
       const data = await res.json();
       if (data.success) {
-        setMigrationStatus({ status: data.status, pendingMigrations: data.pendingMigrations || [] });
+        setMigrationStatus({ status: data.status, pendingMigrations: data.pendingMigrations || [], raw: data.raw });
       } else {
         setMigrationStatus({ status: 'unknown', pendingMigrations: [] });
       }
@@ -258,9 +259,14 @@ export default function DatabaseManagementPage() {
                 </ul>
               )}
               {migrationStatus.status === 'unknown' && (
-                <p className="text-xs text-red-600">
-                  Status could not be confirmed — the button stays disabled until this resolves. Check server logs.
-                </p>
+                <div className="text-xs text-red-600">
+                  <p>Status could not be confirmed — the button stays disabled until this resolves.</p>
+                  {migrationStatus.raw && (
+                    <pre className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-[11px] whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+                      {migrationStatus.raw}
+                    </pre>
+                  )}
+                </div>
               )}
             </div>
             <button

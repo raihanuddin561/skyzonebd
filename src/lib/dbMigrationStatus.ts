@@ -35,7 +35,16 @@ export async function getMigrationStatus(): Promise<MigrationStatusResult> {
     if (output.includes('have not yet been applied')) {
       return parseMigrateStatusOutput(output);
     }
-    return { status: 'unknown', pendingMigrations: [], raw: output || String(error?.message || error) };
+    // Logged server-side (visible in Vercel function logs) rather than only
+    // returned in the API response — the most common real cause on a
+    // serverless deployment is that `prisma/schema.prisma`, the migrations
+    // folder, or the Prisma CLI/engine binaries weren't bundled into the
+    // function (Next.js's file tracing can't see this dependency inside a
+    // shelled-out command), which shows up here as "spawn npx ENOENT" or a
+    // schema-engine/"Could not find schema.prisma" style message.
+    const raw = output || String(error?.message || error);
+    console.error('getMigrationStatus: could not determine migration status —', raw);
+    return { status: 'unknown', pendingMigrations: [], raw };
   }
 }
 
@@ -52,5 +61,6 @@ function parseMigrateStatusOutput(output: string): MigrationStatusResult {
     ).map((m) => m[1]);
     return { status: 'pending', pendingMigrations, raw: output };
   }
+  console.error('getMigrationStatus: unrecognized `prisma migrate status` output —', output);
   return { status: 'unknown', pendingMigrations: [], raw: output };
 }

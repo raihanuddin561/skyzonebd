@@ -22,6 +22,20 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb',
     },
   },
+  // The admin Database Management routes (migration-status/migrate/reset)
+  // shell out to `npx prisma migrate ...`. Next.js's serverless function
+  // bundler (@vercel/nft) decides what to include by statically tracing
+  // imports — it has no way to know a `child_process.exec()` string needs
+  // prisma/schema.prisma, prisma/migrations/**, or the Prisma CLI/engine
+  // binaries, so none of that gets bundled by default and the exec call
+  // fails at runtime (surfacing as this app's "Could not determine" status,
+  // since that path fails closed rather than silently reporting "up to
+  // date"). This explicitly force-includes what those three routes need.
+  outputFileTracingIncludes: {
+    '/api/admin/database/migration-status': ['./prisma/migrations/**', './prisma/schema.prisma', './node_modules/prisma/**', './node_modules/@prisma/engines/**'],
+    '/api/admin/database/migrate': ['./prisma/migrations/**', './prisma/schema.prisma', './node_modules/prisma/**', './node_modules/@prisma/engines/**'],
+    '/api/admin/database/reset': ['./prisma/migrations/**', './prisma/schema.prisma', './node_modules/prisma/**', './node_modules/@prisma/engines/**'],
+  },
   // API configuration
   //
   // CORS is scoped per-route need, not applied blanket. This app has exactly
