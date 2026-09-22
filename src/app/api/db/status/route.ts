@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma, testConnection } from '@/lib/prisma'
-import { verify } from 'jsonwebtoken'
-import { getJwtSecret } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth'
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -11,32 +10,8 @@ export const maxDuration = 60; // 60 seconds timeout
 
 export async function GET(request: NextRequest) {
   try {
-    // Require admin authentication
-    const authHeader = request.headers.get('authorization');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    try {
-      const decoded = verify(token, getJwtSecret()) as { userId: string; role: string };
-      
-      if (decoded.role.toUpperCase() !== 'ADMIN' && decoded.role.toUpperCase() !== 'SUPER_ADMIN') {
-        return NextResponse.json(
-          { success: false, error: 'Admin access required' },
-          { status: 403 }
-        );
-      }
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
+    // Require admin authentication (DB-verified role/isActive, not a raw JWT claim)
+    await requireAdmin(request);
 
     // Test database connection
     const isConnected = await testConnection()
@@ -80,9 +55,12 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Database status check failed',
         error: error instanceof Error ? error.message : 'Unknown error',
         database: 'sagor_db',

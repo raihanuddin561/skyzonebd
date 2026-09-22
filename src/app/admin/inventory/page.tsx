@@ -44,6 +44,30 @@ export default function InventoryPage() {
     fetchInventory();
   }, []);
 
+  // Single source of truth for turning a stock quantity into a status badge
+  // so the primary (/api/admin/inventory) and fallback (/api/products) data
+  // paths can never disagree with each other.
+  const deriveStockStatus = (
+    stockQuantity: number,
+    apiStatus?: string
+  ): InventoryItem['status'] => {
+    if (apiStatus) {
+      // Trust the server's own status field — /api/admin/inventory already
+      // computes this using the canonical thresholds (<=10 low, <=5
+      // critical, 0 out of stock).
+      if (apiStatus === 'Out of Stock') return 'out_of_stock';
+      if (apiStatus === 'Low Stock' || apiStatus === 'Critical') return 'low_stock';
+      return 'in_stock';
+    }
+    // Last-resort approximation for the fallback path, which has no
+    // server-computed status field to trust. Mirrors the same thresholds
+    // used server-side in /api/admin/inventory rather than inventing
+    // different cutoffs that would make the two paths disagree.
+    if (stockQuantity <= 0) return 'out_of_stock';
+    if (stockQuantity <= 10) return 'low_stock';
+    return 'in_stock';
+  };
+
   const fetchInventory = async () => {
     try {
       setLoading(true);
@@ -51,7 +75,18 @@ export default function InventoryPage() {
       const response = await fetch('/api/admin/inventory', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      
+
+      if (response.status === 401) {
+        // Expired/missing session — match the pattern used elsewhere in the
+        // admin panel (see admin/orders/page.tsx): clear the stale token and
+        // send the user to login instead of silently falling through to an
+        // unauthenticated fallback fetch.
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return;
+      }
+
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.data.products) {
@@ -65,31 +100,34 @@ export default function InventoryPage() {
             maxStock: 1000, // Default max stock
             category: p.category || 'Uncategorized',
             price: p.price || 0,
-            status: p.status === 'Out of Stock' ? 'out_of_stock' : 
-                   p.status === 'Low Stock' || p.status === 'Critical' ? 'low_stock' : 'in_stock',
+            status: deriveStockStatus(p.stock || 0, p.status),
             lastUpdated: p.lastUpdated || new Date().toISOString()
           }));
           setInventory(mappedInventory);
         }
       } else {
-        // Fallback to products API
+        // Fallback for other non-2xx cases (e.g. a genuine 500 from the
+        // inventory endpoint). /api/products always returns
+        // { success, data: { products: [...] } } — never a bare array — so
+        // guard the shape instead of assuming it and calling .map blindly.
         const productsResponse = await fetch('/api/products');
-        if (productsResponse.ok) {
-          const productsData = await productsResponse.json();
-          const mappedInventory = productsData.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            sku: p.sku,
-            currentStock: p.stockQuantity || 0,
-            minStock: p.minOrderQuantity || 10,
-            maxStock: 1000,
-            category: p.category?.name || 'Uncategorized',
-            price: p.sellingPrice || 0,
-            status: p.stockQuantity > 20 ? 'in_stock' : p.stockQuantity > 0 ? 'low_stock' : 'out_of_stock',
-            lastUpdated: p.updatedAt || new Date().toISOString()
-          }));
-          setInventory(mappedInventory);
-        }
+        const productsData = productsResponse.ok ? await productsResponse.json() : null;
+        const productsList = Array.isArray(productsData?.data?.products)
+          ? productsData.data.products
+          : [];
+        const mappedInventory = productsList.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          currentStock: p.stockQuantity || 0,
+          minStock: p.minOrderQuantity || 10,
+          maxStock: 1000,
+          category: p.category || 'Uncategorized',
+          price: p.wholesalePrice || p.price || 0,
+          status: deriveStockStatus(p.stockQuantity || 0),
+          lastUpdated: p.updatedAt || new Date().toISOString()
+        }));
+        setInventory(mappedInventory);
       }
     } catch (error) {
       console.error('Error fetching inventory:', error);

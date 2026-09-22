@@ -16,6 +16,7 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-only';
 
 const mockPrismaClient = {
+  user: { findUnique: jest.fn() },
   product: { findUnique: jest.fn() },
   $transaction: jest.fn(),
 };
@@ -45,6 +46,9 @@ const saleBody = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockPrismaClient.user.findUnique.mockResolvedValue({
+    id: 'admin-1', name: 'Admin', email: 'admin@example.com', role: 'ADMIN', userType: 'WHOLESALE', isActive: true,
+  });
   mockPrismaClient.product.findUnique.mockResolvedValue({
     id: 'prod-1', name: 'Widget', sku: 'SKU-1', stockQuantity: 50, costPerUnit: 60, basePrice: 60,
   });

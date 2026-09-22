@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verify, JwtPayload } from 'jsonwebtoken';
-import { getJwtSecret } from '@/lib/auth';
+import { PaymentStatus } from '@prisma/client';
+import { requireAdmin } from '@/lib/auth';
 import { logActivity } from '@/lib/activityLogger';
 import { prisma } from '@/lib/prisma';
 
@@ -9,11 +9,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
-
-interface DecodedToken extends JwtPayload {
-  userId: string;
-  role: string;
-}
 
 /**
  * PATCH /api/admin/orders/[id]/verify-payment
@@ -24,47 +19,8 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Verify admin authentication
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized - Missing or invalid token' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-
-    try {
-      decoded = verify(token, getJwtSecret()) as DecodedToken;
-    } catch (error) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized - Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Check if user is admin
-    if (decoded.role !== 'ADMIN' && decoded.role !== 'SUPER_ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden - Admin access required' },
-        { status: 403 }
-      );
-    }
-
-    // Get admin user details
-    const admin = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { id: true, name: true, email: true, role: true }
-    });
-
-    if (!admin) {
-      return NextResponse.json(
-        { success: false, error: 'Admin user not found' },
-        { status: 404 }
-      );
-    }
+    // Verify admin authentication (DB-verified role/isActive, not a raw JWT claim)
+    const admin = await requireAdmin(request);
 
     // Get order ID from params
     const { id: orderId } = await context.params;
@@ -101,7 +57,7 @@ export async function PATCH(
     }
 
     // Check if order is eligible for payment verification
-    const eligibleStatuses = ['PENDING_VERIFICATION', 'PENDING'];
+    const eligibleStatuses: PaymentStatus[] = ['PENDING_VERIFICATION', 'PENDING'];
     if (!eligibleStatuses.includes(order.paymentStatus)) {
       return NextResponse.json(
         { success: false, error: `Order payment status is ${order.paymentStatus}. Only PENDING_VERIFICATION orders can be verified.` },
@@ -133,41 +89,70 @@ export async function PATCH(
     // (createOrderLedgerEntries, triggered via autoGenerateProfitReport),
     // not at payment time. Posting a second REVENUE entry here would
     // double-count that order's revenue once delivered.
-    const updatedOrder = await prisma.$transaction(async (tx) => {
-      const result = await tx.order.update({
-        where: { id: orderId },
-        data: updateData,
-        include: {
-          orderItems: {
-            include: {
-              product: true
+    //
+    // The eligibility check above reads order.paymentStatus before this
+    // transaction opens, so two concurrent/double-click verify calls could
+    // both pass that check and both create a Payment row, double-recording
+    // the payment. Guarding this update's `where` with the same
+    // paymentStatus-in-eligibleStatuses condition and checking the affected
+    // row count makes this the actual point that prevents double-verification:
+    // if a concurrent request already changed the status, `count` is 0 here
+    // and the whole transaction is rolled back instead of committing a
+    // duplicate Payment.
+    let updatedOrder;
+    try {
+      updatedOrder = await prisma.$transaction(async (tx) => {
+        const updateResult = await tx.order.updateMany({
+          where: { id: orderId, paymentStatus: { in: eligibleStatuses } },
+          data: updateData
+        });
+
+        if (updateResult.count === 0) {
+          throw new Response(
+            JSON.stringify({ success: false, error: 'Payment status already changed' }),
+            { status: 409, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const result = await tx.order.findUniqueOrThrow({
+          where: { id: orderId },
+          include: {
+            orderItems: {
+              include: {
+                product: true
+              }
             }
           }
-        }
-      });
-
-      if (status === 'PAID') {
-        const validMethods = ['BANK_TRANSFER', 'BKASH', 'NAGAD', 'ROCKET', 'CREDIT_CARD', 'INVOICE_NET30', 'INVOICE_NET60', 'INVOICE_NET90', 'LC'];
-        const normalizedMethod = order.paymentMethod?.toUpperCase();
-        const paymentMethod = validMethods.includes(normalizedMethod || '') ? normalizedMethod : 'BANK_TRANSFER';
-
-        await tx.payment.create({
-          data: {
-            orderId,
-            amount: order.total,
-            method: paymentMethod as any,
-            status: 'PAID',
-            transactionId: (order as any).paymentReference || undefined,
-            notes: note || 'Manually verified by admin',
-            receivedBy: admin.id,
-            paidAt: new Date(),
-            confirmedAt: new Date(),
-          },
         });
-      }
 
-      return result;
-    });
+        if (status === 'PAID') {
+          const validMethods = ['BANK_TRANSFER', 'BKASH', 'NAGAD', 'ROCKET', 'CREDIT_CARD', 'INVOICE_NET30', 'INVOICE_NET60', 'INVOICE_NET90', 'LC'];
+          const normalizedMethod = order.paymentMethod?.toUpperCase();
+          const paymentMethod = validMethods.includes(normalizedMethod || '') ? normalizedMethod : 'BANK_TRANSFER';
+
+          await tx.payment.create({
+            data: {
+              orderId,
+              amount: order.total,
+              method: paymentMethod as any,
+              status: 'PAID',
+              transactionId: (order as any).paymentReference || undefined,
+              notes: note || 'Manually verified by admin',
+              receivedBy: admin.id,
+              paidAt: new Date(),
+              confirmedAt: new Date(),
+            },
+          });
+        }
+
+        return result;
+      });
+    } catch (error) {
+      if (error instanceof Response) {
+        return error;
+      }
+      throw error;
+    }
 
     // Log the verification activity
     const orderWithRef = order as any;
@@ -204,6 +189,9 @@ export async function PATCH(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error verifying payment:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error while verifying payment' },

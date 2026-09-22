@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verify, JwtPayload } from 'jsonwebtoken';
-import { getJwtSecret } from '@/lib/auth';
+import { requireAuth, requireAdmin } from '@/lib/auth';
+import { UserRole, isSuperAdmin } from '@/types/roles';
 import { logActivity } from '@/lib/activityLogger';
+import { releaseStockAllocationsForOrder } from '@/services/inventoryService';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
-
-
-interface DecodedToken extends JwtPayload {
-  userId: string;
-  role: string;
-}
 
 // GET /api/admin/manual-sales/[id] - Get single manual sales entry
 export async function GET(
@@ -23,33 +18,12 @@ export async function GET(
   try {
     const { id } = await params;
 
-    // Auth check
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-    try {
-      decoded = verify(token, getJwtSecret()) as DecodedToken;
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Only admins can access
-    if (!['ADMIN', 'SUPER_ADMIN'].includes(decoded.role)) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied' },
-        { status: 403 }
-      );
-    }
+    // Canonical auth (ADR-009 / P2-9): requireAdmin re-fetches the user from
+    // the DB on every call (fresh role, fresh isActive), so a demoted or
+    // deactivated admin's still-unexpired JWT can't be used to bypass this
+    // check the way a hand-rolled `jsonwebtoken.verify` + `decoded.role`
+    // check could.
+    await requireAdmin(request);
 
     const entry = await prisma.manualSalesEntry.findUnique({
       where: { id },
@@ -99,6 +73,9 @@ export async function GET(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error fetching manual sales entry:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch sales entry' },
@@ -115,33 +92,8 @@ export async function PUT(
   try {
     const { id } = await params;
 
-    // Auth check
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-    try {
-      decoded = verify(token, getJwtSecret()) as DecodedToken;
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Only admins can update
-    if (!['ADMIN', 'SUPER_ADMIN'].includes(decoded.role)) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied' },
-        { status: 403 }
-      );
-    }
+    // Canonical auth (ADR-009 / P2-9): see GET handler above for rationale.
+    const authUser = await requireAdmin(request);
 
     const body = await request.json();
     const {
@@ -210,8 +162,8 @@ export async function PUT(
 
     // Log activity
     await logActivity({
-      userId: decoded.userId,
-      userName: decoded.name || 'Admin',
+      userId: authUser.id,
+      userName: authUser.name || 'Admin',
       action: 'UPDATE',
       entityType: 'MANUAL_SALE',
       entityId: id,
@@ -227,6 +179,9 @@ export async function PUT(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error updating manual sales entry:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update sales entry' },
@@ -243,28 +198,15 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // Auth check
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-    try {
-      decoded = verify(token, getJwtSecret()) as DecodedToken;
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Only super admins can delete
-    if (decoded.role !== 'SUPER_ADMIN') {
+    // Canonical auth (ADR-009 / P2-9): requireAuth re-fetches the user from
+    // the DB on every call (fresh role, fresh isActive) instead of trusting
+    // a possibly-stale JWT payload. There's no `requireSuperAdmin` helper in
+    // this codebase — every SUPER_ADMIN-tier route hand-rolls the check the
+    // same way src/app/api/admin/users/route.ts's DELETE handler does, since
+    // deleting a manual sale record + reversing inventory is a destructive,
+    // SUPER_ADMIN-tier action here.
+    const authUser = await requireAuth(request);
+    if (!isSuperAdmin(authUser.role as UserRole)) {
       return NextResponse.json(
         { success: false, error: 'Only super admins can delete sales entries' },
         { status: 403 }
@@ -318,10 +260,20 @@ export async function DELETE(
               newStock: product.stockQuantity + item.quantity,
               reference: id,
               notes: `Restored stock from deleted manual sale: ${entry.referenceNumber || id}`,
-              performedBy: decoded.userId
+              performedBy: authUser.id
             }
           });
         }
+
+        // Release any stock-lot allocations this manual sale consumed
+        // (created by depleteStockLotsForSale against this entry's id as
+        // the allocation's `orderId` at creation time) — keeps
+        // StockLot.quantityRemaining consistent with the
+        // Product.stockQuantity restoration above, rather than leaving
+        // lots permanently under-reporting remaining stock after a manual
+        // sale is deleted. Same reversal helper already used by
+        // src/app/api/orders/cancel/route.ts for order cancellation.
+        await releaseStockAllocationsForOrder(tx, id);
       }
 
       // Delete the entry (items will cascade delete)
@@ -340,8 +292,8 @@ export async function DELETE(
 
     // Log activity
     await logActivity({
-      userId: decoded.userId,
-      userName: decoded.name || 'Admin',
+      userId: authUser.id,
+      userName: authUser.name || 'Admin',
       action: 'DELETE',
       entityType: 'MANUAL_SALE',
       entityId: id,
@@ -356,6 +308,9 @@ export async function DELETE(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error deleting manual sales entry:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to delete sales entry' },

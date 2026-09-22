@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verify, JwtPayload } from 'jsonwebtoken';
-import { getJwtSecret, requireAdmin } from '@/lib/auth';
+import { getJwtSecret, requireAdmin, requireAuth } from '@/lib/auth';
+import { isAdmin as isAdminRole, UserRole } from '@/types/roles';
 import { logActivity } from '@/lib/activityLogger';
 import { prisma } from '@/lib/prisma';
 import { autoGenerateProfitReport } from '@/utils/profitReportGeneration';
 import { calculateItemPrice, validateCustomerDiscount } from '@/utils/pricingEngine';
 import { emailService } from '@/lib/email';
 import { logInfo, logError } from '@/lib/logger';
-import { depleteStockLotsForSale } from '@/services/inventoryService';
+import { depleteStockLotsForSale, restoreStockForCancelledOrder } from '@/services/inventoryService';
 import { alertIfCrossedReorderLevel } from '@/utils/lowStockAlerts';
 import { getPaymentTermsForMethod, checkCreditLimit, createInvoiceForOrder } from '@/services/invoiceService';
+import { ALLOWED_ORDER_STATUS_TRANSITIONS } from '@/lib/orderStatusTransitions';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -121,13 +123,33 @@ export async function POST(request: NextRequest) {
 
     // Generate order number
     const orderNumber = `ORD-${Date.now()}`;
-    
+
+    // Merge duplicate line items for the same product (e.g. two cart rows
+    // that resolved to the same product) before pricing. Pricing/order-item
+    // creation below is keyed by productId — without this, a second line
+    // for the same product would silently overwrite the first's priceInfo
+    // in productDataMap, so both order-item rows ended up with whichever
+    // duplicate's price/total was computed last, regardless of their own
+    // quantity (order-level totals stayed correct since those are summed
+    // from pricingResults, but per-item price/total/profit was wrong).
+    const mergedItemsMap = new Map<string, OrderItem>();
+    for (const item of items) {
+      const key = item.productId.toString();
+      const existing = mergedItemsMap.get(key);
+      if (existing) {
+        existing.quantity += item.quantity;
+      } else {
+        mergedItemsMap.set(key, { ...item, quantity: item.quantity });
+      }
+    }
+    const mergedItems = Array.from(mergedItemsMap.values());
+
     // SERVER-SIDE PRICING ENFORCEMENT
     // Fetch all products with tiers and recalculate prices using pricing engine
     const productDataMap = new Map();
     const pricingResults = [];
-    
-    for (const item of items) {
+
+    for (const item of mergedItems) {
       const product = await prisma.product.findUnique({
         where: { id: item.productId.toString() },
         select: {
@@ -289,7 +311,7 @@ export async function POST(request: NextRequest) {
           billingAddress,
           notes: notes || undefined,
           orderItems: {
-            create: items.map((item: OrderItem) => {
+            create: mergedItems.map((item: OrderItem) => {
               const data = productDataMap.get(item.productId.toString());
               const { product, priceInfo } = data;
               
@@ -339,7 +361,7 @@ export async function POST(request: NextRequest) {
       // remaining stock, `count` is 0 here and the whole transaction (and
       // therefore the order) is rolled back rather than committing with
       // negative stock (Production Readiness Audit, 2026-07-18).
-      for (const item of items) {
+      for (const item of mergedItems) {
         const productIdStr = item.productId.toString();
         const existingStock = await tx.product.findUnique({
           where: { id: productIdStr },
@@ -463,12 +485,18 @@ export async function POST(request: NextRequest) {
       orderId: order.orderNumber,
       userId: order.userId,
       guestInfo: guestData,
-      items: items.map((item: OrderItem) => ({
+      // Built from the order's real, just-created OrderItem rows (server-
+      // computed price/total/product name) — not the client-submitted
+      // request body. The confirmation screen a customer sees right after
+      // checkout previously reflected whatever price/name was submitted in
+      // the POST body, which could differ from what was actually charged
+      // (e.g. a price changed between add-to-cart and submit).
+      items: order.orderItems.map(item => ({
         productId: item.productId,
-        name: item.name,
+        name: item.product.name,
         price: item.price,
         quantity: item.quantity,
-        total: item.price * item.quantity
+        total: item.total
       })),
       shippingAddress: order.shippingAddress,
       billingAddress: order.billingAddress,
@@ -511,32 +539,18 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-    try {
-      decoded = verify(token, getJwtSecret()) as DecodedToken;
-    } catch (error) {
-      console.error('Token verification failed:', error);
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-    
-    const userId = decoded.userId;
-    const userRole = decoded.role.toLowerCase(); // Case-insensitive role check
+    // Canonical auth: previously a hand-rolled JWT decode that trusted
+    // `decoded.role` straight from the token payload with no database
+    // re-check — a demoted or deactivated admin's still-valid (up to 7-day)
+    // token could keep dumping every customer's orders (PII, addresses,
+    // totals) indefinitely. requireAuth() re-fetches the user's current
+    // role/isActive from the database on every call.
+    const authUser = await requireAuth(request);
+    const userId = authUser.id;
 
     let dbOrders;
     // If admin, return all orders
-    if (userRole === 'admin' || userRole === 'super_admin') {
+    if (isAdminRole(authUser.role as UserRole)) {
       dbOrders = await prisma.order.findMany({
         include: {
           orderItems: {
@@ -614,6 +628,9 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Get Orders API Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch orders' },
@@ -673,7 +690,7 @@ export async function PATCH(request: NextRequest) {
     // Get current order state before update
     const currentOrder = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { orderNumber: true, status: true, paymentStatus: true }
+      include: { orderItems: true }
     });
 
     if (!currentOrder) {
@@ -683,20 +700,47 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Update order
-    const updatedOrder = await prisma.order.update({
-      where: { id: orderId },
-      data: updateData,
-      include: {
-        orderItems: {
-          include: {
-            product: true
-          }
-        },
-        user: {
-          select: { email: true }
-        }
+    // Reject nonsensical status jumps (e.g. DELIVERED -> PENDING) and
+    // cancelling an order that's already shipped — this endpoint previously
+    // accepted any status from any other status with no validation at all,
+    // and (like PATCH /api/orders/[id] before its own fix) never restored
+    // stock when cancelling. Shares the same transition rules as every
+    // other order-status endpoint via ALLOWED_ORDER_STATUS_TRANSITIONS.
+    if (updateData.status && updateData.status !== currentOrder.status) {
+      const allowedNext = ALLOWED_ORDER_STATUS_TRANSITIONS[currentOrder.status] ?? [];
+      if (!allowedNext.includes(updateData.status)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Cannot change order status from ${currentOrder.status} to ${updateData.status}`
+          },
+          { status: 400 }
+        );
       }
+    }
+
+    const isCancelling = updateData.status === 'CANCELLED' && currentOrder.status !== 'CANCELLED';
+
+    // Update order
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      if (isCancelling) {
+        await restoreStockForCancelledOrder(tx, orderId, currentOrder.orderItems, decoded.id, currentOrder.orderNumber);
+      }
+
+      return tx.order.update({
+        where: { id: orderId },
+        data: updateData,
+        include: {
+          orderItems: {
+            include: {
+              product: true
+            }
+          },
+          user: {
+            select: { email: true }
+          }
+        }
+      });
     });
 
     // Get admin user info for logging

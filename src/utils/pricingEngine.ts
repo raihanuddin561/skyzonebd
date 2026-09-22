@@ -232,14 +232,16 @@ export function validateCustomerDiscount(
   applicablePercent: number;
   reason?: string;
 } {
+  // Check percentage range first — a negative value is also `<= 0`, so the
+  // "no discount set" check below must run after this one or a negative
+  // discount is misreported as simply absent instead of invalid.
+  if (discountPercent !== null && discountPercent !== undefined && (discountPercent < 0 || discountPercent > 100)) {
+    return { isValid: false, applicablePercent: 0, reason: 'Invalid discount percentage' };
+  }
+
   // No discount set
   if (!discountPercent || discountPercent <= 0) {
     return { isValid: false, applicablePercent: 0, reason: 'No discount set' };
-  }
-
-  // Check percentage range
-  if (discountPercent < 0 || discountPercent > 100) {
-    return { isValid: false, applicablePercent: 0, reason: 'Invalid discount percentage' };
   }
 
   // Check expiration

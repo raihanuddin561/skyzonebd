@@ -3,7 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import { UserRole, isAdmin as isAdminRole } from '@/types/roles';
 import { logActivity } from '@/lib/activityLogger';
 import { prisma } from '@/lib/prisma';
-import { releaseStockAllocationsForOrder } from '@/services/inventoryService';
+import { restoreStockForCancelledOrder } from '@/services/inventoryService';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -79,6 +79,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Once an order has left the warehouse there's a physical package in a
+    // courier's hands — cancelling it here would restore stock for units
+    // that aren't actually back in the warehouse. This previously allowed
+    // cancelling a SHIPPED order (inconsistent with DELETE /api/orders/[id],
+    // which already blocked it) — align the two so there's one rule.
+    if (order.status === 'SHIPPED' || order.status === 'IN_TRANSIT') {
+      return NextResponse.json(
+        { success: false, error: 'Cannot cancel a shipped order. Please process a return instead.' },
+        { status: 400 }
+      );
+    }
+
     // Cancel the order and restore stock atomically — if any step fails
     // (including partway through restoring a multi-item order), the entire
     // cancellation rolls back rather than leaving the order marked
@@ -101,42 +113,7 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      for (const item of cancelled.orderItems) {
-        const productBeforeRestore = await tx.product.findUnique({
-          where: { id: item.productId },
-          select: { stockQuantity: true },
-        });
-        const previousStock = productBeforeRestore?.stockQuantity ?? 0;
-
-        await tx.product.update({
-          where: { id: item.productId },
-          data: {
-            stockQuantity: {
-              increment: item.quantity
-            }
-          }
-        });
-
-        await tx.inventoryLog.create({
-          data: {
-            productId: item.productId,
-            action: 'ADJUSTMENT',
-            quantity: item.quantity,
-            previousStock,
-            newStock: previousStock + item.quantity,
-            reference: orderId,
-            notes: `Stock restored from cancelled order ${cancelled.orderNumber}`,
-            performedBy: decoded.id,
-          },
-        });
-      }
-
-      // Release any stock-lot allocations this order consumed (Amazon-style
-      // gap-closure Phase 1) — keeps StockLot.quantityRemaining consistent
-      // with the Product.stockQuantity restoration above, rather than
-      // leaving lots permanently under-reporting remaining stock after a
-      // cancellation.
-      await releaseStockAllocationsForOrder(tx, orderId);
+      await restoreStockForCancelledOrder(tx, orderId, cancelled.orderItems, decoded.id, cancelled.orderNumber);
 
       return cancelled;
     });

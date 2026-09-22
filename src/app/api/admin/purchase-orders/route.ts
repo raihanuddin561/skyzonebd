@@ -91,9 +91,16 @@ export async function POST(request: NextRequest) {
       );
     }
     for (const item of items) {
-      if (!item.productId || !item.quantityOrdered || item.quantityOrdered <= 0 || item.costPerUnit === undefined || item.costPerUnit < 0) {
+      if (
+        !item.productId ||
+        !item.quantityOrdered ||
+        item.quantityOrdered <= 0 ||
+        typeof item.costPerUnit !== 'number' ||
+        !Number.isFinite(item.costPerUnit) ||
+        item.costPerUnit <= 0
+      ) {
         return NextResponse.json(
-          { success: false, error: 'Each item requires a productId, a positive quantityOrdered, and a non-negative costPerUnit' },
+          { success: false, error: 'Each item requires a productId, a positive quantityOrdered, and a positive costPerUnit' },
           { status: 400 }
         );
       }

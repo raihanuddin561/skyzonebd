@@ -4,8 +4,9 @@ import { autoGenerateProfitReport } from '@/utils/profitReportGeneration';
 import { requireAdmin, requireAuth } from '@/lib/auth';
 import { UserRole, isAdmin } from '@/types/roles';
 import { logInfo, logError } from '@/lib/logger';
-import { releaseStockAllocationsForOrder } from '@/services/inventoryService';
+import { restoreStockForCancelledOrder } from '@/services/inventoryService';
 import { emailService } from '@/lib/email';
+import { ALLOWED_ORDER_STATUS_TRANSITIONS } from '@/lib/orderStatusTransitions';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -158,14 +159,15 @@ export async function PATCH(
 ) {
   try {
     // Verify admin access
-    await requireAdmin(request);
+    const admin = await requireAdmin(request);
 
     const { id } = await params;
     const body = await request.json();
 
     // Validate order exists
     const existingOrder = await prisma.order.findUnique({
-      where: { id }
+      where: { id },
+      include: { orderItems: true }
     });
 
     if (!existingOrder) {
@@ -177,11 +179,26 @@ export async function PATCH(
 
     // Update order
     const updateData: any = {};
-    
+
     if (body.status) {
       updateData.status = body.status.toUpperCase();
+
+      // A status change with no actual transition (re-submitting the same
+      // status) is a no-op, not an error — only validate real transitions.
+      if (updateData.status !== existingOrder.status) {
+        const allowedNext = ALLOWED_ORDER_STATUS_TRANSITIONS[existingOrder.status] ?? [];
+        if (!allowedNext.includes(updateData.status)) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Cannot change order status from ${existingOrder.status} to ${updateData.status}`
+            },
+            { status: 400 }
+          );
+        }
+      }
     }
-    
+
     if (body.paymentStatus) {
       updateData.paymentStatus = body.paymentStatus.toUpperCase();
     }
@@ -190,25 +207,37 @@ export async function PATCH(
       updateData.notes = body.notes;
     }
 
-    const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: updateData,
-      include: {
-        orderItems: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                imageUrl: true
+    const isCancelling = updateData.status === 'CANCELLED' && existingOrder.status !== 'CANCELLED';
+
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      // Cancelling via this dropdown must restore stock exactly like the
+      // dedicated cancel endpoints — previously this just flipped the
+      // status column with no inventory reversal at all, silently
+      // corrupting stock counts for every admin-dropdown cancellation.
+      if (isCancelling) {
+        await restoreStockForCancelledOrder(tx, id, existingOrder.orderItems, admin.id, existingOrder.orderNumber);
+      }
+
+      return tx.order.update({
+        where: { id },
+        data: updateData,
+        include: {
+          orderItems: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  imageUrl: true
+                }
               }
             }
+          },
+          user: {
+            select: { email: true }
           }
-        },
-        user: {
-          select: { email: true }
         }
-      }
+      });
     });
 
     // Auto-generate profit report if order is now DELIVERED
@@ -309,35 +338,7 @@ export async function DELETE(
     // cancellations could read the same stale stockQuantity and lose an
     // update). Atomic `increment` inside one transaction fixes both.
     const cancelledOrder = await prisma.$transaction(async (tx) => {
-      for (const item of order.orderItems) {
-        const productBeforeRestore = await tx.product.findUnique({
-          where: { id: item.productId },
-          select: { stockQuantity: true },
-        });
-        const previousStock = productBeforeRestore?.stockQuantity ?? 0;
-
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stockQuantity: { increment: item.quantity } }
-        });
-
-        await tx.inventoryLog.create({
-          data: {
-            productId: item.productId,
-            action: 'ADJUSTMENT',
-            quantity: item.quantity,
-            previousStock,
-            newStock: previousStock + item.quantity,
-            reference: id,
-            notes: `Stock restored from cancelled order ${order.orderNumber}`,
-            performedBy: admin.id,
-          },
-        });
-      }
-
-      // Release any stock-lot allocations this order consumed (Amazon-style
-      // gap-closure Phase 1) — see orders/cancel/route.ts for the same fix.
-      await releaseStockAllocationsForOrder(tx, id);
+      await restoreStockForCancelledOrder(tx, id, order.orderItems, admin.id, order.orderNumber);
 
       return tx.order.update({
         where: { id },

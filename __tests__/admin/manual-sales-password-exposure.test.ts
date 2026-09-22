@@ -22,9 +22,15 @@ jest.mock('@/lib/prisma', () => ({
   prisma: mockPrismaClient,
   default: mockPrismaClient,
 }));
+// PUT now authenticates via requireAdmin (DB-verified role/isActive) rather
+// than a hand-rolled JWT decode — mock it directly rather than the raw JWT
+// mechanics it replaced.
 jest.mock('@/lib/auth', () => ({
   __esModule: true,
   getJwtSecret: () => JWT_SECRET,
+  requireAdmin: jest.fn().mockResolvedValue({
+    id: 'admin-1', email: 'admin@example.com', name: 'Admin', role: 'ADMIN', userType: 'WHOLESALE', isActive: true,
+  }),
 }));
 jest.mock('@/lib/activityLogger', () => ({
   logActivity: jest.fn().mockResolvedValue(undefined),

@@ -19,6 +19,7 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-only';
 
 const mockPrismaClient = {
+  user: { findUnique: jest.fn() },
   product: { findUnique: jest.fn() },
   $transaction: jest.fn(),
 };
@@ -48,6 +49,9 @@ const saleBody = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockPrismaClient.user.findUnique.mockResolvedValue({
+    id: 'admin-1', name: 'Admin', email: 'admin@example.com', role: 'ADMIN', userType: 'WHOLESALE', isActive: true,
+  });
   mockPrismaClient.product.findUnique.mockResolvedValue({
     id: 'prod-1', name: 'Test Product', sku: 'SKU-1', stockQuantity: 5, costPerUnit: 60, basePrice: 60,
   });
@@ -78,9 +82,15 @@ it('succeeds when the guarded updateMany reports the row was actually decremente
     cb({
       manualSalesEntry: {
         create: jest.fn().mockResolvedValue({
-          id: 'sale-1', total: 200, items: [{ productId: 'prod-1' }], referenceNumber: null, saleDate: new Date(),
+          id: 'sale-1', total: 200, items: [{ id: 'item-1', productId: 'prod-1', quantity: 2, total: 200, costPerUnit: 60 }], referenceNumber: null, saleDate: new Date(),
         }),
-        update: jest.fn().mockResolvedValue({}),
+        // The route persists inventoryAdjusted (and any lot-corrected cost
+        // fields) back onto newEntry via this update's return value — must
+        // look like a real post-update row, not an empty object, or every
+        // downstream `entry.total`/`entry.items` read breaks.
+        update: jest.fn().mockResolvedValue({
+          id: 'sale-1', total: 200, items: [{ id: 'item-1', productId: 'prod-1', quantity: 2, total: 200, costPerUnit: 60 }], referenceNumber: null, saleDate: new Date(),
+        }),
       },
       product: {
         findUnique: jest.fn().mockResolvedValue({ stockQuantity: 5 }),
@@ -88,6 +98,12 @@ it('succeeds when the guarded updateMany reports the row was actually decremente
       },
       inventoryLog: { create: jest.fn().mockResolvedValue({}) },
       financialLedger: { create: jest.fn().mockResolvedValue({}) },
+      // depleteStockLotsForSale (called after the guarded decrement
+      // succeeds, to snapshot real WAC cost) reads stockLot first — no lots
+      // means calculateWeightedAverageCost returns 0 and it short-circuits
+      // to `{ costPerUnit: null }` without touching stockAllocation, so an
+      // empty list here is enough for this stock-guard test's purposes.
+      stockLot: { findMany: jest.fn().mockResolvedValue([]) },
     })
   );
 

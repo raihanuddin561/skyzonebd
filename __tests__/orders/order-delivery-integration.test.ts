@@ -10,9 +10,10 @@
 // order transitions INTO DELIVERED (not on other status changes, and not
 // when it was already DELIVERED), end-to-end through the real route.
 
-const mockPrismaClient = {
+const mockPrismaClient: any = {
   order: { findUnique: jest.fn(), update: jest.fn() },
   $disconnect: jest.fn().mockResolvedValue(undefined),
+  $transaction: jest.fn((cb: any) => cb(mockPrismaClient)),
 };
 
 jest.mock('@/lib/prisma', () => ({
@@ -42,6 +43,9 @@ const params = Promise.resolve({ id: 'order-1' });
 beforeEach(() => {
   jest.resetAllMocks();
   mockRequireAdmin.mockResolvedValue({ id: 'admin-1', role: 'ADMIN' });
+  // resetAllMocks wipes the $transaction implementation set at module load
+  // (not just its call history) — re-establish it every test.
+  mockPrismaClient.$transaction.mockImplementation((cb: any) => cb(mockPrismaClient));
 });
 
 it('triggers autoGenerateProfitReport when an order transitions into DELIVERED', async () => {
@@ -58,7 +62,10 @@ it('triggers autoGenerateProfitReport when an order transitions into DELIVERED',
 });
 
 it('does not trigger a profit report for a non-delivery status change', async () => {
-  mockPrismaClient.order.findUnique.mockResolvedValueOnce({ id: 'order-1', status: 'PENDING' });
+  // PROCESSING (not PENDING) — PENDING -> SHIPPED isn't itself a legal
+  // transition under ALLOWED_ORDER_STATUS_TRANSITIONS, and this test is
+  // about the profit-report side effect, not transition validation.
+  mockPrismaClient.order.findUnique.mockResolvedValueOnce({ id: 'order-1', status: 'PROCESSING' });
   mockPrismaClient.order.update.mockResolvedValueOnce({
     id: 'order-1', orderNumber: 'ORD-1', status: 'SHIPPED', paymentStatus: 'PAID', updatedAt: new Date(), orderItems: [],
   });

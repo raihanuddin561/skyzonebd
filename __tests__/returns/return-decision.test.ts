@@ -26,6 +26,10 @@ const mockPrismaClient: any = {
   },
   product: { findUnique: jest.fn(), update: jest.fn() },
   inventoryLog: { create: jest.fn() },
+  // Approving a return restocks by creating a real StockLot at the
+  // original order item's cost basis (not just bumping Product.stockQuantity),
+  // so returned units keep a real cost for future WAC/COGS calculations.
+  stockLot: { create: jest.fn().mockResolvedValue({ id: 'lot-return-1' }) },
   $transaction: jest.fn((cb: any) => cb(mockPrismaClient)),
 };
 
@@ -130,10 +134,17 @@ describe('APPROVED', () => {
     const res = await PATCH(req('admin-1', { status: 'APPROVED' }), { params: params('ret-1') });
     expect(res.status).toBe(200);
 
+    // Atomic increment (never a read-then-write) — avoids the lost-update
+    // race a plain `stockQuantity: 12` write would have under concurrency.
     expect(mockPrismaClient.product.update).toHaveBeenCalledWith({
       where: { id: 'p1' },
-      data: { stockQuantity: 12 }, // 10 + 2
+      data: { stockQuantity: { increment: 2 } },
     });
+    expect(mockPrismaClient.stockLot.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ productId: 'p1', quantityReceived: 2, quantityRemaining: 2 }),
+      })
+    );
     expect(mockPrismaClient.inventoryLog.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ productId: 'p1', action: 'RETURN', quantity: 2, previousStock: 10, newStock: 12 }),

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verify, JwtPayload } from 'jsonwebtoken';
-import { getJwtSecret } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activityLogger';
 
@@ -10,45 +9,14 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
 
-interface DecodedToken extends JwtPayload {
-  userId: string;
-  role: string;
-}
-
 /**
  * GET /api/admin/payment-config
  * Get all payment configurations
  */
 export async function GET(request: NextRequest) {
   try {
-    // Verify admin authentication
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-
-    try {
-      decoded = verify(token, getJwtSecret()) as DecodedToken;
-    } catch (error) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Check if user is admin
-    if (decoded.role !== 'ADMIN' && decoded.role !== 'SUPER_ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden - Admin access required' },
-        { status: 403 }
-      );
-    }
+    // Verify admin authentication (DB-verified role/isActive, not a raw JWT claim)
+    await requireAdmin(request);
 
     // Get all payment configurations
     const configs = await prisma.paymentConfig.findMany({
@@ -64,6 +32,9 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error fetching payment configs:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
@@ -78,34 +49,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify admin authentication
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-
-    try {
-      decoded = verify(token, getJwtSecret()) as DecodedToken;
-    } catch (error) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Check if user is admin
-    if (decoded.role !== 'ADMIN' && decoded.role !== 'SUPER_ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden - Admin access required' },
-        { status: 403 }
-      );
-    }
+    // Verify admin authentication (DB-verified role/isActive, not a raw JWT claim)
+    const decoded = await requireAdmin(request);
 
     const body = await request.json();
     const {
@@ -146,14 +91,14 @@ export async function POST(request: NextRequest) {
         routingNumber: routingNumber || null,
         instructions: instructions || null,
         logoUrl: logoUrl || null,
-        createdBy: decoded.userId,
-        updatedBy: decoded.userId
+        createdBy: decoded.id,
+        updatedBy: decoded.id
       }
     });
 
     // Log activity
     await logActivity({
-      userId: decoded.userId,
+      userId: decoded.id,
       userName: 'Admin',
       action: 'CREATE',
       entityType: 'PaymentConfig',
@@ -169,6 +114,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error creating payment config:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },

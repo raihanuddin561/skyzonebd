@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'react-toastify';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { useCategories } from '@/hooks/useCategories';
 
 interface Product {
   id: string;
@@ -25,8 +26,13 @@ export default function ProductsManagement() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  // Debounced so every keystroke doesn't fire a server request — only the
+  // settled value drives the actual /api/products query, matching the
+  // debounce pattern already used by the storefront search (src/app/products/page.tsx).
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const { categories } = useCategories();
   const [filterActiveStatus, setFilterActiveStatus] = useState('all');
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -53,9 +59,27 @@ export default function ProductsManagement() {
   const [isSavingMoq, setIsSavingMoq] = useState(false);
   const productsPerPage = 12;
 
+  // Debounce the search box.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Search and category are server-side filters (the API already supports
+  // both) — refetch whenever the settled search term, category, or page
+  // changes.
   useEffect(() => {
     fetchProducts();
-  }, [currentPage]);
+  }, [currentPage, debouncedSearchTerm, filterCategory]);
+
+  // Reset to page 1 whenever a filter actually changes, not on plain page
+  // navigation — mirrors the same reset pattern used in admin/orders/page.tsx.
+  // filterStatus is included here (even though it's a client-side-only
+  // filter applied after the fetch) purely so switching it doesn't leave the
+  // user stranded on a page number that no longer makes sense.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, filterCategory, filterStatus]);
 
   const fetchProducts = async () => {
     try {
@@ -70,7 +94,14 @@ export default function ProductsManagement() {
         return;
       }
 
-      const response = await fetch(`/api/products?page=${currentPage}&limit=${productsPerPage}`, {
+      const params = new URLSearchParams({
+        page: String(currentPage),
+        limit: String(productsPerPage),
+      });
+      if (debouncedSearchTerm.trim()) params.set('search', debouncedSearchTerm.trim());
+      if (filterCategory !== 'all') params.set('category', filterCategory);
+
+      const response = await fetch(`/api/products?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -356,9 +387,9 @@ export default function ProductsManagement() {
               className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
             >
               <option value="all">All Categories</option>
-              <option value="electronics">Electronics</option>
-              <option value="baby-items">Baby Items</option>
-              <option value="clothing">Clothing</option>
+              {categories.map((cat: any) => (
+                <option key={cat.id} value={cat.slug}>{cat.name}</option>
+              ))}
             </select>
           </div>
           <div>
@@ -442,11 +473,16 @@ export default function ProductsManagement() {
             </button>
           </div>
         ) : (() => {
-          // Filter products based on active status
+          // Filter products based on active status and stock status. Stock
+          // status isn't a server-supported filter param (unlike
+          // search/category, which are sent to /api/products), so it's
+          // applied client-side here alongside the existing active-status
+          // filter.
           const filteredProducts = products.filter(product => {
-            if (filterActiveStatus === 'active') return product.isActive;
-            if (filterActiveStatus === 'inactive') return !product.isActive;
-            return true; // 'all'
+            if (filterActiveStatus === 'active' && !product.isActive) return false;
+            if (filterActiveStatus === 'inactive' && product.isActive) return false;
+            if (filterStatus !== 'all' && product.availability !== filterStatus) return false;
+            return true;
           });
 
           return filteredProducts.length === 0 ? (

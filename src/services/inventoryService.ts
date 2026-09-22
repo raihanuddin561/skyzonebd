@@ -343,6 +343,51 @@ export async function releaseStockAllocationsForOrder(
 }
 
 /**
+ * Restore stock for every item on a cancelled order — an atomic `increment`
+ * per item (never a read-then-write, which is race-prone under concurrent
+ * cancellations), an InventoryLog entry per item, and releasing this order's
+ * stock-lot allocations. Shared by every code path that cancels an order
+ * (POST /api/orders/cancel, DELETE /api/orders/[id], and a status-dropdown
+ * PATCH to CANCELLED) so cancellation always restores stock the same,
+ * race-safe way instead of three slightly different implementations.
+ */
+export async function restoreStockForCancelledOrder(
+  tx: Prisma.TransactionClient,
+  orderId: string,
+  orderItems: { productId: string; quantity: number }[],
+  performedBy: string,
+  orderNumber: string
+): Promise<void> {
+  for (const item of orderItems) {
+    const productBeforeRestore = await tx.product.findUnique({
+      where: { id: item.productId },
+      select: { stockQuantity: true },
+    });
+    const previousStock = productBeforeRestore?.stockQuantity ?? 0;
+
+    await tx.product.update({
+      where: { id: item.productId },
+      data: { stockQuantity: { increment: item.quantity } },
+    });
+
+    await tx.inventoryLog.create({
+      data: {
+        productId: item.productId,
+        action: 'ADJUSTMENT',
+        quantity: item.quantity,
+        previousStock,
+        newStock: previousStock + item.quantity,
+        reference: orderId,
+        notes: `Stock restored from cancelled order ${orderNumber}`,
+        performedBy,
+      },
+    });
+  }
+
+  await releaseStockAllocationsForOrder(tx, orderId);
+}
+
+/**
  * Allocate stock using WAC method
  * Uses weighted average cost instead of specific lot costs
  */

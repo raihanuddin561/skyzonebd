@@ -14,6 +14,7 @@ const mockPrismaClient: any = {
   order: { findUnique: jest.fn(), update: jest.fn() },
   user: { findUnique: jest.fn() },
   $disconnect: jest.fn().mockResolvedValue(undefined),
+  $transaction: jest.fn((cb: any) => cb(mockPrismaClient)),
 };
 
 jest.mock('@/lib/prisma', () => ({
@@ -48,8 +49,8 @@ beforeEach(() => {
   mockRequireAdmin.mockResolvedValue({ id: 'admin-1', role: 'ADMIN' });
 });
 
-it('sends a SHIPPED email to a registered user on the PENDING -> SHIPPED transition', async () => {
-  mockPrismaClient.order.findUnique.mockResolvedValueOnce({ id: 'order-1', status: 'PENDING' });
+it('sends a SHIPPED email to a registered user on the PROCESSING -> SHIPPED transition', async () => {
+  mockPrismaClient.order.findUnique.mockResolvedValueOnce({ id: 'order-1', status: 'PROCESSING' });
   mockPrismaClient.order.update.mockResolvedValueOnce({
     id: 'order-1', orderNumber: 'ORD-1', status: 'SHIPPED', paymentStatus: 'PAID', updatedAt: new Date(),
     orderItems: [], guestEmail: null, user: { email: 'buyer@example.com' },
@@ -99,7 +100,7 @@ it('does not re-send when the order was already SHIPPED (idempotent repeat PATCH
 });
 
 it('does not send when there is no email available at all', async () => {
-  mockPrismaClient.order.findUnique.mockResolvedValueOnce({ id: 'order-1', status: 'PENDING' });
+  mockPrismaClient.order.findUnique.mockResolvedValueOnce({ id: 'order-1', status: 'PROCESSING' });
   mockPrismaClient.order.update.mockResolvedValueOnce({
     id: 'order-1', orderNumber: 'ORD-5', status: 'SHIPPED', paymentStatus: 'PAID', updatedAt: new Date(),
     orderItems: [], guestEmail: null, user: null,

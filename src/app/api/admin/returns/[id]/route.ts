@@ -86,7 +86,11 @@ export async function PATCH(
     const existingReturn = await prisma.return.findUnique({
       where: { id },
       include: {
-        items: { include: { orderItem: { select: { productId: true, quantity: true } } } },
+        items: {
+          include: {
+            orderItem: { select: { productId: true, quantity: true, costPerUnit: true } },
+          },
+        },
       },
     });
 
@@ -169,12 +173,37 @@ export async function PATCH(
           });
           if (!product) continue;
 
+          // Read only for the InventoryLog's audit snapshot below — the
+          // actual restoration is an atomic `increment`, matching the
+          // race-safe pattern used by order cancellation
+          // (src/app/api/orders/cancel/route.ts), rather than a
+          // read-then-compute-then-write that can lose updates under
+          // concurrent restocks/sales of the same product.
           const previousStock = product.stockQuantity;
           const newStock = previousStock + item.quantity;
 
           await tx.product.update({
             where: { id: item.orderItem.productId },
-            data: { stockQuantity: newStock },
+            data: { stockQuantity: { increment: item.quantity } },
+          });
+
+          // Restore a real StockLot at the order item's original cost basis
+          // so WAC costing stays accurate after the return, instead of only
+          // bumping Product.stockQuantity — which would otherwise
+          // permanently drift ahead of sum(StockLot.quantityRemaining) and
+          // let depleteStockLotsForSale() run out of real lots before
+          // Product.stockQuantity reaches zero on a later sale.
+          await tx.stockLot.create({
+            data: {
+              productId: item.orderItem.productId,
+              lotNumber: `RETURN-${existingReturn.returnNumber}-${item.id}`,
+              quantityReceived: item.quantity,
+              quantityRemaining: item.quantity,
+              costPerUnit: item.orderItem.costPerUnit ?? 0,
+              totalCost: item.quantity * (item.orderItem.costPerUnit ?? 0),
+              notes: `Restocked from return ${existingReturn.returnNumber}`,
+              createdBy: admin.id,
+            },
           });
 
           await tx.inventoryLog.create({

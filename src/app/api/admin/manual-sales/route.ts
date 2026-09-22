@@ -1,51 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verify, JwtPayload } from 'jsonwebtoken';
-import { getJwtSecret } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { logActivity } from '@/lib/activityLogger';
 import { alertIfCrossedReorderLevel } from '@/utils/lowStockAlerts';
+import { depleteStockLotsForSale } from '@/services/inventoryService';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
-
-interface DecodedToken extends JwtPayload {
-  userId: string;
-  role: string;
-}
-
 // GET /api/admin/manual-sales - List all manual sales entries
 export async function GET(request: NextRequest) {
   try {
-    // Auth check
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-    try {
-      decoded = verify(token, getJwtSecret()) as DecodedToken;
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Only admins can access
-    if (!['ADMIN', 'SUPER_ADMIN'].includes(decoded.role)) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied' },
-        { status: 403 }
-      );
-    }
+    // Canonical auth (ADR-009 / P2-9): requireAdmin re-fetches the user from
+    // the DB on every call (fresh role, fresh isActive), so a demoted or
+    // deactivated admin's still-unexpired JWT can't be used to bypass this
+    // check the way a hand-rolled `jsonwebtoken.verify` + `decoded.role`
+    // check could.
+    await requireAdmin(request);
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
@@ -128,6 +101,9 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error fetching manual sales:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch manual sales entries' },
@@ -139,33 +115,8 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/manual-sales - Create new manual sales entry
 export async function POST(request: NextRequest) {
   try {
-    // Auth check
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-    try {
-      decoded = verify(token, getJwtSecret()) as DecodedToken;
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Only admins can create
-    if (!['ADMIN', 'SUPER_ADMIN'].includes(decoded.role)) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied' },
-        { status: 403 }
-      );
-    }
+    // Canonical auth (ADR-009 / P2-9): see GET handler above for rationale.
+    const authUser = await requireAdmin(request);
 
     const body = await request.json();
     const {
@@ -280,8 +231,11 @@ export async function POST(request: NextRequest) {
     const taxAmount = tax || 0;
     const shippingAmount = shipping || 0;
     const total = subtotal - discountAmount + taxAmount + shippingAmount;
-    const totalProfit = total - totalCost;
-    const profitMargin = total > 0 ? (totalProfit / total) * 100 : 0;
+    // let (not const): depleteStockLotsForSale below may correct totalCost
+    // (and therefore these derived figures) from the flat fallback estimate
+    // to the real weighted-average lot cost once stock lots are depleted.
+    let totalProfit = total - totalCost;
+    let profitMargin = total > 0 ? (totalProfit / total) * 100 : 0;
 
     // Collects stock-crossing candidates during the transaction below, for
     // a best-effort, non-blocking low-stock alert fired after it commits
@@ -291,7 +245,7 @@ export async function POST(request: NextRequest) {
     // Create manual sales entry in transaction
     const entry = await prisma.$transaction(async (tx) => {
       // Create the sales entry
-      const newEntry = await tx.manualSalesEntry.create({
+      let newEntry = await tx.manualSalesEntry.create({
         data: {
           saleDate: new Date(saleDate),
           referenceNumber: referenceNumber || null,
@@ -314,7 +268,7 @@ export async function POST(request: NextRequest) {
           adjustInventory: adjustInventory !== false,
           notes: notes || null,
           attachments: attachments || [],
-          enteredBy: decoded.userId,
+          enteredBy: authUser.id,
           items: {
             create: itemsData
           }
@@ -344,6 +298,19 @@ export async function POST(request: NextRequest) {
 
       // Adjust inventory if requested
       if (adjustInventory !== false) {
+        // Group the just-created line items by product so each request line
+        // below can be paired with its corresponding ManualSalesItem record
+        // (needed to snapshot the real, lot-based cost onto it) even when
+        // the same product appears on more than one line.
+        const itemsByProduct = new Map<string, typeof newEntry.items>();
+        for (const saleItem of newEntry.items) {
+          const bucket = itemsByProduct.get(saleItem.productId) ?? [];
+          bucket.push(saleItem);
+          itemsByProduct.set(saleItem.productId, bucket);
+        }
+
+        let costsCorrected = false;
+
         for (const item of items) {
           // Fetch product for previous stock value (and for the low-stock
           // alert check below — Amazon-style gap-closure Phase 1)
@@ -380,6 +347,50 @@ export async function POST(request: NextRequest) {
             newStock: product.stockQuantity - item.quantity,
           });
 
+          // Deplete real stock lots for accurate Weighted-Average-Cost COGS
+          // (same two-step pattern already used for online orders in
+          // src/app/api/orders/route.ts: the guarded Product.stockQuantity
+          // decrement above remains the authoritative oversell guard — this
+          // call is purely for cost-basis accuracy on top of it, keeping
+          // StockLot.quantityRemaining in sync instead of drifting away from
+          // Product.stockQuantity the way manual sales previously did).
+          // Falls back to the flat cost already snapshotted in itemsData
+          // (costPerUnit: null) if this product has no stock-lot history
+          // yet, so products never restocked through the lot-tracked
+          // restock endpoint behave exactly as before.
+          const saleItem = itemsByProduct.get(item.productId)?.shift();
+          if (saleItem) {
+            const { costPerUnit: wacCostPerUnit } = await depleteStockLotsForSale(tx, {
+              productId: item.productId,
+              quantity: item.quantity,
+              orderId: newEntry.id,
+              orderItemId: saleItem.id,
+            });
+
+            if (wacCostPerUnit !== null && wacCostPerUnit !== saleItem.costPerUnit) {
+              const itemTotalCost = saleItem.quantity * wacCostPerUnit;
+              const itemProfit = saleItem.total - itemTotalCost;
+              const itemProfitMargin = saleItem.total > 0 ? (itemProfit / saleItem.total) * 100 : 0;
+
+              await tx.manualSalesItem.update({
+                where: { id: saleItem.id },
+                data: {
+                  costPerUnit: wacCostPerUnit,
+                  totalCost: itemTotalCost,
+                  profit: itemProfit,
+                  profitMargin: itemProfitMargin,
+                }
+              });
+
+              // Roll the corrected line cost into the sale-level aggregates
+              // so the entry's totalCost/totalProfit/profitMargin (and the
+              // COGS ledger debit below) reflect the real lot cost instead
+              // of the flat fallback estimate.
+              totalCost = totalCost - saleItem.totalCost + itemTotalCost;
+              costsCorrected = true;
+            }
+          }
+
           // Create inventory log
           await tx.inventoryLog.create({
             data: {
@@ -390,15 +401,45 @@ export async function POST(request: NextRequest) {
               newStock: product.stockQuantity - item.quantity,
               reference: newEntry.id,
               notes: `Manual sale entry: ${referenceNumber || newEntry.id}`,
-              performedBy: decoded.userId
+              performedBy: authUser.id
             }
           });
         }
 
-        // Mark inventory as adjusted
-        await tx.manualSalesEntry.update({
+        if (costsCorrected) {
+          totalProfit = total - totalCost;
+          profitMargin = total > 0 ? (totalProfit / total) * 100 : 0;
+        }
+
+        // Mark inventory as adjusted, and persist any lot-based cost
+        // corrections made above to the sale-level aggregates.
+        newEntry = await tx.manualSalesEntry.update({
           where: { id: newEntry.id },
-          data: { inventoryAdjusted: true }
+          data: {
+            inventoryAdjusted: true,
+            ...(costsCorrected ? { totalCost, totalProfit, profitMargin } : {})
+          },
+          include: {
+            items: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    imageUrl: true,
+                    sku: true
+                  }
+                }
+              }
+            },
+            customer: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
         });
       }
 
@@ -423,7 +464,7 @@ export async function POST(request: NextRequest) {
             profitMargin: profitMargin.toFixed(2),
             totalProfit: totalProfit.toFixed(2)
           },
-          createdBy: decoded.userId
+          createdBy: authUser.id
         }
       });
 
@@ -432,7 +473,8 @@ export async function POST(request: NextRequest) {
       // cost of goods invisible to financial reporting and the ledger
       // unbalanced for this entire sales channel (Amazon-style gap-closure
       // Phase 0; same double-entry pattern already used for online orders
-      // in lib/financialLedger.ts's createOrderLedgerEntries).
+      // in lib/financialLedger.ts's createOrderLedgerEntries). Uses the
+      // (possibly lot-corrected) totalCost computed above.
       if (totalCost > 0) {
         await tx.financialLedger.create({
           data: {
@@ -460,8 +502,8 @@ export async function POST(request: NextRequest) {
 
     // Log activity
     await logActivity({
-      userId: decoded.userId,
-      userName: decoded.name || 'Admin',
+      userId: authUser.id,
+      userName: authUser.name || 'Admin',
       action: 'CREATE',
       entityType: 'MANUAL_SALE',
       entityId: entry.id,
@@ -477,6 +519,9 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error creating manual sales entry:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create manual sales entry' },

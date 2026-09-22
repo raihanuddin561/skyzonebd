@@ -19,7 +19,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-on
 
 const mockPrismaClient: any = {
   user: { findUnique: jest.fn() },
-  order: { findUnique: jest.fn(), update: jest.fn() },
+  order: {
+    findUnique: jest.fn(),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    findUniqueOrThrow: jest.fn(),
+  },
   payment: { create: jest.fn() },
   $disconnect: jest.fn().mockResolvedValue(undefined),
 };
@@ -64,14 +68,14 @@ function baseOrder(overrides: Record<string, any> = {}) {
 beforeEach(() => {
   jest.clearAllMocks();
   mockPrismaClient.user.findUnique.mockResolvedValue({
-    id: 'admin-1', name: 'Admin', email: 'admin@example.com', role: 'ADMIN',
+    id: 'admin-1', name: 'Admin', email: 'admin@example.com', role: 'ADMIN', userType: 'WHOLESALE', isActive: true,
   });
 });
 
 describe('PATCH /api/admin/orders/[id]/verify-payment', () => {
   it('creates a real Payment row for the full order total when verified as PAID', async () => {
     mockPrismaClient.order.findUnique.mockResolvedValue(baseOrder());
-    mockPrismaClient.order.update.mockResolvedValue(baseOrder({ paymentStatus: 'PAID', status: 'CONFIRMED' }));
+    mockPrismaClient.order.findUniqueOrThrow.mockResolvedValue(baseOrder({ paymentStatus: 'PAID', status: 'CONFIRMED' }));
 
     const res: any = await PATCH(req({ status: 'PAID', note: 'Confirmed via bKash statement' }, adminToken()), { params });
 
@@ -90,7 +94,7 @@ describe('PATCH /api/admin/orders/[id]/verify-payment', () => {
 
   it('does not create a Payment row when the payment is rejected as FAILED', async () => {
     mockPrismaClient.order.findUnique.mockResolvedValue(baseOrder());
-    mockPrismaClient.order.update.mockResolvedValue(baseOrder({ paymentStatus: 'FAILED' }));
+    mockPrismaClient.order.findUniqueOrThrow.mockResolvedValue(baseOrder({ paymentStatus: 'FAILED' }));
 
     await PATCH(req({ status: 'FAILED', note: 'No matching transaction found' }, adminToken()), { params });
 
@@ -99,7 +103,7 @@ describe('PATCH /api/admin/orders/[id]/verify-payment', () => {
 
   it('falls back to BANK_TRANSFER for a payment method with no matching PaymentMethod enum value', async () => {
     mockPrismaClient.order.findUnique.mockResolvedValue(baseOrder({ paymentMethod: 'cash_on_delivery' }));
-    mockPrismaClient.order.update.mockResolvedValue(baseOrder({ paymentStatus: 'PAID' }));
+    mockPrismaClient.order.findUniqueOrThrow.mockResolvedValue(baseOrder({ paymentStatus: 'PAID', paymentMethod: 'cash_on_delivery' }));
 
     await PATCH(req({ status: 'PAID' }, adminToken()), { params });
 

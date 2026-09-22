@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verify, JwtPayload } from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/activityLogger';
-import { requireAuth, getJwtSecret } from '@/lib/auth';
+import { requireAuth, requireAdmin } from '@/lib/auth';
 import { UserRole, isAdmin } from '@/types/roles';
 
 // Vercel configuration
@@ -10,11 +9,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
-
-interface DecodedToken extends JwtPayload {
-  userId: string;
-  role: string;
-}
 
 /**
  * GET /api/admin/payment-config/[id]
@@ -72,34 +66,8 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Verify admin authentication
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-
-    try {
-      decoded = verify(token, getJwtSecret()) as DecodedToken;
-    } catch (error) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Check if user is admin
-    if (decoded.role !== 'ADMIN' && decoded.role !== 'SUPER_ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden - Admin access required' },
-        { status: 403 }
-      );
-    }
+    // Verify admin authentication (DB-verified role/isActive, not a raw JWT claim)
+    const decoded = await requireAdmin(request);
 
     const { id } = await context.params;
     const body = await request.json();
@@ -118,7 +86,7 @@ export async function PATCH(
 
     // Update payment configuration
     const updateData: any = {
-      updatedBy: decoded.userId
+      updatedBy: decoded.id
     };
 
     if (body.name !== undefined) updateData.name = body.name;
@@ -140,7 +108,7 @@ export async function PATCH(
 
     // Log activity
     await logActivity({
-      userId: decoded.userId,
+      userId: decoded.id,
       userName: 'Admin',
       action: 'UPDATE',
       entityType: 'PaymentConfig',
@@ -156,6 +124,9 @@ export async function PATCH(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error updating payment config:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
@@ -173,34 +144,8 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Verify admin authentication
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    let decoded: DecodedToken;
-
-    try {
-      decoded = verify(token, getJwtSecret()) as DecodedToken;
-    } catch (error) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
-
-    // Check if user is admin
-    if (decoded.role !== 'ADMIN' && decoded.role !== 'SUPER_ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden - Admin access required' },
-        { status: 403 }
-      );
-    }
+    // Verify admin authentication (DB-verified role/isActive, not a raw JWT claim)
+    const decoded = await requireAdmin(request);
 
     const { id } = await context.params;
 
@@ -223,7 +168,7 @@ export async function DELETE(
 
     // Log activity
     await logActivity({
-      userId: decoded.userId,
+      userId: decoded.id,
       userName: 'Admin',
       action: 'DELETE',
       entityType: 'PaymentConfig',
@@ -238,6 +183,9 @@ export async function DELETE(
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('Error deleting payment config:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },

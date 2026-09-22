@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getJwtSecret } from '@/lib/auth';
-import { verify } from 'jsonwebtoken';
+import { requireAuth } from '@/lib/auth';
+import { UserRole, isSuperAdmin } from '@/types/roles';
+import { timingSafeEqual } from 'crypto';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -9,7 +10,22 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
 
-export async function POST(request: Request) {
+// Fails closed if SEED_SECRET is unset — matches the fail-closed doctrine
+// established for JWT_SECRET/MIGRATION_SECRET_KEY elsewhere, and uses a
+// constant-time comparison (like migrate/route.ts's isAuthorizedMigrationRequest)
+// so the check isn't vulnerable to a timing side-channel.
+function isAuthorizedSeedStatusRequest(authHeader: string | null): boolean {
+  const seedSecret = process.env.SEED_SECRET;
+  if (!seedSecret) {
+    return false;
+  }
+  if (!authHeader) return false;
+  const expected = Buffer.from(`Bearer ${seedSecret}`);
+  const actual = Buffer.from(authHeader);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+export async function POST(request: NextRequest) {
   try {
     // Only allow with no auth in a genuine local dev environment. This
     // used to check `=== 'production'` — fail-OPEN for anything that isn't
@@ -21,27 +37,15 @@ export async function POST(request: Request) {
     // case instead — fail-CLOSED by default — matches the doctrine already
     // established for JWT_SECRET/MIGRATION_SECRET_KEY elsewhere.
     if (process.env.NODE_ENV !== 'development') {
-      const authHeader = request.headers.get('authorization');
-      
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return NextResponse.json({
-          error: 'Unauthorized: Authentication required'
-        }, { status: 401 });
-      }
+      // Canonical auth (DB-verified role/isActive, not a raw JWT claim),
+      // then a manual SUPER_ADMIN check — there is no requireSuperAdmin
+      // helper; every SUPER_ADMIN route hand-rolls this exact check.
+      const authUser = await requireAuth(request);
 
-      const token = authHeader.substring(7);
-      try {
-        const decoded = verify(token, getJwtSecret()) as { userId: string; role: string };
-        
-        if (decoded.role.toUpperCase() !== 'SUPER_ADMIN') {
-          return NextResponse.json({
-            error: 'Forbidden: SUPER_ADMIN access required'
-          }, { status: 403 });
-        }
-      } catch {
+      if (!isSuperAdmin(authUser.role as UserRole)) {
         return NextResponse.json({
-          error: 'Unauthorized: Invalid token'
-        }, { status: 401 });
+          error: 'Forbidden: SUPER_ADMIN access required'
+        }, { status: 403 });
       }
     }
 
@@ -224,9 +228,12 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
     console.error('❌ Seed error:', error);
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to seed database',
         details: error instanceof Error ? error.message : String(error)
       },
@@ -242,9 +249,8 @@ export async function GET(request: Request) {
   try {
     // Require authentication for status check too
     const authHeader = request.headers.get('authorization');
-    const seedSecret = process.env.SEED_SECRET;
-    
-    if (!seedSecret || authHeader !== `Bearer ${seedSecret}`) {
+
+    if (!isAuthorizedSeedStatusRequest(authHeader)) {
       return NextResponse.json({
         error: 'Unauthorized: This endpoint requires SEED_SECRET'
       }, { status: 401 });
