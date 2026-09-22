@@ -2,11 +2,18 @@
  * @jest-environment node
  */
 // __tests__/admin/database-migration.test.ts
-// Covers the admin Database Management "Schema Migrations" card:
-// GET migration-status reports pending vs up-to-date vs unknown, and
-// POST migrate is admin-gated, re-checks status server-side (never trusts
-// the client), and only actually shells `prisma migrate deploy` when
-// genuinely pending.
+// Covers the admin Database Management "Schema Migrations" card.
+//
+// GET migration-status deliberately does NOT shell out to the Prisma CLI —
+// two separate attempts at invoking it from a deployed Vercel function each
+// hit a different Lambda-runtime-specific failure (see the comment at the
+// top of src/lib/dbMigrationStatus.ts). It instead compares migration
+// folder names read off disk against the _prisma_migrations table read via
+// Prisma Client — this file mocks fs.readdirSync and prisma.$queryRaw
+// accordingly, not child_process.
+//
+// POST /migrate still shells `prisma migrate deploy` (a real schema change,
+// not yet moved off the CLI) — that part of this file still mocks exec.
 
 import jwt from 'jsonwebtoken';
 
@@ -15,6 +22,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-on
 const mockPrismaClient: any = {
   user: { findUnique: jest.fn().mockResolvedValue(null) },
   activityLog: { create: jest.fn().mockResolvedValue({}) },
+  $queryRaw: jest.fn(),
 };
 
 jest.mock('@/lib/prisma', () => ({
@@ -27,30 +35,24 @@ jest.mock('@/lib/activityLogger', () => ({
   logActivity: jest.fn().mockResolvedValue(undefined),
 }));
 
-const UP_TO_DATE_OUTPUT = '21 migrations found in prisma/migrations\n\nDatabase schema is up to date!\n';
-const PENDING_OUTPUT =
-  '21 migrations found in prisma/migrations\n\nFollowing migration(s) have not yet been applied:\nmigrations/\n  └─ 20260101000000_add_thing\n\nTo apply migrations run `prisma migrate deploy`.\n';
+// Two migration folders on disk; which ones count as "applied" is
+// controlled per-test via mockPrismaClient.$queryRaw's return value.
+const ALL_MIGRATION_FOLDERS = ['20251031162814_add_hero_slides', '20260101000000_add_thing'];
 
-let execBehavior: 'up_to_date' | 'pending' | 'connection_error' = 'up_to_date';
+jest.mock('fs', () => ({
+  __esModule: true,
+  default: {
+    readdirSync: jest.fn((_dir: string, _opts: any) =>
+      ALL_MIGRATION_FOLDERS.map((name) => ({ name, isDirectory: () => true }))
+    ),
+  },
+}));
 
+let execFailure: 'connection_error' | null = null;
 jest.mock('child_process', () => ({
   exec: jest.fn((cmd: string, _opts: any, cb: any) => {
-    if (cmd.includes('migrate status')) {
-      if (execBehavior === 'connection_error') {
-        const err: any = new Error('P1001');
-        err.stdout = '';
-        err.stderr = "Can't reach database server";
-        return cb(err);
-      }
-      if (execBehavior === 'pending') {
-        const err: any = new Error('exit 1');
-        err.stdout = PENDING_OUTPUT;
-        err.stderr = '';
-        return cb(err);
-      }
-      return cb(null, { stdout: UP_TO_DATE_OUTPUT, stderr: '' });
-    }
     if (cmd.includes('migrate deploy')) {
+      if (execFailure === 'connection_error') return cb(new Error("Can't reach database server"));
       return cb(null, { stdout: 'Applied 1 migration.', stderr: '' });
     }
     return cb(new Error(`unexpected command in test: ${cmd}`));
@@ -106,9 +108,13 @@ function req(opts?: { admin?: boolean; nonAdminRole?: string; body?: any }) {
   }) as any;
 }
 
+// Both migrations applied -> up_to_date. Tests override with mockResolvedValueOnce for other cases.
 beforeEach(() => {
   jest.clearAllMocks();
-  execBehavior = 'up_to_date';
+  execFailure = null;
+  mockPrismaClient.$queryRaw.mockResolvedValue(
+    ALL_MIGRATION_FOLDERS.map((migration_name) => ({ migration_name }))
+  );
 });
 
 describe('GET /api/admin/database/migration-status', () => {
@@ -120,23 +126,30 @@ describe('GET /api/admin/database/migration-status', () => {
     expect((await GET(req({ nonAdminRole: 'BUYER' }))).status).toBe(403);
   });
 
-  it('reports up_to_date when the schema has nothing pending', async () => {
-    execBehavior = 'up_to_date';
+  it('reports up_to_date when every folder on disk has a matching applied row', async () => {
     const res = await GET(req({ admin: true }));
     const body = await res.json();
     expect(body.status).toBe('up_to_date');
+    expect(body.pendingMigrations).toEqual([]);
   });
 
-  it('reports pending with migration names when something is unapplied', async () => {
-    execBehavior = 'pending';
+  it('reports pending with the folder name missing from _prisma_migrations', async () => {
+    mockPrismaClient.$queryRaw.mockResolvedValueOnce([{ migration_name: ALL_MIGRATION_FOLDERS[0] }]);
     const res = await GET(req({ admin: true }));
     const body = await res.json();
     expect(body.status).toBe('pending');
-    expect(body.pendingMigrations).toContain('20260101000000_add_thing');
+    expect(body.pendingMigrations).toEqual([ALL_MIGRATION_FOLDERS[1]]);
   });
 
-  it('reports unknown (not up_to_date) on a connection/parse failure — fails closed', async () => {
-    execBehavior = 'connection_error';
+  it('queries only finished, non-rolled-back rows as "applied"', async () => {
+    await GET(req({ admin: true }));
+    const sqlCall = mockPrismaClient.$queryRaw.mock.calls[0].join(' ');
+    expect(sqlCall).toMatch(/finished_at IS NOT NULL/);
+    expect(sqlCall).toMatch(/rolled_back_at IS NULL/);
+  });
+
+  it('reports unknown (not up_to_date) when the database query fails — fails closed', async () => {
+    mockPrismaClient.$queryRaw.mockRejectedValueOnce(new Error('relation "_prisma_migrations" does not exist'));
     const res = await GET(req({ admin: true }));
     const body = await res.json();
     expect(body.status).toBe('unknown');
@@ -153,7 +166,6 @@ describe('POST /api/admin/database/migrate', () => {
   });
 
   it('refuses to run (409) when the server-side check finds nothing pending, even if asked to run', async () => {
-    execBehavior = 'up_to_date';
     const res = await POST(req({ admin: true }));
     expect(res.status).toBe(409);
     const body = await res.json();
@@ -161,7 +173,7 @@ describe('POST /api/admin/database/migrate', () => {
   });
 
   it('applies migrations and logs activity when genuinely pending', async () => {
-    execBehavior = 'pending';
+    mockPrismaClient.$queryRaw.mockResolvedValueOnce([{ migration_name: ALL_MIGRATION_FOLDERS[0] }]);
     const res = await POST(req({ admin: true }));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -173,7 +185,7 @@ describe('POST /api/admin/database/migrate', () => {
   });
 
   it('refuses to run (409) when status cannot be determined — fails closed', async () => {
-    execBehavior = 'connection_error';
+    mockPrismaClient.$queryRaw.mockRejectedValueOnce(new Error('connection error'));
     const res = await POST(req({ admin: true }));
     expect(res.status).toBe(409);
   });

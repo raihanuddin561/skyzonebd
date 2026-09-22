@@ -9,20 +9,34 @@
 // — a parse failure must never be silently treated as "safe to click",
 // matching this codebase's fail-closed doctrine elsewhere (getJwtSecret(),
 // the MIGRATION_SECRET_KEY check in api/migrate/route.ts).
+//
+// This deliberately does NOT shell out to `prisma migrate status`. Two
+// separate attempts at invoking the Prisma CLI from a deployed Vercel
+// function (via `npx`, then via `node <resolved CLI path>`) each hit a
+// different Lambda-runtime-specific failure — `npx`/`npm` aren't present at
+// request time, and even direct `node` invocation of the CLI's own
+// entrypoint hit an internal module-resolution error the CLI's child-process
+// architecture produces in that environment. The Prisma CLI is built to run
+// in a normal dev/CI/build context with full npm tooling, not inside a live
+// serverless request handler — that's exactly why this app's own build step
+// (vercel.json) already runs `prisma migrate deploy` there instead.
+//
+// The status *check* doesn't need the CLI at all: it only needs to compare
+// the migration folder names (read directly off disk — no `require`/module
+// resolution, just a plain directory listing, which next.config.ts's
+// outputFileTracingIncludes already guarantees is bundled) against the
+// `_prisma_migrations` tracking table, read via the already-reliable
+// `@prisma/client` (Prisma's actual supported runtime target — this app
+// already makes hundreds of Client calls in production without issue).
 
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import fs from 'fs';
+import path from 'path';
+import { prisma } from '@/lib/prisma';
 
-const execAsync = promisify(exec);
-
-// `npx prisma ...` depends on `npx`/`npm` being on PATH — true in local dev
-// and in a Vercel *build* step, but NOT in a deployed Vercel serverless
-// function's runtime, which only guarantees `node` itself ("sh: line 1:
-// prisma: command not found" is npx failing to resolve/fall back). Resolving
-// the CLI's own entrypoint and invoking it with `node` sidesteps npx/npm
-// entirely — it only needs the `prisma` package to be present, which
-// next.config.ts's outputFileTracingIncludes already forces into these
-// routes' bundles.
+// Still used by migrate/route.ts and reset/route.ts, which (unlike this
+// status check) genuinely need to execute DDL and haven't been moved off
+// the CLI yet — see the note at the top of this file about why shelling
+// out to the CLI from a live Lambda is fragile in general.
 const PRISMA_CLI_PATH = require.resolve('prisma/build/index.js');
 export const PRISMA_CLI_COMMAND = `node "${PRISMA_CLI_PATH}"`;
 
@@ -34,44 +48,50 @@ export interface MigrationStatusResult {
   raw: string;
 }
 
+interface AppliedMigrationRow {
+  migration_name: string;
+}
+
 export async function getMigrationStatus(): Promise<MigrationStatusResult> {
   try {
-    const { stdout } = await execAsync(`${PRISMA_CLI_COMMAND} migrate status`, { timeout: 30000 });
-    return parseMigrateStatusOutput(stdout);
-  } catch (error: any) {
-    // `prisma migrate status` exits non-zero both when migrations are
-    // pending AND on a genuine connection/config error — the stdout/stderr
-    // text (not the exit code) is what distinguishes them.
-    const output = `${error?.stdout || ''}\n${error?.stderr || ''}`;
-    if (output.includes('have not yet been applied')) {
-      return parseMigrateStatusOutput(output);
+    const migrationsDir = path.join(process.cwd(), 'prisma', 'migrations');
+    const folderNames = fs
+      .readdirSync(migrationsDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && /^\d{14}_/.test(entry.name))
+      .map((entry) => entry.name)
+      .sort();
+
+    // A migration counts as genuinely applied only if it finished and was
+    // never rolled back — matches exactly what `prisma migrate status`
+    // itself checks.
+    const appliedRows = await prisma.$queryRaw<AppliedMigrationRow[]>`
+      SELECT migration_name FROM "_prisma_migrations"
+      WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
+    `;
+    const appliedNames = new Set(appliedRows.map((r) => r.migration_name));
+
+    const pendingMigrations = folderNames.filter((name) => !appliedNames.has(name));
+
+    if (pendingMigrations.length === 0) {
+      return {
+        status: 'up_to_date',
+        pendingMigrations: [],
+        raw: `${folderNames.length} migration(s) found in prisma/migrations, all applied.`,
+      };
     }
-    // Logged server-side (visible in Vercel function logs) rather than only
-    // returned in the API response — the most common real cause on a
-    // serverless deployment is that `prisma/schema.prisma`, the migrations
-    // folder, or the Prisma CLI/engine binaries weren't bundled into the
-    // function (Next.js's file tracing can't see this dependency inside a
-    // shelled-out command), which shows up here as "spawn npx ENOENT" or a
-    // schema-engine/"Could not find schema.prisma" style message.
-    const raw = output || String(error?.message || error);
+
+    return {
+      status: 'pending',
+      pendingMigrations,
+      raw: `${pendingMigrations.length} of ${folderNames.length} migration(s) not yet applied: ${pendingMigrations.join(', ')}`,
+    };
+  } catch (error) {
+    // Logged server-side (visible in Vercel function logs), e.g. if
+    // `_prisma_migrations` doesn't exist yet (a database that's never had
+    // any migration applied at all) or the migrations directory wasn't
+    // bundled for some other reason.
+    const raw = error instanceof Error ? error.message : String(error);
     console.error('getMigrationStatus: could not determine migration status —', raw);
     return { status: 'unknown', pendingMigrations: [], raw };
   }
-}
-
-function parseMigrateStatusOutput(output: string): MigrationStatusResult {
-  if (output.includes('Database schema is up to date!')) {
-    return { status: 'up_to_date', pendingMigrations: [], raw: output };
-  }
-  if (output.includes('have not yet been applied')) {
-    // Prisma lists pending migration folder names one per line, each
-    // starting with a tree-drawing character (└─ or ├─) followed by the
-    // migration directory name (e.g. "20260101000000_add_thing").
-    const pendingMigrations = Array.from(
-      output.matchAll(/[└├]─\s*(\d{14}_[a-zA-Z0-9_]+)/g)
-    ).map((m) => m[1]);
-    return { status: 'pending', pendingMigrations, raw: output };
-  }
-  console.error('getMigrationStatus: unrecognized `prisma migrate status` output —', output);
-  return { status: 'unknown', pendingMigrations: [], raw: output };
 }
