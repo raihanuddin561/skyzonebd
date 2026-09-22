@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { logActivity } from '@/lib/activityLogger';
-import { getMigrationStatus, PRISMA_CLI_COMMAND } from '@/lib/dbMigrationStatus';
+import { getMigrationStatus } from '@/lib/dbMigrationStatus';
+import { applyPendingMigrations } from '@/lib/applyPrismaMigration';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const execAsync = promisify(exec);
-
 // POST /api/admin/database/migrate — admin only.
-// Applies any pending Prisma migrations (`prisma migrate deploy`) — keeps
-// all existing data, only adds/changes schema for migrations already
-// committed to prisma/migrations. Re-checks status server-side first: never
-// trusts the client's claim that there's something pending to apply.
+// Applies any pending Prisma migrations — keeps all existing data, only
+// adds/changes schema for migrations already committed to
+// prisma/migrations. Re-checks status server-side first: never trusts the
+// client's claim that there's something pending to apply.
+//
+// Does not shell out to the Prisma CLI (see lib/dbMigrationStatus.ts and
+// lib/applyPrismaMigration.ts for why) — each pending migration's SQL is
+// executed directly via Prisma Client, one migration per transaction, in
+// order, stopping at the first failure.
 export async function POST(request: NextRequest) {
   try {
     const authUser = await requireAdmin(request);
@@ -35,35 +38,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { stdout } = await execAsync(`${PRISMA_CLI_COMMAND} migrate deploy`, { timeout: 55000 });
+    const result = await applyPendingMigrations(prisma, statusBefore.pendingMigrations);
 
     await logActivity({
       userId: authUser.id,
       userName: authUser.name,
       action: 'UPDATE',
       entityType: 'Database',
-      description: `Applied ${statusBefore.pendingMigrations.length} pending migration(s): ${statusBefore.pendingMigrations.join(', ') || '(names unavailable)'}`,
-      metadata: { pendingMigrations: statusBefore.pendingMigrations },
+      description: result.failedAt
+        ? `Applied ${result.applied.length} migration(s) before failing on "${result.failedAt}": ${result.error}`
+        : `Applied ${result.applied.length} pending migration(s): ${result.applied.join(', ') || '(none)'}`,
+      metadata: { appliedMigrations: result.applied, failedAt: result.failedAt, error: result.error },
       request,
     });
 
+    if (result.failedAt) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Migration "${result.failedAt}" failed: ${result.error}`,
+          appliedMigrations: result.applied,
+          failedAt: result.failedAt,
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Applied ${statusBefore.pendingMigrations.length} migration(s) successfully.`,
-      appliedMigrations: statusBefore.pendingMigrations,
-      output: stdout,
+      message: `Applied ${result.applied.length} migration(s) successfully.`,
+      appliedMigrations: result.applied,
     });
   } catch (error: any) {
     if (error instanceof Response) return error;
     console.error('Migration apply error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Migration failed',
-        details: error?.message,
-        output: error?.stdout,
-        stderr: error?.stderr,
-      },
+      { success: false, error: 'Migration failed', details: error?.message },
       { status: 500 }
     );
   }

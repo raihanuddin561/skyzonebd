@@ -4,25 +4,25 @@
 // __tests__/admin/database-migration.test.ts
 // Covers the admin Database Management "Schema Migrations" card.
 //
-// GET migration-status deliberately does NOT shell out to the Prisma CLI —
-// two separate attempts at invoking it from a deployed Vercel function each
-// hit a different Lambda-runtime-specific failure (see the comment at the
-// top of src/lib/dbMigrationStatus.ts). It instead compares migration
-// folder names read off disk against the _prisma_migrations table read via
-// Prisma Client — this file mocks fs.readdirSync and prisma.$queryRaw
-// accordingly, not child_process.
-//
-// POST /migrate still shells `prisma migrate deploy` (a real schema change,
-// not yet moved off the CLI) — that part of this file still mocks exec.
+// Neither GET migration-status nor POST migrate shell out to the Prisma CLI
+// (see lib/dbMigrationStatus.ts's and lib/applyPrismaMigration.ts's header
+// comments for why) — status compares migration folder names read off disk
+// against the _prisma_migrations table, and apply executes each pending
+// migration's SQL directly via Prisma Client. This file mocks fs and
+// prisma.$queryRaw/$transaction/$executeRawUnsafe accordingly — no
+// child_process anywhere.
 
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-only';
 
+const mockTxClient: any = { $executeRawUnsafe: jest.fn().mockResolvedValue(undefined) };
 const mockPrismaClient: any = {
   user: { findUnique: jest.fn().mockResolvedValue(null) },
   activityLog: { create: jest.fn().mockResolvedValue({}) },
   $queryRaw: jest.fn(),
+  $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
+  $transaction: jest.fn((cb: any) => cb(mockTxClient)),
 };
 
 jest.mock('@/lib/prisma', () => ({
@@ -45,18 +45,8 @@ jest.mock('fs', () => ({
     readdirSync: jest.fn((_dir: string, _opts: any) =>
       ALL_MIGRATION_FOLDERS.map((name) => ({ name, isDirectory: () => true }))
     ),
+    readFileSync: jest.fn((_p: string) => Buffer.from('CREATE TABLE "x" ("id" TEXT);')),
   },
-}));
-
-let execFailure: 'connection_error' | null = null;
-jest.mock('child_process', () => ({
-  exec: jest.fn((cmd: string, _opts: any, cb: any) => {
-    if (cmd.includes('migrate deploy')) {
-      if (execFailure === 'connection_error') return cb(new Error("Can't reach database server"));
-      return cb(null, { stdout: 'Applied 1 migration.', stderr: '' });
-    }
-    return cb(new Error(`unexpected command in test: ${cmd}`));
-  }),
 }));
 
 const { GET } = require('@/app/api/admin/database/migration-status/route');
@@ -111,10 +101,12 @@ function req(opts?: { admin?: boolean; nonAdminRole?: string; body?: any }) {
 // Both migrations applied -> up_to_date. Tests override with mockResolvedValueOnce for other cases.
 beforeEach(() => {
   jest.clearAllMocks();
-  execFailure = null;
   mockPrismaClient.$queryRaw.mockResolvedValue(
     ALL_MIGRATION_FOLDERS.map((migration_name) => ({ migration_name }))
   );
+  mockPrismaClient.$executeRawUnsafe.mockResolvedValue(undefined);
+  mockPrismaClient.$transaction.mockImplementation((cb: any) => cb(mockTxClient));
+  mockTxClient.$executeRawUnsafe.mockResolvedValue(undefined);
 });
 
 describe('GET /api/admin/database/migration-status', () => {
@@ -172,12 +164,30 @@ describe('POST /api/admin/database/migrate', () => {
     expect(body.success).toBe(false);
   });
 
-  it('applies migrations and logs activity when genuinely pending', async () => {
+  it('applies the pending migration\'s SQL and a tracking row inside one transaction, and logs activity', async () => {
     mockPrismaClient.$queryRaw.mockResolvedValueOnce([{ migration_name: ALL_MIGRATION_FOLDERS[0] }]);
     const res = await POST(req({ admin: true }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
+    expect(body.appliedMigrations).toEqual([ALL_MIGRATION_FOLDERS[1]]);
+
+    // Ensures the migrations-table bootstrap runs, then exactly one
+    // transaction is used to apply the one pending migration.
+    expect(mockPrismaClient.$executeRawUnsafe).toHaveBeenCalledWith(
+      expect.stringContaining('CREATE TABLE IF NOT EXISTS "_prisma_migrations"')
+    );
+    expect(mockPrismaClient.$transaction).toHaveBeenCalledTimes(1);
+    // The migration's own SQL statement, then the tracking-row INSERT —
+    // both against the transaction client, not the top-level client.
+    expect(mockTxClient.$executeRawUnsafe).toHaveBeenCalledWith('CREATE TABLE "x" ("id" TEXT)');
+    expect(mockTxClient.$executeRawUnsafe).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO "_prisma_migrations"'),
+      expect.any(String), // id
+      expect.stringMatching(/^[a-f0-9]{64}$/), // checksum
+      ALL_MIGRATION_FOLDERS[1] // migration_name
+    );
+
     const { logActivity } = require('@/lib/activityLogger');
     expect(logActivity).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'UPDATE', entityType: 'Database' })
@@ -188,5 +198,20 @@ describe('POST /api/admin/database/migrate', () => {
     mockPrismaClient.$queryRaw.mockRejectedValueOnce(new Error('connection error'));
     const res = await POST(req({ admin: true }));
     expect(res.status).toBe(409);
+  });
+
+  it('stops at the first failing migration and reports which one, without silently continuing', async () => {
+    mockPrismaClient.$queryRaw.mockResolvedValueOnce([]); // both folders pending
+    mockTxClient.$executeRawUnsafe
+      .mockResolvedValueOnce(undefined) // first migration's DDL statement succeeds
+      .mockResolvedValueOnce(undefined) // first migration's tracking INSERT succeeds
+      .mockRejectedValueOnce(new Error('syntax error at or near "TABLE"')); // second migration's DDL fails
+
+    const res = await POST(req({ admin: true }));
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.success).toBe(false);
+    expect(body.failedAt).toBe(ALL_MIGRATION_FOLDERS[1]);
+    expect(body.appliedMigrations).toEqual([ALL_MIGRATION_FOLDERS[0]]);
   });
 });
