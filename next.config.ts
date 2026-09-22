@@ -22,18 +22,19 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb',
     },
   },
-  // The admin Database Management routes (migration-status/migrate/reset)
-  // shell out to `npx prisma migrate ...`. Next.js's serverless function
-  // bundler (@vercel/nft) decides what to include by statically tracing
-  // imports — it has no way to know a `child_process.exec()` string needs
-  // prisma/schema.prisma, prisma/migrations/**, or the Prisma CLI/engine
-  // binaries, so none of that gets bundled by default and the exec call
-  // fails at runtime (surfacing as this app's "Could not determine" status,
-  // since that path fails closed rather than silently reporting "up to
-  // date"). This explicitly force-includes what those three routes need.
+  // The admin Database Management routes read prisma/migrations/** off disk
+  // directly (not via `require`/import), which Next.js's serverless bundler
+  // (@vercel/nft) can't discover through static analysis, so it wouldn't be
+  // bundled without this. migration-status and migrate no longer shell out
+  // to the Prisma CLI at all (see lib/dbMigrationStatus.ts's and
+  // lib/applyPrismaMigration.ts's header comments — two separate attempts at
+  // invoking the CLI from a deployed Vercel function each hit a different
+  // Lambda-runtime-specific failure), so they only need the migrations
+  // folder itself. reset/route.ts still shells out for now and needs the
+  // full CLI + engine binaries + schema file too.
   outputFileTracingIncludes: {
-    '/api/admin/database/migration-status': ['./prisma/migrations/**', './prisma/schema.prisma', './node_modules/prisma/**', './node_modules/@prisma/engines/**'],
-    '/api/admin/database/migrate': ['./prisma/migrations/**', './prisma/schema.prisma', './node_modules/prisma/**', './node_modules/@prisma/engines/**'],
+    '/api/admin/database/migration-status': ['./prisma/migrations/**'],
+    '/api/admin/database/migrate': ['./prisma/migrations/**'],
     '/api/admin/database/reset': ['./prisma/migrations/**', './prisma/schema.prisma', './node_modules/prisma/**', './node_modules/@prisma/engines/**'],
   },
   // API configuration
