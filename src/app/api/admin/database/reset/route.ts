@@ -4,6 +4,7 @@ import { promisify } from 'util';
 import { requireAuth } from '@/lib/auth';
 import { UserRole, isSuperAdmin } from '@/types/roles';
 import { logActivity } from '@/lib/activityLogger';
+import { PRISMA_CLI_COMMAND } from '@/lib/dbMigrationStatus';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -54,13 +55,19 @@ export async function POST(request: NextRequest) {
     );
 
     const { stdout: resetOutput } = await execAsync(
-      'npx prisma migrate reset --force --skip-seed',
+      `${PRISMA_CLI_COMMAND} migrate reset --force --skip-seed`,
       { timeout: 55000 }
     );
 
     let seedOutput: string | undefined;
     if (reseed) {
-      const { stdout } = await execAsync('npx prisma db seed', { timeout: 55000 });
+      // Known risk, not yet hit in practice: `prisma db seed` shells out to
+      // whatever package.json's `prisma.seed` config points at — here,
+      // `tsx prisma/seed.ts` — and `tsx` is a devDependency, so it may not
+      // be present in a deployed function the same way `npx` wasn't. If
+      // this fails on Vercel, the fix is the same shape as this file's:
+      // resolve tsx's own entrypoint and move it to a real dependency.
+      const { stdout } = await execAsync(`${PRISMA_CLI_COMMAND} db seed`, { timeout: 55000 });
       seedOutput = stdout;
     }
 

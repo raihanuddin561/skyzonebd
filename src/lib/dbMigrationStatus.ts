@@ -15,6 +15,17 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+// `npx prisma ...` depends on `npx`/`npm` being on PATH — true in local dev
+// and in a Vercel *build* step, but NOT in a deployed Vercel serverless
+// function's runtime, which only guarantees `node` itself ("sh: line 1:
+// prisma: command not found" is npx failing to resolve/fall back). Resolving
+// the CLI's own entrypoint and invoking it with `node` sidesteps npx/npm
+// entirely — it only needs the `prisma` package to be present, which
+// next.config.ts's outputFileTracingIncludes already forces into these
+// routes' bundles.
+const PRISMA_CLI_PATH = require.resolve('prisma/build/index.js');
+export const PRISMA_CLI_COMMAND = `node "${PRISMA_CLI_PATH}"`;
+
 export type MigrationStatusValue = 'up_to_date' | 'pending' | 'unknown';
 
 export interface MigrationStatusResult {
@@ -25,7 +36,7 @@ export interface MigrationStatusResult {
 
 export async function getMigrationStatus(): Promise<MigrationStatusResult> {
   try {
-    const { stdout } = await execAsync('npx prisma migrate status', { timeout: 30000 });
+    const { stdout } = await execAsync(`${PRISMA_CLI_COMMAND} migrate status`, { timeout: 30000 });
     return parseMigrateStatusOutput(stdout);
   } catch (error: any) {
     // `prisma migrate status` exits non-zero both when migrations are

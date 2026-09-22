@@ -3,7 +3,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { requireAdmin } from '@/lib/auth';
 import { logActivity } from '@/lib/activityLogger';
-import { getMigrationStatus } from '@/lib/dbMigrationStatus';
+import { getMigrationStatus, PRISMA_CLI_COMMAND } from '@/lib/dbMigrationStatus';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { stdout } = await execAsync('npx prisma migrate deploy', { timeout: 55000 });
+    const { stdout } = await execAsync(`${PRISMA_CLI_COMMAND} migrate deploy`, { timeout: 55000 });
 
     await logActivity({
       userId: authUser.id,
