@@ -8,7 +8,6 @@ import Footer from '../components/Footer';
 import ProductCard from '../components/ProductCard';
 import { useProductSearch } from '@/hooks/useProducts';
 import { usePopularSearches } from '@/hooks/useSearch';
-import { Product } from '@/types/cart';
 import Pagination from '@/components/common/Pagination';
 
 // Popular Searches Component
@@ -53,43 +52,29 @@ function PopularSearches() {
 function SearchContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
-  const { products: searchResults, loading, error: searchError } = useProductSearch(query);
-  const [sortedResults, setSortedResults] = useState<Product[]>([]);
   const [sortBy, setSortBy] = useState<string>('relevance');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const productsPerPage = 12;
 
-  useEffect(() => {
-    if (!loading && searchResults) {
-      let results = [...searchResults];
-      
-      // Sort results
-      if (sortBy !== 'relevance') {
-        results.sort((a, b) => {
-          switch (sortBy) {
-            case 'name':
-              return a.name.localeCompare(b.name);
-            case 'price-low':
-              return a.price - b.price;
-            case 'price-high':
-              return b.price - a.price;
-            case 'rating':
-              return (b.rating || 0) - (a.rating || 0);
-            default:
-              return 0;
-          }
-        });
-      }
-      
-      setSortedResults(results);
-    }
-    setCurrentPage(1);
-  }, [searchResults, loading, sortBy]);
+  // Server-side paginated search, same pattern as src/app/products/page.tsx.
+  // 'relevance' isn't a real server-side concept (no full-text ranking
+  // exists yet — see the search-consolidation phase notes), so it's simply
+  // not sent, letting the API fall back to its default (newest first).
+  const searchQueryParams = {
+    ...(sortBy !== 'relevance' && { sortBy }),
+    page: currentPage,
+    limit: productsPerPage,
+  };
+  const { products: displayedProducts, pagination, loading, error: searchError } = useProductSearch(query, searchQueryParams);
 
-  // Pagination
-  const totalPages = Math.ceil(sortedResults.length / productsPerPage);
+  // Reset to page 1 when the query or sort changes (not on plain page nav).
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, sortBy]);
+
+  const totalPages = pagination?.totalPages || 1;
+  const totalResults = pagination?.total || 0;
   const startIndex = (currentPage - 1) * productsPerPage;
-  const displayedProducts = sortedResults.slice(startIndex, startIndex + productsPerPage);
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -104,12 +89,14 @@ function SearchContent() {
                 Search Results {query && `for "${query}"`}
               </h1>
               <p className="text-gray-500">
-                {loading ? 'Searching...' : `${sortedResults.length} products found`}
+                {loading ? 'Searching...' : `${totalResults} products found`}
               </p>
             </div>
 
-            {/* Sort Dropdown */}
-            {!loading && sortedResults.length > 0 && (
+            {/* Sort Dropdown — stays visible through a sort/page-triggered
+                reload (not just the initial one) so changing sort doesn't
+                make the control that triggered it disappear mid-change. */}
+            {query && (loading || totalResults > 0) && (
               <div className="mt-4 sm:mt-0">
                 <select
                   value={sortBy}
@@ -178,7 +165,7 @@ function SearchContent() {
         )}
 
         {/* No Results */}
-        {!loading && query && !searchError && sortedResults.length === 0 && (
+        {!loading && query && !searchError && totalResults === 0 && (
           <div className="text-center py-16 bg-white rounded-xl border border-gray-100 shadow-sm">
             <div className="w-20 h-20 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-6">
               <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -207,11 +194,11 @@ function SearchContent() {
         )}
 
         {/* Search Results */}
-        {!loading && query && !searchError && sortedResults.length > 0 && (
+        {!loading && query && !searchError && totalResults > 0 && (
           <>
             <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
               <p className="text-gray-600 text-sm font-medium">
-                Showing {startIndex + 1}-{Math.min(startIndex + productsPerPage, sortedResults.length)} of {sortedResults.length} results
+                Showing {startIndex + 1}-{Math.min(startIndex + productsPerPage, totalResults)} of {totalResults} results
               </p>
             </div>
             

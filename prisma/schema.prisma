@@ -334,6 +334,11 @@ model Product {
   @@index([sellerId])
   @@index([isActive])
   @@index([isFeatured])
+  // Added for the search/discovery phase's sku match + brand filter
+  // (src/app/api/products/route.ts) — schema-only, no migration created or
+  // applied, per this project's standing rule (see docs/architecture-review).
+  @@index([brand])
+  @@index([sku])
   @@map("products")
 }
 

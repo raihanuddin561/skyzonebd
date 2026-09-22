@@ -20,8 +20,11 @@ export const useSearch = (query: string, filters?: any) => {
       try {
         setLoading(true);
         setError(null);
-        const data = await dataService.search.products(query, filters);
-        setResults(data as Product[]);
+        // dataService.search.products now returns { products, pagination }
+        // (see services/dataService.ts) since search was consolidated onto
+        // the paginated /api/products endpoint.
+        const data = await dataService.search.products(query, filters) as { products?: Product[] };
+        setResults(data?.products || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Search failed');
       } finally {

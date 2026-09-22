@@ -14,15 +14,30 @@ export const maxDuration = 60; // 60 seconds timeout
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search');
+    // Trimmed/normalized so accidental leading/trailing whitespace from a
+    // client doesn't silently return zero results.
+    const search = searchParams.get('search')?.trim() || null;
     const categorySlug = searchParams.get('category');
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
     const sortBy = searchParams.get('sortBy') || 'newest';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '12');
+    // Clamped the same way lib/paginationHelper.ts clamps every other paginated
+    // route (page >= 1, 1 <= limit <= 100) — this route keeps its own inline
+    // page/limit handling rather than adopting that helper outright because its
+    // response shape (`totalPages`) is depended on by src/app/admin/products/page.tsx
+    // and switching to the helper's `pages` key would be a breaking rename.
+    // (`rawX || default` would be wrong here — it'd also catch a genuinely
+    // parsed 0 or falsy-but-valid number, not just NaN from a bad string.)
+    const rawPage = parseInt(searchParams.get('page') || '1');
+    const page = Math.max(Number.isNaN(rawPage) ? 1 : rawPage, 1);
+    const rawLimit = parseInt(searchParams.get('limit') || '12');
+    const limit = Math.min(Math.max(Number.isNaN(rawLimit) ? 12 : rawLimit, 1), 100);
     const featured = searchParams.get('featured') === 'true';
     const includeInactive = searchParams.get('includeInactive') === 'true';
+    // Comma-separated id list for batch lookup (e.g. the "Recently Viewed"
+    // rail resolving a list of productIds from localStorage into full
+    // Product objects) — bypasses search/category/price filters entirely.
+    const ids = searchParams.get('ids')?.split(',').map(id => id.trim()).filter(Boolean);
 
     // Check if request is from admin (for showing inactive products).
     // Auth is optional here (guests browse this endpoint too), so this uses
@@ -42,38 +57,50 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: Prisma.ProductWhereInput = {};
-    
+
     // Only filter by isActive if not admin or if not explicitly including inactive
     if (!isAdmin && !includeInactive) {
       where.isActive = true;
     }
 
-    // Search filter
-    if (search) {
+    // Batch id lookup short-circuits every other filter — a caller asking
+    // for specific products by id (e.g. resolving a "recently viewed" list)
+    // wants exactly those products, not a filtered/paginated search.
+    if (ids && ids.length > 0) {
+      where.id = { in: ids };
+    } else if (search) {
+      // Search filter — also matches `sku`, a common real search term for
+      // wholesale buyers that was previously only matched by the separate,
+      // now-deprecated /api/search/products endpoint.
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
         { tags: { has: search.toLowerCase() } },
         { brand: { contains: search, mode: 'insensitive' } },
+        { sku: { contains: search, mode: 'insensitive' } },
       ];
     }
 
+    // Category/price/featured filters don't apply to a batch id lookup —
+    // that mode means "give me exactly these products."
+    const isIdLookup = !!(ids && ids.length > 0);
+
     // Category filter
-    if (categorySlug && categorySlug !== 'all') {
+    if (!isIdLookup && categorySlug && categorySlug !== 'all') {
       where.category = {
         slug: categorySlug
       };
     }
 
     // Price range filter
-    if (minPrice || maxPrice) {
+    if (!isIdLookup && (minPrice || maxPrice)) {
       where.wholesalePrice = {};
       if (minPrice) where.wholesalePrice.gte = parseFloat(minPrice);
       if (maxPrice) where.wholesalePrice.lte = parseFloat(maxPrice);
     }
 
     // Featured filter
-    if (featured) {
+    if (!isIdLookup && featured) {
       where.isFeatured = true;
     }
 
@@ -99,6 +126,10 @@ export async function GET(request: NextRequest) {
 
     // Get total count
     const total = await prisma.product.count({ where });
+    // An id-lookup should return every matching product regardless of the
+    // (possibly small, default-12) `limit` — the caller asked for a specific
+    // set of ids, not a page of results.
+    const take = isIdLookup ? Math.max(ids!.length, 1) : limit;
 
     // Get paginated products with category and wholesale tiers
     const products = await prisma.product.findMany({
@@ -118,8 +149,8 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy,
-      skip: (page - 1) * limit,
-      take: limit,
+      skip: isIdLookup ? 0 : (page - 1) * limit,
+      take,
     });
 
     // Get all categories for filter. The product count must match the same

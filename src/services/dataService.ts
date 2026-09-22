@@ -30,13 +30,18 @@ const apiCall = async <T>(
 export const dataService = {
   // Products
   products: {
+    // Returns the full { products, pagination, categories } payload (not
+    // just the products array) so server-side search/filter/sort/pagination
+    // — already computed by the API — can actually be surfaced by callers
+    // like src/app/products/page.tsx, instead of being silently discarded
+    // and refetched-then-re-filtered client-side over a fixed 100-row page.
     getAll: async (queryParams?: Record<string, string | number | boolean>) => {
       return apiCall(
         async () => {
           const response = await productService.getAllProducts(queryParams);
-          return (response.data as { products?: unknown[] })?.products || response.data || [];
+          return (response.data as { products?: unknown[]; pagination?: unknown; categories?: unknown[] }) || { products: [], pagination: null, categories: [] };
         },
-        []
+        { products: [] as unknown[], pagination: null, categories: [] as unknown[] }
       );
     },
 
@@ -78,6 +83,27 @@ export const dataService = {
         async () => {
           const response = await productService.getRelatedProducts(id);
           return (response.data as { relatedProducts?: unknown[] })?.relatedProducts || response.data || [];
+        },
+        []
+      );
+    },
+
+    getFrequentlyBoughtTogether: async (id: number | string) => {
+      return apiCall(
+        async () => {
+          const response = await productService.getFrequentlyBoughtTogether(id);
+          return (response.data as { frequentlyBoughtTogether?: unknown[] })?.frequentlyBoughtTogether || [];
+        },
+        []
+      );
+    },
+
+    getByIds: async (ids: string[]) => {
+      if (ids.length === 0) return [];
+      return apiCall(
+        async () => {
+          const response = await productService.getProductsByIds(ids);
+          return (response.data as { products?: unknown[] })?.products || [];
         },
         []
       );
@@ -149,13 +175,17 @@ export const dataService = {
 
   // Search
   search: {
+    // Same shape as products.getAll above (search now goes through the same
+    // canonical /api/products endpoint) — returns pagination too, so
+    // src/app/search/page.tsx can paginate server-side instead of fetching
+    // an unbounded result set and slicing it client-side.
     products: async (query: string, filters?: Record<string, string | number | boolean>) => {
       return apiCall(
         async () => {
           const response = await searchService.searchProducts(query, filters);
-          return (response.data as { products?: unknown[] })?.products || response.data || [];
+          return (response.data as { products?: unknown[]; pagination?: unknown }) || { products: [], pagination: null };
         },
-        []
+        { products: [] as unknown[], pagination: null }
       );
     },
 

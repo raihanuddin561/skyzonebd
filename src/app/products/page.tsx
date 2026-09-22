@@ -13,25 +13,66 @@ import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { Product } from '@/types/cart';
 import { getCategoryIcon } from '@/utils/categoryIcons';
 
 function ProductsContent() {
   const searchParams = useSearchParams();
-  const { products: allProducts, loading: productsLoading, error: productsError, refetch: refetchProducts } = useProducts({ limit: 100 }); // Fetch up to 100 products
   const { categories, loading: categoriesLoading } = useCategories();
   const { user } = useAuth();
   const { addBulkToCart } = useCart();
-  
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('name');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'grid' | 'wholesale'>('grid');
   const productsPerPage = 12;
+
+  // Debounce the search box so every keystroke doesn't trigger a server
+  // request — only the settled value drives the actual query.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Category filter is stored/selected by id (matches links like
+  // /products?category=<id> elsewhere in the app), but the API filters by
+  // slug — resolve id -> slug here rather than changing the API's contract.
+  const selectedCategorySlug = selectedCategory !== 'all'
+    ? categories.find(cat => cat.id === selectedCategory)?.slug
+    : undefined;
+
+  const productsQueryParams = {
+    ...(debouncedSearchQuery && { search: debouncedSearchQuery }),
+    ...(selectedCategorySlug && { category: selectedCategorySlug }),
+    minPrice: priceRange[0],
+    maxPrice: priceRange[1],
+    sortBy,
+    page: currentPage,
+    limit: productsPerPage,
+  };
+
+  const {
+    products: displayedProducts,
+    pagination,
+    categories: categoryFacets,
+    loading: productsLoading,
+    error: productsError,
+    refetch: refetchProducts,
+  } = useProducts(productsQueryParams);
+
+  // Reset to page 1 whenever a filter actually changes (not on plain page
+  // navigation) — mirrors the previous client-side-filter effect's behavior.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, selectedCategory, sortBy, priceRange[0], priceRange[1]]);
+
+  const totalPages = pagination?.totalPages || 1;
+  const totalProducts = pagination?.total || 0;
+  const startIndex = (currentPage - 1) * productsPerPage;
 
   // Load view mode preference from localStorage
   useEffect(() => {
@@ -59,66 +100,15 @@ function ProductsContent() {
     }
   }, [searchParams]);
 
-  // Filter and sort products
-  useEffect(() => {
-    if (!allProducts || productsLoading) return;
-    
-    let products = [...allProducts];
-
-    // Search filter
-    if (searchQuery) {
-      products = products.filter(product => 
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Category filter - compare by category name since API returns category as string name
-    if (selectedCategory !== 'all') {
-      // Find the category name from the selected category ID
-      const selectedCat = categories.find(cat => cat.id === selectedCategory);
-      const categoryNameToMatch = selectedCat?.name || selectedCategory;
-      products = products.filter(product => product.category === categoryNameToMatch);
-    }
-
-    // Price range filter
-    products = products.filter(product => 
-      product.price >= priceRange[0] && product.price <= priceRange[1]
-    );
-
-    // Sort products
-    products.sort((a, b) => {
-      switch (sortBy) {
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'price-low':
-          return a.price - b.price;
-        case 'price-high':
-          return b.price - a.price;
-        case 'rating':
-          return (b.rating || 0) - (a.rating || 0);
-        case 'newest':
-          return new Date(b.createdAt || '2024-01-01').getTime() - new Date(a.createdAt || '2024-01-01').getTime();
-        default:
-          return 0;
-      }
-    });
-
-    setFilteredProducts(products);
-    setCurrentPage(1);
-  }, [allProducts, productsLoading, searchQuery, selectedCategory, sortBy, priceRange, categories]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
-  const startIndex = (currentPage - 1) * productsPerPage;
-  const displayedProducts = filteredProducts.slice(startIndex, startIndex + productsPerPage);
-
   const handlePriceRangeChange = (min: number, max: number) => {
     setPriceRange([min, max]);
   };
 
-  // Show loading state
-  if (productsLoading || categoriesLoading) {
+  // Full-page loading only gates on categories (loaded once, rarely
+  // refetched) — product loading is scoped to just the results area below,
+  // so changing a filter/search/sort/page doesn't blank out the filter
+  // sidebar the user is actively interacting with.
+  if (categoriesLoading) {
     return (
       <main className="min-h-screen bg-gray-50">
         <Header />
@@ -230,11 +220,15 @@ function ProductsContent() {
                       />
                       <span className="text-sm sm:text-base font-semibold text-gray-700 flex-1 truncate">All Categories</span>
                       <span className="bg-blue-100 text-blue-800 text-xs sm:text-sm font-medium px-2 py-1 rounded-full flex-shrink-0">
-                        {allProducts?.length || 0}
+                        {categoryFacets.reduce((sum, c) => sum + c.count, 0)}
                       </span>
                     </label>
                     {categories.map(category => {
-                      const count = allProducts?.filter((p: Product) => p.category === category.name).length || 0;
+                      // Category counts come from the API's facet list (scoped
+                      // to active products, same as before — not affected by
+                      // the current search/price filter, matching prior
+                      // behavior where these counts were never search-scoped).
+                      const count = categoryFacets.find(c => c.id === category.id)?.count || 0;
                       const isSelected = selectedCategory === category.id;
                       return (
                         <label
@@ -344,7 +338,9 @@ function ProductsContent() {
                    categories.find(c => c.id === selectedCategory)?.name || 'Products'}
                 </h2>
                 <p className="text-gray-500 font-medium text-sm">
-                  Showing {startIndex + 1}-{Math.min(startIndex + productsPerPage, filteredProducts.length)} of {filteredProducts.length} products
+                  {totalProducts > 0
+                    ? `Showing ${startIndex + 1}-${Math.min(startIndex + productsPerPage, totalProducts)} of ${totalProducts} products`
+                    : 'No products found'}
                 </p>
               </div>
               
@@ -404,7 +400,11 @@ function ProductsContent() {
             </div>
 
             {/* Products Display - Grid or Wholesale View */}
-            {productsError ? (
+            {productsLoading ? (
+              <div className="flex items-center justify-center py-24 bg-white rounded-xl shadow-sm border border-gray-100">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+              </div>
+            ) : productsError ? (
               <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">
                 <div className="w-20 h-20 rounded-full bg-red-50 text-red-400 flex items-center justify-center mx-auto mb-6">
                   <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">

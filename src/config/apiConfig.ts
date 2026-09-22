@@ -50,6 +50,7 @@ export const API_ENDPOINTS = {
     GET_CATEGORIES: '/api/products/categories',
     GET_FEATURED: '/api/products?featured=true', // Query param instead of path
     GET_RELATED: '/api/products/:id/related',
+    GET_FREQUENTLY_BOUGHT_TOGETHER: '/api/products/:id/frequently-bought-together',
     GET_REVIEWS: '/api/products/:id/reviews',
     ADD_REVIEW: '/api/products/:id/reviews',
     GET_SPECIFICATIONS: '/api/products/:id/specifications',
@@ -104,9 +105,9 @@ export const API_ENDPOINTS = {
     GET_SUBCATEGORIES: '/api/categories/:id/subcategories',
   },
 
-  // Search endpoints
+  // Search endpoints (product search is consolidated onto PRODUCTS.GET_ALL —
+  // see searchService.searchProducts in services/apiService.ts)
   SEARCH: {
-    PRODUCTS: '/api/search/products',
     COMPANIES: '/api/search/companies',
     SUGGESTIONS: '/api/search/suggestions',
     POPULAR: '/api/search/popular',

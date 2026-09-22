@@ -218,6 +218,17 @@ export const productService = {
     return apiService.get(API_ENDPOINTS.PRODUCTS.GET_RELATED, { id });
   },
 
+  getFrequentlyBoughtTogether: async (id: string | number) => {
+    return apiService.get(API_ENDPOINTS.PRODUCTS.GET_FREQUENTLY_BOUGHT_TOGETHER, { id });
+  },
+
+  // Batch lookup by id (e.g. resolving a "recently viewed" localStorage list
+  // into full Product objects) — reuses GET_ALL's `ids` filter rather than a
+  // dedicated endpoint.
+  getProductsByIds: async (ids: string[]) => {
+    return apiService.get(API_ENDPOINTS.PRODUCTS.GET_ALL, undefined, { ids: ids.join(',') });
+  },
+
   getCategories: async () => {
     return apiService.get(API_ENDPOINTS.PRODUCTS.GET_CATEGORIES);
   },
@@ -368,8 +379,13 @@ export const businessInfoService = {
 };
 
 export const searchService = {
+  // Consolidated onto the canonical /api/products listing endpoint (which
+  // already has category facets, full pagination, and now also matches sku)
+  // instead of the separate, now-removed /api/search/products endpoint that
+  // used a different query param name (`q` vs `search`) and a narrower
+  // response shape for the same "search products" concern.
   searchProducts: async (query: string, filters?: Record<string, string | number | boolean>) => {
-    return apiService.get(API_ENDPOINTS.SEARCH.PRODUCTS, undefined, { q: query, ...filters });
+    return apiService.get(API_ENDPOINTS.PRODUCTS.GET_ALL, undefined, { search: query, ...filters });
   },
 
   searchCompanies: async (query: string) => {

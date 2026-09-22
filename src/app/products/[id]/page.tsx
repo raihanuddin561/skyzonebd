@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Head from 'next/head';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import { useProduct, useRelatedProducts } from '@/hooks/useProducts';
+import { useProduct, useRelatedProducts, useFrequentlyBoughtTogether, useRecentlyViewedProducts } from '@/hooks/useProducts';
 import { Product } from '@/types/cart';
 import { useCart } from '@/contexts/CartContext';
 import { getLineTotal } from '@/utils/cartPricing';
@@ -17,6 +17,7 @@ import ImageZoomLightbox from '@/components/common/ImageZoomLightbox';
 import QuantityInput from '@/components/common/QuantityInput';
 import ReviewList from '@/components/reviews/ReviewList';
 import ReviewForm from '@/components/reviews/ReviewForm';
+import { recordProductView } from '@/utils/recentlyViewed';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -27,6 +28,8 @@ export default function ProductDetailPage() {
   
   const { product, loading: productLoading } = useProduct(productId);
   const { products: relatedProducts, loading: relatedLoading } = useRelatedProducts(productId);
+  const { products: frequentlyBoughtTogether } = useFrequentlyBoughtTogether(productId);
+  const { products: recentlyViewedProducts } = useRecentlyViewedProducts(productId);
   
   const [quantity, setQuantity] = useState<number>(1);
   const [selectedImage, setSelectedImage] = useState<string>('');
@@ -120,6 +123,7 @@ export default function ProductDetailPage() {
       });
       
       setSelectedImage(firstImage || '');
+      recordProductView(product.id.toString());
     } else if (!productLoading && !product) {
       router.push('/products');
     }
@@ -728,6 +732,40 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
+        {/* Frequently Bought Together */}
+        {frequentlyBoughtTogether.length > 0 && (
+          <div className="mt-16">
+            <span className="section-eyebrow mb-3">Customers also purchased</span>
+            <h3 className="text-2xl font-semibold mb-8 text-gray-900">Frequently Bought Together</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {frequentlyBoughtTogether.map((fbtProduct) => (
+                <Link
+                  key={fbtProduct.id}
+                  href={`/products/${fbtProduct.id}`}
+                  className="group"
+                >
+                  <div className="card-hover bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:border-blue-200">
+                    <Image
+                      src={fbtProduct.imageUrl}
+                      alt={fbtProduct.name}
+                      width={200}
+                      height={150}
+                      className="w-full h-32 object-cover rounded mb-2"
+                    />
+                    <h4 className="font-medium group-hover:text-blue-600 truncate">
+                      {fbtProduct.name}
+                    </h4>
+                    <p className="text-blue-600 font-bold">
+                      ৳{fbtProduct.price.toLocaleString()}
+                      {fbtProduct.unit && <span className="text-sm text-gray-600">/{fbtProduct.unit}</span>}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Related Products */}
         {relatedProducts.length > 0 && (
           <div className="mt-16">
@@ -756,6 +794,40 @@ export default function ProductDetailPage() {
                       {relatedProduct.unit && <span className="text-sm text-gray-600">/{relatedProduct.unit}</span>}
                     </p>
                     <p className="text-sm text-gray-500">{relatedProduct.companyName}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Recently Viewed */}
+        {recentlyViewedProducts.length > 0 && (
+          <div className="mt-16">
+            <span className="section-eyebrow mb-3">Your browsing history</span>
+            <h3 className="text-2xl font-semibold mb-8 text-gray-900">Recently Viewed</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {recentlyViewedProducts.map((viewedProduct) => (
+                <Link
+                  key={viewedProduct.id}
+                  href={`/products/${viewedProduct.id}`}
+                  className="group"
+                >
+                  <div className="card-hover bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:border-blue-200">
+                    <Image
+                      src={viewedProduct.imageUrl}
+                      alt={viewedProduct.name}
+                      width={200}
+                      height={150}
+                      className="w-full h-32 object-cover rounded mb-2"
+                    />
+                    <h4 className="font-medium group-hover:text-blue-600 truncate">
+                      {viewedProduct.name}
+                    </h4>
+                    <p className="text-blue-600 font-bold">
+                      ৳{viewedProduct.price.toLocaleString()}
+                      {viewedProduct.unit && <span className="text-sm text-gray-600">/{viewedProduct.unit}</span>}
+                    </p>
                   </div>
                 </Link>
               ))}
