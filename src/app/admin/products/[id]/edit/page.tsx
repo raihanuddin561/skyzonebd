@@ -83,11 +83,12 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
   // event (who changed it, why, by how much), not a plain field to overwrite
   // as a side effect of saving unrelated product details.
   const [currentStock, setCurrentStock] = useState(0);
-  const [stockModal, setStockModal] = useState<{ isOpen: boolean; type: 'add' | 'remove' | 'set'; quantity: string; reason: string }>({
+  const [stockModal, setStockModal] = useState<{ isOpen: boolean; type: 'add' | 'remove' | 'set'; quantity: string; reason: string; costPerUnit: string }>({
     isOpen: false,
     type: 'add',
     quantity: '',
     reason: '',
+    costPerUnit: '',
   });
   const [isAdjustingStock, setIsAdjustingStock] = useState(false);
 
@@ -488,6 +489,18 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
       return;
     }
 
+    let costPerUnit: number | undefined;
+    if (stockModal.type === 'add') {
+      // Adding stock is a purchase — its cost must be recorded so this
+      // batch feeds accurate weighted-average-cost for future sales,
+      // instead of just bumping the quantity number with no cost basis.
+      costPerUnit = parseFloat(stockModal.costPerUnit);
+      if (!Number.isFinite(costPerUnit) || costPerUnit <= 0) {
+        toast.error('Enter the cost per unit for this purchase');
+        return;
+      }
+    }
+
     setIsAdjustingStock(true);
     try {
       const token = localStorage.getItem('token');
@@ -502,6 +515,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           adjustmentType: stockModal.type,
           quantity,
           reason: stockModal.reason.trim(),
+          ...(costPerUnit !== undefined && { costPerUnit }),
         }),
       });
 
@@ -509,7 +523,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
       if (response.ok && result.success) {
         setCurrentStock(result.newStock);
         toast.success(`Stock updated: ${result.previousStock} → ${result.newStock} units`);
-        setStockModal({ isOpen: false, type: 'add', quantity: '', reason: '' });
+        setStockModal({ isOpen: false, type: 'add', quantity: '', reason: '', costPerUnit: '' });
       } else {
         toast.error(result.error || (result.details ? result.details.join(', ') : 'Failed to adjust stock'));
       }
@@ -931,7 +945,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
             </div>
             <button
               type="button"
-              onClick={() => setStockModal({ isOpen: true, type: 'add', quantity: '', reason: '' })}
+              onClick={() => setStockModal({ isOpen: true, type: 'add', quantity: '', reason: '', costPerUnit: '' })}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1349,6 +1363,24 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                 />
               </div>
 
+              {stockModal.type === 'add' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Cost per Unit (৳) *</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={stockModal.costPerUnit}
+                    onChange={(e) => setStockModal({ ...stockModal, costPerUnit: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. 120.00"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    What you actually paid per unit for this batch — recorded as a stock lot so future profit reports use the real cost, not a guess.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Reason *</label>
                 <input
@@ -1374,7 +1406,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
               <button
                 type="button"
                 onClick={handleAdjustStock}
-                disabled={isAdjustingStock || !stockModal.quantity}
+                disabled={isAdjustingStock || !stockModal.quantity || (stockModal.type === 'add' && !stockModal.costPerUnit)}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
               >
                 {isAdjustingStock ? 'Saving...' : 'Confirm Adjustment'}

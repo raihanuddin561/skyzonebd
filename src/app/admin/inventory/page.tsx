@@ -23,6 +23,23 @@ export default function InventoryPage() {
   const [filter, setFilter] = useState<'all' | 'low_stock' | 'out_of_stock'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Stock changes are an audited event (who, why, at what cost when adding),
+  // not a bare quantity to overwrite via a browser prompt() — matches the
+  // richer modal already used on the product edit page, same backend route.
+  const [stockModal, setStockModal] = useState<{
+    isOpen: boolean;
+    item: InventoryItem | null;
+    type: 'add' | 'remove' | 'set';
+    quantity: string;
+    costPerUnit: string;
+    reason: string;
+  }>({ isOpen: false, item: null, type: 'add', quantity: '', costPerUnit: '', reason: '' });
+  const [isAdjustingStock, setIsAdjustingStock] = useState(false);
+
+  const openStockModal = (item: InventoryItem) => {
+    setStockModal({ isOpen: true, item, type: 'add', quantity: '', costPerUnit: '', reason: '' });
+  };
+
   useEffect(() => {
     fetchInventory();
   }, []);
@@ -82,27 +99,61 @@ export default function InventoryPage() {
     }
   };
 
-  const handleStockUpdate = async (productId: string, newStock: number) => {
+  const handleAdjustStock = async () => {
+    if (!stockModal.item) return;
+    const quantity = parseInt(stockModal.quantity, 10);
+    if (!Number.isFinite(quantity) || quantity < 0) {
+      toast.error('Enter a valid quantity');
+      return;
+    }
+    if (!stockModal.reason || stockModal.reason.trim().length < 5) {
+      toast.error('Reason is required and must be at least 5 characters');
+      return;
+    }
+
+    let costPerUnit: number | undefined;
+    if (stockModal.type === 'add') {
+      // Adding stock is a purchase — its cost must be recorded so this
+      // batch feeds accurate weighted-average-cost for future sales,
+      // instead of just bumping the quantity number with no cost basis.
+      costPerUnit = parseFloat(stockModal.costPerUnit);
+      if (!Number.isFinite(costPerUnit) || costPerUnit <= 0) {
+        toast.error('Enter the cost per unit for this purchase');
+        return;
+      }
+    }
+
+    setIsAdjustingStock(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/inventory/${productId}`, {
-        method: 'PATCH',
+      const response = await fetch('/api/admin/stock/adjust', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ stockQuantity: newStock })
+        body: JSON.stringify({
+          productId: stockModal.item.id,
+          adjustmentType: stockModal.type,
+          quantity,
+          reason: stockModal.reason.trim(),
+          ...(costPerUnit !== undefined && { costPerUnit }),
+        }),
       });
 
-      if (response.ok) {
-        toast.success('Stock updated successfully');
+      const result = await response.json();
+      if (response.ok && result.success) {
+        toast.success(`Stock updated: ${result.previousStock} → ${result.newStock} units`);
+        setStockModal({ isOpen: false, item: null, type: 'add', quantity: '', costPerUnit: '', reason: '' });
         fetchInventory();
       } else {
-        toast.error('Failed to update stock');
+        toast.error(result.error || (result.details ? result.details.join(', ') : 'Failed to adjust stock'));
       }
     } catch (error) {
-      console.error('Error updating stock:', error);
-      toast.error('Failed to update stock');
+      console.error('Error adjusting stock:', error);
+      toast.error('Failed to adjust stock');
+    } finally {
+      setIsAdjustingStock(false);
     }
   };
 
@@ -244,12 +295,7 @@ export default function InventoryPage() {
                     Edit
                   </Link>
                   <button
-                    onClick={() => {
-                      const newStock = prompt('Enter new stock quantity:', item.currentStock.toString());
-                      if (newStock !== null) {
-                        handleStockUpdate(item.id, parseInt(newStock));
-                      }
-                    }}
+                    onClick={() => openStockModal(item)}
                     className="flex-1 px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300"
                   >
                     Update Stock
@@ -303,12 +349,7 @@ export default function InventoryPage() {
                           Edit
                         </Link>
                         <button
-                          onClick={() => {
-                            const newStock = prompt('Enter new stock quantity:', item.currentStock.toString());
-                            if (newStock !== null) {
-                              handleStockUpdate(item.id, parseInt(newStock));
-                            }
-                          }}
+                          onClick={() => openStockModal(item)}
                           className="text-gray-600 hover:text-gray-700 text-sm font-medium"
                         >
                           Update
@@ -322,6 +363,109 @@ export default function InventoryPage() {
           </table>
         </div>
       </div>
+
+      {/* Adjust Stock Modal — same shape/endpoint as the product edit page's
+          modal, so every stock change across the admin panel behaves
+          identically: adding stock always requires a real cost per unit. */}
+      {stockModal.isOpen && stockModal.item && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget && !isAdjustingStock) setStockModal({ ...stockModal, isOpen: false }); }}
+        >
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-semibold text-gray-900 mb-1">Adjust Stock</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {stockModal.item.name} — current stock: <span className="font-semibold">{stockModal.item.currentStock} units</span>
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Adjustment Type</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['add', 'remove', 'set'] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setStockModal({ ...stockModal, type })}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                        stockModal.type === type
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {type === 'add' ? 'Add' : type === 'remove' ? 'Remove' : 'Set To'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {stockModal.type === 'set' ? 'New Stock Quantity' : 'Quantity'}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={stockModal.quantity}
+                  onChange={(e) => setStockModal({ ...stockModal, quantity: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. 50"
+                  autoFocus
+                />
+              </div>
+
+              {stockModal.type === 'add' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Cost per Unit (৳) *</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={stockModal.costPerUnit}
+                    onChange={(e) => setStockModal({ ...stockModal, costPerUnit: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. 120.00"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    What you actually paid per unit for this batch — recorded as a stock lot so future profit reports use the real cost, not a guess.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Reason *</label>
+                <input
+                  type="text"
+                  value={stockModal.reason}
+                  onChange={(e) => setStockModal({ ...stockModal, reason: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. Received new shipment from supplier"
+                />
+                <p className="text-xs text-gray-500 mt-1">At least 5 characters. Recorded in the inventory audit log.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setStockModal({ ...stockModal, isOpen: false })}
+                disabled={isAdjustingStock}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAdjustStock}
+                disabled={isAdjustingStock || !stockModal.quantity || (stockModal.type === 'add' && !stockModal.costPerUnit)}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+              >
+                {isAdjustingStock ? 'Saving...' : 'Confirm Adjustment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
