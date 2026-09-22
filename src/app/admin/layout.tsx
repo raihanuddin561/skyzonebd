@@ -144,6 +144,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       items: [
         { name: 'Activity Logs', icon: '📜', path: '/admin/activity-logs' },
         { name: 'Site Settings', icon: '⚙️', path: '/admin/settings' },
+        { name: 'Database Management', icon: '🗄️', path: '/admin/database' },
         { name: 'Payment Methods', icon: '💳', path: '/admin/payments' },
         { name: 'Shipping', icon: '🚚', path: '/admin/shipping' },
         { name: 'Reports', icon: '📊', path: '/admin/reports' },
