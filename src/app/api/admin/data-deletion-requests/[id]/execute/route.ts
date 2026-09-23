@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAdmin } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
+import { UserRole, isSuperAdmin } from '@/types/roles';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -19,8 +20,18 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Require admin authentication
-    const admin = await requireAdmin(request);
+    // Permanently anonymizing a user's PII is at least as destructive as
+    // deleting a manual sales entry or an admin user — both of which
+    // require SUPER_ADMIN in this codebase (see manual-sales/[id]/route.ts's
+    // DELETE handler). A plain ADMIN being able to both approve and execute
+    // this unilaterally had no real dual-control safeguard.
+    const admin = await requireAuth(request);
+    if (!isSuperAdmin(admin.role as UserRole)) {
+      return NextResponse.json(
+        { error: 'Only a super admin can execute a data deletion request' },
+        { status: 403 }
+      );
+    }
 
     const { id } = await params;
 
@@ -57,6 +68,19 @@ export async function POST(
 
     // Execute deletion in transaction
     const result = await prisma.$transaction(async (tx) => {
+      // Re-check the status transition atomically inside the transaction —
+      // the pre-transaction read above is a plain, unlocked read, so two
+      // concurrent executes for the same request could otherwise both pass
+      // it before either commits, running the anonymization (and the audit
+      // log entry) twice.
+      const guarded = await tx.dataDeletionRequest.updateMany({
+        where: { id, status: 'PROCESSING' },
+        data: { status: 'COMPLETED', completedAt: now },
+      });
+      if (guarded.count === 0) {
+        throw new Error('This request was already executed by another request');
+      }
+
       // 1. Anonymize user data (preserve referential integrity)
       const anonymizedEmail = `deleted_${userId}@anonymous.local`;
       const anonymizedName = `Deleted User ${userId.substring(0, 8)}`;
@@ -118,13 +142,25 @@ export async function POST(
         data: { userId: null },
       });
 
-      // 3. Update deletion request status
-      const updated = await tx.dataDeletionRequest.update({
-        where: { id },
+      // Redact PII embedded in this user's historical orders. Orders
+      // themselves (and their totals, line items, payments, invoices, and
+      // ledger entries) are intentionally RETAINED for accounting/financial
+      // audit purposes — only the free-text address fields, which
+      // typically carry the customer's full name/phone/street address, are
+      // scrubbed. Without this, a "completed" deletion request still left
+      // full PII recoverable from every order this user ever placed.
+      await tx.order.updateMany({
+        where: { userId },
         data: {
-          status: 'COMPLETED',
-          completedAt: now,
+          shippingAddress: '[redacted per data deletion request]',
+          billingAddress: '[redacted per data deletion request]',
         },
+      });
+
+      // 3. Re-fetch the now-completed request (status already set by the
+      // guarded updateMany above)
+      const updated = await tx.dataDeletionRequest.findUniqueOrThrow({
+        where: { id },
         include: {
           user: {
             select: {
@@ -171,7 +207,7 @@ export async function POST(
   } catch (error) {
     console.error('❌ Error executing deletion:', error);
 
-    // Handle Response throws from requireAdmin
+    // Handle Response throws from requireAuth
     if (error instanceof Response) {
       return error;
     }

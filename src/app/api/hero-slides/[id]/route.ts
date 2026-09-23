@@ -19,6 +19,16 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
+    if (body.productId) {
+      const product = await prisma.product.findUnique({ where: { id: body.productId }, select: { id: true } });
+      if (!product) {
+        return NextResponse.json(
+          { success: false, error: `Product ${body.productId} not found` },
+          { status: 400 }
+        );
+      }
+    }
+
     const slide = await prisma.heroSlide.update({
       where: { id },
       data: {
@@ -52,8 +62,6 @@ export async function PUT(
       { error: 'Failed to update hero slide' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -84,7 +92,5 @@ export async function DELETE(
       { error: 'Failed to delete hero slide' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

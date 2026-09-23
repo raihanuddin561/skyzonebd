@@ -67,7 +67,10 @@ function req(userId: string, body: any) {
 
 const params = (id: string) => Promise.resolve({ id });
 
-const orderItem = (id: string, quantity: number, price: number) => ({ id, quantity, price });
+// `total` mirrors the real OrderItem schema field (the actually-charged
+// line total) — defaults to price * quantity here since none of these
+// mocks involve a customer discount that would make price/total diverge.
+const orderItem = (id: string, quantity: number, price: number, total: number = price * quantity) => ({ id, quantity, price, total });
 
 beforeEach(() => {
   jest.clearAllMocks();

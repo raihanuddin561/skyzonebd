@@ -151,8 +151,17 @@ export async function POST(request: NextRequest) {
 
       // Determine price: custom price > product wholesale price
       let itemPrice = product.wholesalePrice;
-      
+
       if (item.customPrice !== undefined && item.customPrice !== null) {
+        // Admin provided custom price for this order — validate it the same
+        // way quantity is validated above; an unvalidated NaN/negative
+        // value here would silently become the line price and total.
+        if (!Number.isFinite(item.customPrice) || item.customPrice < 0) {
+          return NextResponse.json(
+            { success: false, error: `Invalid customPrice for product ${item.productId}` },
+            { status: 400 }
+          );
+        }
         // Admin provided custom price for this order
         itemPrice = item.customPrice;
       }
@@ -410,7 +419,5 @@ export async function POST(request: NextRequest) {
       { success: false, error: 'Failed to create order' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

@@ -32,10 +32,12 @@ export async function GET(request: NextRequest) {
     const whereClause = {
       isActive: true,
       role: 'SELLER' as const,
+      // email deliberately excluded from search — this is a public,
+      // unauthenticated endpoint; matching on email would let an anonymous
+      // caller enumerate which addresses have an account by probing `?q=`.
       OR: [
         { name: { contains: query, mode: 'insensitive' as const } },
-        { companyName: { contains: query, mode: 'insensitive' as const } },
-        { email: { contains: query, mode: 'insensitive' as const } }
+        { companyName: { contains: query, mode: 'insensitive' as const } }
       ]
     };
 
@@ -104,7 +106,5 @@ export async function GET(request: NextRequest) {
       },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

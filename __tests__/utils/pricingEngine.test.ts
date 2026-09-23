@@ -375,8 +375,12 @@ describe('Pricing Engine - Tier + Customer Discount', () => {
     it('should include customer discount in tier table', () => {
       const table = getTierPricingTable(mockProduct, 10, true);
 
-      // First tier: 5% (tier) + 10% (customer) = 15% total
-      expect(table[0].totalDiscount).toContain('15');
+      // First tier: discounts compound sequentially (customer discount is
+      // taken off the already-tier-discounted price), not added — 5% tier
+      // discount then 10% customer discount is 1 - (0.95 * 0.90) = 14.5%
+      // total, not 5 + 10 = 15%. (tierPrice 95 * qty 10 = 950; 10% customer
+      // discount = 95 off -> 855; base 1000 -> 855 is a 14.5% total saving.)
+      expect(table[0].totalDiscount).toContain('14.5');
     });
   });
 

@@ -24,7 +24,7 @@ interface AnalyticsData {
     b2b: number;
   };
   products: {
-    totalViews: number;
+    totalViews: number | null;
     topSelling: Array<{ name: string; sold: number; revenue: number }>;
     lowStock: number;
   };
@@ -55,8 +55,9 @@ export default function AnalyticsPage() {
       const periodDays = periodDaysMap[timeRange];
 
       const token = localStorage.getItem('token');
+      const authHeaders = token ? { Authorization: `Bearer ${token}` } : undefined;
       const response = await fetch(`/api/admin/analytics?period=${periodDays}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        headers: authHeaders,
       });
 
       const result = await response.json();
@@ -65,11 +66,30 @@ export default function AnalyticsPage() {
         throw new Error(result.error || 'Failed to load analytics');
       }
 
+      // Real low-stock count from the reorder-alerts endpoint (src/app/api/
+      // admin/stock/reorder-alerts/route.ts) rather than a hardcoded 0.
+      // Best-effort: if this fetch fails, fall back to 0 instead of
+      // blocking the whole analytics page.
+      let lowStockCount = 0;
+      try {
+        const lowStockResponse = await fetch('/api/admin/stock/reorder-alerts', {
+          headers: authHeaders,
+        });
+        const lowStockResult = await lowStockResponse.json();
+        if (lowStockResponse.ok && lowStockResult.success) {
+          lowStockCount = lowStockResult.summary?.total || 0;
+        }
+      } catch (lowStockErr) {
+        console.error('Error fetching low-stock alerts:', lowStockErr);
+      }
+
       // Transform API data (src/app/api/admin/analytics/route.ts's actual
       // response shape: overview.{gmv,profit,orders,revenueGrowth},
       // ordersByStatus[], topSellingProducts[]) to the frontend interface.
       // There is no customer-count breakdown in this endpoint's response —
-      // shown as 0 rather than inventing a number for it.
+      // shown as 0 rather than inventing a number for it. There is also no
+      // product-view tracking anywhere in this codebase — totalViews is
+      // left `null` (rendered as "not yet tracked") rather than a fake 0.
       setAnalytics({
         revenue: {
           today: result.overview?.gmv || 0,
@@ -91,13 +111,13 @@ export default function AnalyticsPage() {
           b2b: 0,
         },
         products: {
-          totalViews: 0,
+          totalViews: null,
           topSelling: (result.topSellingProducts || []).map((p: any) => ({
             name: p.name,
             sold: p.unitsSold,
             revenue: p.revenue,
           })),
-          lowStock: 0,
+          lowStock: lowStockCount,
         },
       });
     } catch (err) {
@@ -204,15 +224,29 @@ export default function AnalyticsPage() {
           <div className="flex items-center justify-between mb-3">
             <span className="text-2xl sm:text-3xl">👁️</span>
             <span className="text-xs sm:text-sm bg-white/20 px-2 py-1 rounded-full">
-              Live
+              Not tracked
             </span>
           </div>
           <div className="text-xl sm:text-2xl font-bold mb-1">
-            {analytics?.products.totalViews || 0}
+            {analytics?.products.totalViews ?? '—'}
           </div>
           <div className="text-xs sm:text-sm text-orange-100">Product Views</div>
         </div>
       </div>
+
+      {/* Low Stock Summary */}
+      {analytics && (
+        <Link
+          href="/admin/inventory"
+          className="flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 hover:border-red-300 transition-colors"
+        >
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="text-xl sm:text-2xl">⚠️</span>
+            <span className="text-sm sm:text-base font-medium text-gray-700">Products Needing Reorder</span>
+          </div>
+          <span className="text-lg sm:text-xl font-bold text-red-600">{analytics.products.lowStock}</span>
+        </Link>
+      )}
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -233,11 +267,19 @@ export default function AnalyticsPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Order Status</h3>
           <div className="space-y-3">
-            {[
-              { status: 'Completed', count: analytics?.orders.completed || 0, color: 'bg-green-500', percentage: 60 },
-              { status: 'Pending', count: analytics?.orders.pending || 0, color: 'bg-yellow-500', percentage: 25 },
-              { status: 'Cancelled', count: analytics?.orders.cancelled || 0, color: 'bg-red-500', percentage: 15 },
-            ].map((item, index) => (
+            {(() => {
+              const completed = analytics?.orders.completed || 0;
+              const pending = analytics?.orders.pending || 0;
+              const cancelled = analytics?.orders.cancelled || 0;
+              const totalStatusOrders = completed + pending + cancelled;
+              const pct = (count: number) => (count / (totalStatusOrders || 1)) * 100;
+
+              return [
+                { status: 'Completed', count: completed, color: 'bg-green-500', percentage: pct(completed) },
+                { status: 'Pending', count: pending, color: 'bg-yellow-500', percentage: pct(pending) },
+                { status: 'Cancelled', count: cancelled, color: 'bg-red-500', percentage: pct(cancelled) },
+              ];
+            })().map((item, index) => (
               <div key={index}>
                 <div className="flex items-center justify-between text-sm mb-1">
                   <span className="font-medium text-gray-700">{item.status}</span>

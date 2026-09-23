@@ -93,9 +93,14 @@ export function validateStockAdjustment(
     errors.push('Reason is required and must be at least 5 characters');
   }
 
-  // Validate quantity
+  // Validate quantity. A zero-quantity 'add'/'remove' is a meaningless
+  // no-op adjustment that would still get written to the inventory audit
+  // log, so those two types require a strictly positive quantity; 'set' is
+  // unaffected — setting stock to exactly 0 is a legitimate operation.
   if (isNaN(adjustmentQuantity) || adjustmentQuantity < 0) {
     errors.push('Adjustment quantity must be a positive number');
+  } else if ((adjustmentType === 'add' || adjustmentType === 'remove') && adjustmentQuantity === 0) {
+    errors.push('Adjustment quantity must be greater than zero for add/remove adjustments');
   }
 
   // Calculate new stock

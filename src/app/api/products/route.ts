@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { logActivity } from '@/lib/activityLogger';
 import { prisma } from '@/lib/prisma';
 import { validateWholesalePricing, formatValidationErrors } from '@/utils/wholesaleValidation';
-import { requireAdmin, verifyToken } from '@/lib/auth';
+import { requireAdmin, authenticateUser } from '@/lib/auth';
 import { UserRole, isAdmin as isAdminRole } from '@/types/roles';
 
 // Vercel configuration
@@ -41,18 +41,17 @@ export async function GET(request: NextRequest) {
 
     // Check if request is from admin (for showing inactive products).
     // Auth is optional here (guests browse this endpoint too), so this uses
-    // verifyToken (returns null rather than throwing) + the canonical
-    // isAdmin() role-hierarchy check — previously a hand-rolled
-    // `role.toUpperCase() === 'ADMIN'` that excluded SUPER_ADMIN accounts
-    // from the admin catalog view (docs/architecture-review/14_Technical_Debt.md §22).
+    // authenticateUser (returns { success: false } rather than throwing) +
+    // the canonical isAdmin() role-hierarchy check. This re-fetches
+    // role/isActive from the database on every call rather than trusting a
+    // JWT's embedded `role` claim directly — a demoted/deactivated admin's
+    // still-valid token could otherwise keep seeing inactive products
+    // indefinitely (same "stale token" bug class fixed elsewhere in this
+    // codebase, e.g. orders/route.ts's GET handler via requireAuth()).
     let isAdmin = false;
-    const authHeader = request.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      const decoded = verifyToken(token);
-      if (decoded) {
-        isAdmin = isAdminRole(decoded.role as UserRole);
-      }
+    const authResult = await authenticateUser(request);
+    if (authResult.success && authResult.user) {
+      isAdmin = isAdminRole(authResult.user.role as UserRole);
     }
 
     // Build where clause
@@ -92,11 +91,20 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Price range filter
+    // Price range filter. parseFloat on a non-numeric string (e.g.
+    // ?minPrice=abc) returns NaN, which Prisma rejects with an unhandled
+    // validation error (surfaced as a generic 500) — only set the filter
+    // when parsing actually produced a valid number.
     if (!isIdLookup && (minPrice || maxPrice)) {
       where.wholesalePrice = {};
-      if (minPrice) where.wholesalePrice.gte = parseFloat(minPrice);
-      if (maxPrice) where.wholesalePrice.lte = parseFloat(maxPrice);
+      if (minPrice) {
+        const parsedMin = parseFloat(minPrice);
+        if (!Number.isNaN(parsedMin)) where.wholesalePrice.gte = parsedMin;
+      }
+      if (maxPrice) {
+        const parsedMax = parseFloat(maxPrice);
+        if (!Number.isNaN(parsedMax)) where.wholesalePrice.lte = parsedMax;
+      }
     }
 
     // Featured filter
@@ -205,18 +213,26 @@ export async function GET(request: NextRequest) {
       createdAt: product.createdAt.toISOString(),
     }));
 
-    const response = {
-      success: true,
-      data: {
-        products: transformedProducts,
-        pagination: {
+    // An id-lookup already returned every matching product in one shot
+    // (see `take` above) — computing pagination from the request's
+    // page/limit params here would produce a nonsensical hasNext:true /
+    // totalPages:2 even though nothing was left out.
+    const pagination = isIdLookup
+      ? { page: 1, limit: total, total, totalPages: 1, hasNext: false, hasPrev: false }
+      : {
           page,
           limit,
           total,
           totalPages: Math.ceil(total / limit),
           hasNext: page * limit < total,
           hasPrev: page > 1
-        },
+        };
+
+    const response = {
+      success: true,
+      data: {
+        products: transformedProducts,
+        pagination,
         categories: categories.map(cat => ({
           id: cat.id,
           name: cat.name,
@@ -233,8 +249,6 @@ export async function GET(request: NextRequest) {
       { success: false, error: 'Failed to fetch products', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -372,8 +386,6 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to create product', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -445,7 +457,5 @@ export async function DELETE(request: NextRequest) {
       { error: 'Failed to delete products', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

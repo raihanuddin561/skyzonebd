@@ -32,8 +32,10 @@ jest.mock('@/lib/prisma', () => ({
 }));
 
 const mockRequireAdmin = jest.fn();
+const mockRequireAuth = jest.fn();
 jest.mock('@/lib/auth', () => ({
   requireAdmin: (...args: any[]) => mockRequireAdmin(...args),
+  requireAuth: (...args: any[]) => mockRequireAuth(...args),
 }));
 
 import { PATCH } from '@/app/api/admin/data-deletion-requests/[id]/route';
@@ -53,6 +55,11 @@ beforeEach(() => {
   // test's call to the same mock. resetAllMocks wipes implementations too.
   jest.resetAllMocks();
   mockRequireAdmin.mockResolvedValue({ id: 'admin-1', name: 'Admin', email: 'admin@example.com' });
+  // execute requires SUPER_ADMIN specifically (permanent PII anonymization
+  // is at least as destructive as other SUPER_ADMIN-gated actions in this
+  // codebase) — default to a super admin here; the dedicated 403 test below
+  // overrides this to a plain ADMIN.
+  mockRequireAuth.mockResolvedValue({ id: 'admin-1', name: 'Admin', email: 'admin@example.com', role: 'SUPER_ADMIN' });
 });
 
 describe('PATCH /api/admin/data-deletion-requests/[id] (approve/reject)', () => {
@@ -140,7 +147,9 @@ describe('POST /api/admin/data-deletion-requests/[id]/execute', () => {
     const userPermissionDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
     const productUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
     const partnerUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
-    const requestUpdate = jest.fn().mockResolvedValue({ id: 'req-1', status: 'COMPLETED' });
+    const orderUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+    const requestUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const requestFindUniqueOrThrow = jest.fn().mockResolvedValue({ id: 'req-1', status: 'COMPLETED' });
     const auditCreate = jest.fn().mockResolvedValue({});
 
     mockPrismaClient.$transaction.mockImplementationOnce(async (cb: any) =>
@@ -152,7 +161,8 @@ describe('POST /api/admin/data-deletion-requests/[id]/execute', () => {
         userPermission: { deleteMany: userPermissionDeleteMany },
         product: { updateMany: productUpdateMany },
         partner: { updateMany: partnerUpdateMany },
-        dataDeletionRequest: { update: requestUpdate },
+        order: { updateMany: orderUpdateMany },
+        dataDeletionRequest: { updateMany: requestUpdateMany, findUniqueOrThrow: requestFindUniqueOrThrow },
         dataDeletionAuditLog: { create: auditCreate },
       })
     );
@@ -160,6 +170,16 @@ describe('POST /api/admin/data-deletion-requests/[id]/execute', () => {
     const res = await executeDeletion(req({}), { params });
 
     expect(res.status).toBe(200);
+
+    // PII embedded in historical order addresses is redacted — orders
+    // themselves (totals, line items, payments) are never touched here.
+    expect(orderUpdateMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1' },
+      data: expect.objectContaining({
+        shippingAddress: expect.any(String),
+        billingAddress: expect.any(String),
+      }),
+    });
 
     // Anonymization: email/name change, PII cleared, account deactivated —
     // never just left as the real user's data.
@@ -187,11 +207,43 @@ describe('POST /api/admin/data-deletion-requests/[id]/execute', () => {
       data: { userId: null },
     });
 
-    expect(requestUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ status: 'COMPLETED' }) })
+    expect(requestUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'req-1', status: 'PROCESSING' },
+        data: expect.objectContaining({ status: 'COMPLETED' }),
+      })
     );
     expect(auditCreate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'EXECUTED', newStatus: 'COMPLETED' }) })
+    );
+  });
+
+  it('rejects a plain ADMIN (403) — only SUPER_ADMIN may execute a deletion', async () => {
+    mockRequireAuth.mockResolvedValueOnce({ id: 'admin-1', name: 'Admin', email: 'admin@example.com', role: 'ADMIN' });
+
+    const res = await executeDeletion(req({}), { params });
+
+    expect(res.status).toBe(403);
+    expect(mockPrismaClient.dataDeletionRequest.findUnique).not.toHaveBeenCalled();
+    expect(mockPrismaClient.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 instead of double-executing when a concurrent request already completed it', async () => {
+    mockPrismaClient.dataDeletionRequest.findUnique.mockResolvedValueOnce({
+      status: 'PROCESSING',
+      userId: 'user-1',
+      user: { id: 'user-1', email: 'real@example.com', name: 'Real User', orders: [], products: [] },
+    });
+    const requestUpdateMany = jest.fn().mockResolvedValue({ count: 0 }); // lost the race
+    mockPrismaClient.$transaction.mockImplementationOnce(async (cb: any) =>
+      cb({ dataDeletionRequest: { updateMany: requestUpdateMany } })
+    );
+
+    const res = await executeDeletion(req({}), { params });
+
+    expect(res.status).toBe(500);
+    expect(requestUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'req-1', status: 'PROCESSING' } })
     );
   });
 });

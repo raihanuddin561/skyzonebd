@@ -40,8 +40,6 @@ export async function GET(request: NextRequest) {
       { success: false, error: 'Failed to fetch units' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -109,8 +107,6 @@ export async function POST(request: NextRequest) {
       { success: false, error: 'Failed to create unit' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -127,6 +123,26 @@ export async function PUT(request: NextRequest) {
         { success: false, error: 'Unit ID is required' },
         { status: 400 }
       );
+    }
+
+    // Check if another unit already uses the requested name or symbol
+    if (name || symbol) {
+      const existing = await prisma.unit.findFirst({
+        where: {
+          id: { not: id },
+          OR: [
+            ...(name ? [{ name }] : []),
+            ...(symbol ? [{ symbol }] : []),
+          ],
+        },
+      });
+
+      if (existing) {
+        return NextResponse.json(
+          { success: false, error: 'Unit with this name or symbol already exists' },
+          { status: 400 }
+        );
+      }
     }
 
     const unit = await prisma.unit.update({
@@ -149,7 +165,7 @@ export async function PUT(request: NextRequest) {
       return error;
     }
     console.error('Update Unit Error:', error);
-    
+
     // If table doesn't exist, return specific error
     if (error.code === 'P2021') {
       return NextResponse.json(
@@ -157,13 +173,11 @@ export async function PUT(request: NextRequest) {
         { status: 503 }
       );
     }
-    
+
     return NextResponse.json(
       { success: false, error: 'Failed to update unit' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -223,7 +237,5 @@ export async function DELETE(request: NextRequest) {
       { success: false, error: 'Failed to delete unit' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

@@ -188,7 +188,5 @@ export async function POST(request: NextRequest) {
       { success: false, error: 'Failed to cancel order' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

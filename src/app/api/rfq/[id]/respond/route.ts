@@ -35,6 +35,29 @@ export async function POST(
       );
     }
 
+    if (quotedPrice !== undefined && quotedPrice !== null) {
+      if (typeof quotedPrice !== 'number' || !Number.isFinite(quotedPrice) || quotedPrice <= 0) {
+        return NextResponse.json(
+          { success: false, error: 'quotedPrice must be a positive number' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // A response can only be sent once per RFQ — without this guard, a
+    // replayed/direct request could silently overwrite a prior quote (or
+    // re-quote an already REJECTED/EXPIRED request) with no history kept.
+    const existingRfq = await prisma.rFQ.findUnique({ where: { id }, select: { status: true } });
+    if (!existingRfq) {
+      return NextResponse.json({ success: false, error: 'RFQ not found' }, { status: 404 });
+    }
+    if (existingRfq.status !== 'PENDING') {
+      return NextResponse.json(
+        { success: false, error: `This RFQ has already been responded to (status: ${existingRfq.status})` },
+        { status: 409 }
+      );
+    }
+
     // Update RFQ status and persist the actual quote — previously this
     // route accepted `response`/`quotedPrice` and only ever wrote `status`,
     // silently discarding the admin's quote.

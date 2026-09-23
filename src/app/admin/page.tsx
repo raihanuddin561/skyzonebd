@@ -247,14 +247,8 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <button className="flex-1 px-2 py-1.5 sm:py-2 bg-green-600 text-white text-xs rounded hover:bg-green-700 whitespace-nowrap">
-                    ✓ Approve
-                  </button>
-                  <button className="flex-1 px-2 py-1.5 sm:py-2 bg-red-600 text-white text-xs rounded hover:bg-red-700 whitespace-nowrap">
-                    ✗ Reject
-                  </button>
                   <Link
-                    href={`/admin/verification/${verification.id}`}
+                    href="/admin/verification"
                     className="flex-1 px-2 py-1.5 sm:py-2 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300 text-center whitespace-nowrap"
                   >
                     View Details

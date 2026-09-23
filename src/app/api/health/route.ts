@@ -35,15 +35,18 @@ export async function GET(request: NextRequest) {
   try {
     await prisma.$connect();
     await prisma.$queryRaw`SELECT 1`;
-    health.checks.database = { 
-      status: 'ok', 
-      message: 'Database connected successfully' 
+    health.checks.database = {
+      status: 'ok',
+      message: 'Database connected successfully'
     };
   } catch (error) {
     health.status = 'error';
-    health.checks.database = { 
-      status: 'error', 
-      message: error instanceof Error ? error.message : 'Database connection failed' 
+    // Logged server-side only — the raw error can include internal
+    // hostnames and is not for an anonymous, unauthenticated caller.
+    console.error('Health check: database connectivity failed:', error);
+    health.checks.database = {
+      status: 'error',
+      message: 'Database connection failed'
     };
   }
 
@@ -53,24 +56,27 @@ export async function GET(request: NextRequest) {
       const productCount = await prisma.product.count();
       health.checks.products = {
         status: productCount > 0 ? 'ok' : 'warning',
-        message: productCount > 0 
-          ? `${productCount} products available` 
+        message: productCount > 0
+          ? `${productCount} products available`
           : 'No products found in database',
         count: productCount
       };
     } catch (error) {
+      console.error('Health check: product query failed:', error);
       health.checks.products = {
         status: 'error',
-        message: error instanceof Error ? error.message : 'Failed to query products',
+        message: 'Failed to query products',
         count: 0
       };
     }
   }
 
-  // Check 3: Required environment variables
+  // Check 3: Required environment variables — never name which ones are
+  // missing in the public response; that's reconnaissance-grade
+  // information disclosure for an unauthenticated endpoint.
   const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-  
+
   if (missingVars.length === 0) {
     health.checks.config = {
       status: 'ok',
@@ -78,17 +84,15 @@ export async function GET(request: NextRequest) {
     };
   } else {
     health.status = 'error';
+    console.error('Health check: missing environment variables:', missingVars.join(', '));
     health.checks.config = {
       status: 'error',
-      message: `Missing environment variables: ${missingVars.join(', ')}`
+      message: 'Server configuration incomplete'
     };
   }
 
   // Calculate response time
   health.responseTime = Date.now() - startTime;
-
-  // Disconnect Prisma
-  await prisma.$disconnect();
 
   // Return appropriate status code
   const statusCode = health.status === 'ok' ? 200 : 500;

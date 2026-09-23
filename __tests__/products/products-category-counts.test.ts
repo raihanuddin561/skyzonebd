@@ -58,6 +58,15 @@ describe('GET /api/products — category product counts', () => {
   });
 
   it('counts all products (active and inactive) for an admin request', async () => {
+    // The admin check is now DB-verified (authenticateUser re-fetches
+    // role/isActive from the database instead of trusting the JWT's
+    // embedded role claim directly — see products/route.ts's Bug 9 fix), so
+    // the mocked Prisma user lookup must actually resolve an admin user for
+    // this request to be recognized as an admin.
+    mockPrismaClient.user.findUnique.mockResolvedValueOnce({
+      id: 'admin-1', email: 'admin@example.com', name: 'Admin', role: 'ADMIN', userType: 'WHOLESALE', isActive: true,
+    });
+
     await GET(req('http://localhost/api/products', adminToken()));
 
     expect(mockPrismaClient.category.findMany).toHaveBeenCalledWith(

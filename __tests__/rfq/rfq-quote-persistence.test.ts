@@ -14,7 +14,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-on
 
 const mockPrismaClient = {
   user: { findUnique: jest.fn() },
-  rFQ: { update: jest.fn() },
+  rFQ: { update: jest.fn(), findUnique: jest.fn() },
 };
 
 jest.mock('@/lib/prisma', () => ({
@@ -69,6 +69,7 @@ function mockAdmin(id: string) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  (prisma.rFQ.findUnique as jest.Mock).mockResolvedValue({ status: 'PENDING' });
 });
 
 describe('POST /api/rfq/[id]/respond — quote persistence', () => {

@@ -96,8 +96,8 @@ describe('role/userType from the request body', () => {
     expect(mockPrismaClient.user.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ role: 'SELLER', userType: 'WHOLESALE' }) })
     );
-    expect(body.user.role).toBe('seller');
-    expect(body.user.userType).toBe('wholesale');
+    expect(body.user.role).toBe('SELLER');
+    expect(body.user.userType).toBe('WHOLESALE');
   });
 
   it('rejects an attempt to self-register as ADMIN, falling back to BUYER', async () => {

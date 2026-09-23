@@ -7,6 +7,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ProtectedRoute from '@/app/components/ProtectedRoute';
 import Header from '@/app/components/Header';
+import { api } from '@/utils/apiClient';
 
 interface Product {
   id: string;
@@ -67,11 +68,8 @@ function CreateOrderPage() {
 
     try {
       setSearching(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/users?search=${encodeURIComponent(query)}&limit=10`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
+      const response = await api.get(`/api/admin/users?search=${encodeURIComponent(query)}&limit=10`);
+
       if (response.ok) {
         const result = await response.json();
         setCustomers(result.data || []);
@@ -91,11 +89,8 @@ function CreateOrderPage() {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/products?search=${encodeURIComponent(query)}&limit=20`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
+      const response = await api.get(`/api/products?search=${encodeURIComponent(query)}&limit=20`);
+
       if (response.ok) {
         const result = await response.json();
         setProducts(result.data?.products || []);

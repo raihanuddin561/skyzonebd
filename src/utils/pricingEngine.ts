@@ -18,6 +18,15 @@ export interface PriceCalculationInput {
   quantity: number;
   customerDiscount?: number; // Percentage (0-100)
   customerDiscountValid?: boolean;
+  // Whether MOQ (minimum order quantity) should be enforced for this
+  // calculation. Per the platform's business rule, MOQ only applies to
+  // WHOLESALE customers — guest/RETAIL checkout is allowed to order any
+  // quantity (including below moq). Defaults to true so every existing
+  // caller (tier-table/price-breakdown display, and any caller that hasn't
+  // been updated to pass this) keeps today's behavior; only order creation
+  // (which knows the buyer's userType) should pass `false` for a
+  // non-wholesale buyer.
+  enforceMoq?: boolean;
 }
 
 export interface PriceCalculationResult {
@@ -59,13 +68,16 @@ export function calculateItemPrice(input: PriceCalculationInput): PriceCalculati
     product,
     quantity,
     customerDiscount = 0,
-    customerDiscountValid = false
+    customerDiscountValid = false,
+    enforceMoq = true
   } = input;
 
   const { wholesalePrice, moq, wholesaleTiers = [] } = product;
 
-  // Check MOQ
-  const meetsMinimum = quantity >= moq;
+  // Check MOQ — only enforced when the caller says it should be (see
+  // enforceMoq's doc comment on PriceCalculationInput). When MOQ enforcement
+  // is disabled, any quantity >= 1 "meets minimum" for pricing purposes.
+  const meetsMinimum = !enforceMoq || quantity >= moq;
   if (!meetsMinimum) {
     return {
       basePrice: wholesalePrice,
@@ -101,9 +113,19 @@ export function calculateItemPrice(input: PriceCalculationInput): PriceCalculati
   const customerDiscountAmount = (subtotalBeforeDiscount * applicableCustomerDiscount) / 100;
   const subtotalAfterDiscount = subtotalBeforeDiscount - customerDiscountAmount;
 
-  // Step 4: Calculate final prices
-  const finalUnitPrice = subtotalAfterDiscount / quantity;
-  const finalTotal = subtotalAfterDiscount;
+  // Step 4: Calculate final prices. `finalTotal` is the single source of
+  // truth for what the customer is actually charged for this line — round
+  // it FIRST, then derive `finalUnitPrice` from that already-rounded total
+  // (rather than independently rounding subtotalAfterDiscount / quantity).
+  // Two independent roundings of the same underlying value can disagree by
+  // a cent (e.g. tierPrice=149.99, quantity=2, customerDiscount=25% used to
+  // produce finalUnitPrice=112.49 but finalTotal=224.99, and
+  // 112.49 * 2 = 224.98 !== 224.99) — that divergence corrupted the DB once
+  // both were persisted as OrderItem.price/OrderItem.total. finalTotal must
+  // stay authoritative for anything financial (refunds, order-history
+  // display); finalUnitPrice is a derived, informational per-unit price.
+  const finalTotal = roundPrice(subtotalAfterDiscount);
+  const finalUnitPrice = roundPrice(finalTotal / quantity);
 
   // Step 5: Calculate total savings
   const baseTotal = wholesalePrice * quantity;
@@ -121,8 +143,8 @@ export function calculateItemPrice(input: PriceCalculationInput): PriceCalculati
     customerDiscountAmount,
     subtotalBeforeDiscount,
     subtotalAfterDiscount,
-    finalUnitPrice: roundPrice(finalUnitPrice),
-    finalTotal: roundPrice(finalTotal),
+    finalUnitPrice,
+    finalTotal,
     totalSavings: roundPrice(totalSavings),
     totalSavingsPercent: roundPercent(totalSavingsPercent),
     meetsMinimum: true,
@@ -364,7 +386,16 @@ export function getTierPricingTable(
       ? `${tier.minQuantity}-${tier.maxQuantity}`
       : `${tier.minQuantity}+`;
 
-    const totalDiscountPercent = tier.discount + (result.customerDiscountPercent || 0);
+    // The actual price calculation compounds the tier discount and the
+    // customer discount sequentially (customer discount is taken off the
+    // already-tier-discounted price, not off the original wholesale
+    // price) — simply adding tier.discount + customerDiscountPercent
+    // overstates the true combined discount shown next to the correctly-
+    // computed price on this same row. result.totalSavingsPercent is
+    // already computed from the real numbers
+    // ((wholesalePrice*qty - finalTotal) / (wholesalePrice*qty)), so use
+    // that instead of the additive approximation.
+    const totalDiscountPercent = result.totalSavingsPercent;
 
     return {
       range,

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { UserRole, isAdmin } from '@/types/roles';
 
@@ -10,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
 
-const PAYMENTS_FILE = path.join(process.cwd(), 'data', 'payment-methods.json');
+const PAYMENT_METHODS_KEY = 'payment_methods';
 
 // Default payment methods
 const defaultPaymentMethods = {
@@ -67,21 +66,16 @@ const defaultPaymentMethods = {
   },
 };
 
-// Ensure data directory exists
-function ensureDataDir() {
-  const dataDir = path.join(process.cwd(), 'data');
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-}
-
-// Read payment methods from file
-function readPaymentMethods() {
+// Read payment methods from the PlatformConfig table (a simple key/value
+// store). Falls back to the defaults when no record has been saved yet, or
+// if the stored value fails to parse.
+async function readPaymentMethods(): Promise<any> {
   try {
-    ensureDataDir();
-    if (fs.existsSync(PAYMENTS_FILE)) {
-      const data = fs.readFileSync(PAYMENTS_FILE, 'utf8');
-      return JSON.parse(data);
+    const record = await prisma.platformConfig.findUnique({
+      where: { key: PAYMENT_METHODS_KEY },
+    });
+    if (record) {
+      return JSON.parse(record.value);
     }
     return defaultPaymentMethods;
   } catch (error) {
@@ -90,11 +84,20 @@ function readPaymentMethods() {
   }
 }
 
-// Write payment methods to file
-function writePaymentMethods(methods: any) {
+// Write payment methods to the PlatformConfig table
+async function writePaymentMethods(methods: any): Promise<boolean> {
   try {
-    ensureDataDir();
-    fs.writeFileSync(PAYMENTS_FILE, JSON.stringify(methods, null, 2), 'utf8');
+    const value = JSON.stringify(methods);
+    await prisma.platformConfig.upsert({
+      where: { key: PAYMENT_METHODS_KEY },
+      create: {
+        key: PAYMENT_METHODS_KEY,
+        value,
+        category: 'payments',
+        description: 'Payment method configuration (enabled state, account details)',
+      },
+      update: { value },
+    });
     return true;
   } catch (error) {
     console.error('Error writing payment methods:', error);
@@ -113,8 +116,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const methods = readPaymentMethods();
-    
+    const methods = await readPaymentMethods();
+
     // Convert object to array for frontend
     const methodsArray = Object.values(methods);
     
@@ -155,7 +158,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const methods = readPaymentMethods();
+    const methods = await readPaymentMethods();
 
     if (!methods[id]) {
       return NextResponse.json(
@@ -171,7 +174,7 @@ export async function PUT(request: NextRequest) {
       ...config,
     };
 
-    const success = writePaymentMethods(methods);
+    const success = await writePaymentMethods(methods);
 
     if (success) {
       return NextResponse.json({

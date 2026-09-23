@@ -39,7 +39,7 @@ export default function ComparePage() {
     if (productId && selectedProducts.length < 3) {
       try {
         setLoading(true);
-        const product = await dataService.products.getById(parseInt(productId));
+        const product = await dataService.products.getById(productId);
         if (product && !selectedProducts.find(p => p.id === (product as Product).id)) {
           setSelectedProducts([...selectedProducts, product as Product]);
           setProductId('');
@@ -109,7 +109,7 @@ export default function ComparePage() {
           <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-gray-900">Add Products to Compare</h2>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <input
-              type="number"
+              type="text"
               placeholder="Enter Product ID"
               value={productId}
               onChange={(e) => setProductId(e.target.value)}

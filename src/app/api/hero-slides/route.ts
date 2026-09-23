@@ -46,8 +46,6 @@ export async function GET(request: NextRequest) {
       { success: false, error: 'Failed to fetch hero slides' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -98,7 +96,5 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to create hero slide' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

@@ -15,7 +15,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-on
 
 const mockPrismaClient = {
   user: { findUnique: jest.fn() },
-  rFQ: { findMany: jest.fn(), count: jest.fn(), create: jest.fn(), update: jest.fn() },
+  rFQ: { findMany: jest.fn(), count: jest.fn(), create: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
 };
 
 jest.mock('@/lib/prisma', () => ({
@@ -155,6 +155,7 @@ describe('POST /api/rfq/[id]/respond', () => {
 
   it('allows an admin to respond', async () => {
     mockActor('admin-1', 'ADMIN');
+    (prisma.rFQ.findUnique as jest.Mock).mockResolvedValueOnce({ status: 'PENDING' });
     (prisma.rFQ.update as jest.Mock).mockResolvedValueOnce({ id: 'rfq-1', user: { name: 'Customer' } });
     const request = new MockNextRequest('http://x/api/rfq/rfq-1/respond', {
       headers: { Authorization: `Bearer ${tokenFor('admin-1')}` },

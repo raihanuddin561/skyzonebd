@@ -76,7 +76,5 @@ export async function PATCH(request: NextRequest) {
       { success: false, error: 'Failed to update Minimum Order Quantity' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

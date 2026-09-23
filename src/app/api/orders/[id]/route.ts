@@ -147,8 +147,6 @@ export async function GET(
       { success: false, error: 'Failed to fetch order' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -291,8 +289,6 @@ export async function PATCH(
       { success: false, error: 'Failed to update order' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -368,7 +364,5 @@ export async function DELETE(
       { success: false, error: 'Failed to cancel order' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

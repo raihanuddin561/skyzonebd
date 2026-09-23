@@ -71,21 +71,6 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
       );
     }
 
-    // Check if sales already exist for this order
-    const existingSales = await prisma.sale.count({
-      where: { orderId },
-    });
-
-    if (existingSales > 0) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Sales records already exist for this order' 
-        },
-        { status: 400 }
-      );
-    }
-
     // Create sales records for each order item
     const salesData = order.orderItems.map((item) => {
       const costPrice = item.costPerUnit || item.product.costPerUnit || item.product.basePrice || 0;
@@ -119,9 +104,31 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
       };
     });
 
-    // Create all sales records
-    const sales = await prisma.sale.createMany({
-      data: salesData,
+    // Check-then-insert guarded inside a single transaction — the count
+    // check and createMany used to be two separate, non-transactional
+    // calls, so two concurrent generate-sales requests for the same order
+    // could both pass the count check before either inserted, producing
+    // duplicate Sale rows and double-counted revenue. Re-checking the count
+    // inside the transaction means a concurrent second call sees the
+    // first's just-created rows (once committed) and aborts instead.
+    const sales = await prisma.$transaction(async (tx) => {
+      const existingSales = await tx.sale.count({
+        where: { orderId },
+      });
+
+      if (existingSales > 0) {
+        throw new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Sales records already exist for this order',
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return tx.sale.createMany({
+        data: salesData,
+      });
     });
 
     // Log activity

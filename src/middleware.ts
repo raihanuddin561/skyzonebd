@@ -13,7 +13,6 @@ export function middleware(request: NextRequest) {
 
   // Add noindex headers to admin routes
   if (pathname.startsWith('/admin') ||
-      pathname.startsWith('/account') ||
       pathname.startsWith('/profile') ||
       pathname.startsWith('/orders') ||
       pathname.startsWith('/wishlist') ||
@@ -30,7 +29,6 @@ export const config = {
   matcher: [
     '/api/:path*',
     '/admin/:path*',
-    '/account/:path*',
     '/profile/:path*',
     '/orders/:path*',
     '/wishlist/:path*',

@@ -51,17 +51,19 @@ export async function GET(request: NextRequest) {
     });
     const prevPeriodRevenue = prevPeriodOrders.reduce((sum, order) => sum + (order.total || 0), 0);
     
-    const revenueChange = prevPeriodRevenue > 0 
-      ? ((periodRevenue - prevPeriodRevenue) / prevPeriodRevenue * 100).toFixed(1)
-      : '0';
+    const revenueChangeNum = prevPeriodRevenue > 0
+      ? (periodRevenue - prevPeriodRevenue) / prevPeriodRevenue * 100
+      : 0;
+    const revenueChange = revenueChangeNum.toFixed(1);
 
     // Get total orders count
     const totalOrders = await prisma.order.count();
     const periodOrdersCount = periodOrders.length;
     const prevPeriodOrdersCount = prevPeriodOrders.length;
-    const ordersChange = prevPeriodOrdersCount > 0
-      ? ((periodOrdersCount - prevPeriodOrdersCount) / prevPeriodOrdersCount * 100).toFixed(1)
-      : '0';
+    const ordersChangeNum = prevPeriodOrdersCount > 0
+      ? (periodOrdersCount - prevPeriodOrdersCount) / prevPeriodOrdersCount * 100
+      : 0;
+    const ordersChange = ordersChangeNum.toFixed(1);
 
     // Get total users count
     const totalUsers = await prisma.user.count();
@@ -80,9 +82,10 @@ export async function GET(request: NextRequest) {
         },
       },
     });
-    const usersChange = prevPeriodUsers > 0
-      ? ((periodUsers - prevPeriodUsers) / prevPeriodUsers * 100).toFixed(1)
-      : '0';
+    const usersChangeNum = prevPeriodUsers > 0
+      ? (periodUsers - prevPeriodUsers) / prevPeriodUsers * 100
+      : 0;
+    const usersChange = usersChangeNum.toFixed(1);
 
     // Get total products count
     const totalProducts = await prisma.product.count();
@@ -162,21 +165,21 @@ export async function GET(request: NextRequest) {
           {
             title: 'Total Revenue',
             value: `৳${totalRevenue.toLocaleString()}`,
-            change: `${revenueChange >= '0' ? '+' : ''}${revenueChange}%`,
+            change: `${revenueChangeNum >= 0 ? '+' : ''}${revenueChange}%`,
             icon: '💰',
             color: 'blue',
           },
           {
             title: 'Total Orders',
             value: totalOrders.toLocaleString(),
-            change: `${ordersChange >= '0' ? '+' : ''}${ordersChange}%`,
+            change: `${ordersChangeNum >= 0 ? '+' : ''}${ordersChange}%`,
             icon: '🛒',
             color: 'green',
           },
           {
             title: 'Total Users',
             value: totalUsers.toLocaleString(),
-            change: `${usersChange >= '0' ? '+' : ''}${usersChange}%`,
+            change: `${usersChangeNum >= 0 ? '+' : ''}${usersChange}%`,
             icon: '👥',
             color: 'purple',
           },

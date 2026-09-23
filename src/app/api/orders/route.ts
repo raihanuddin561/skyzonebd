@@ -83,13 +83,19 @@ export async function POST(request: NextRequest) {
         const decoded = verify(token, getJwtSecret()) as DecodedToken;
         userId = decoded.userId;
         
-        // Get customer discount if user is logged in
+        // Get customer discount if user is logged in. userType is also
+        // fetched here (not via a separate query) so it can be passed
+        // through to calculateItemPrice's enforceMoq flag below — MOQ only
+        // applies to WHOLESALE customers, matching the client's
+        // already-stated business rule (ProductCard/cart/product-detail
+        // pages only enforce MOQ for userType === 'WHOLESALE').
         user = await prisma.user.findUnique({
           where: { id: userId },
-          select: { 
+          select: {
             discountPercent: true,
             discountValidUntil: true,
-            discountReason: true
+            discountReason: true,
+            userType: true
           }
         });
         
@@ -213,7 +219,11 @@ export async function POST(request: NextRequest) {
         },
         quantity: item.quantity,
         customerDiscount: discountValidation.applicablePercent,
-        customerDiscountValid: discountValidation.isValid
+        customerDiscountValid: discountValidation.isValid,
+        // MOQ only applies to WHOLESALE customers — a guest (no userId) or
+        // a registered non-wholesale (e.g. RETAIL) user can order any
+        // quantity, matching the client UI's already-stated business rule.
+        enforceMoq: user?.userType === 'WHOLESALE'
       });
       
       if (!priceInfo.meetsMinimum) {
@@ -532,8 +542,6 @@ export async function POST(request: NextRequest) {
       { success: false, error: 'Failed to create order' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -636,8 +644,6 @@ export async function GET(request: NextRequest) {
       { success: false, error: 'Failed to fetch orders' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -866,7 +872,5 @@ export async function PATCH(request: NextRequest) {
       { success: false, error: 'Failed to update order' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

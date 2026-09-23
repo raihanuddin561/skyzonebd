@@ -270,7 +270,7 @@ export default function OrdersPage() {
                         <ul className="space-y-1">
                           {order.items.map((item, index) => (
                             <li key={index} className="text-sm text-gray-600">
-                              {item.name} × {item.quantity} = ৳{(item.price * item.quantity).toLocaleString()}
+                              {item.name} × {item.quantity} = ৳{item.total.toLocaleString()}
                             </li>
                           ))}
                         </ul>

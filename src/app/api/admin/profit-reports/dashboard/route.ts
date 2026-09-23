@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
+import { getFinancialSummary } from '@/lib/financialLedger';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -13,6 +14,18 @@ export const maxDuration = 60; // 60 seconds timeout
 /**
  * GET /api/admin/profit-reports/dashboard
  * Get comprehensive profit dashboard data
+ *
+ * Revenue/COGS/operational-costs/salary/profit figures are derived from the
+ * shared FinancialLedger-based calculation (getFinancialSummary) instead of
+ * independently re-aggregating Sale/OperationalCost/Salary — the same "one
+ * true ledger" pattern already used by comprehensiveProfitCalculation.ts
+ * (used by /api/admin/profit-loss) and partnerProfitDistribution.ts (used by
+ * /api/admin/profits). Previously this route computed its own numbers from
+ * those tables directly, which could silently drift from the canonical
+ * figures shown on those other pages — e.g. it summed *all* Salary/
+ * OperationalCost rows regardless of paymentStatus, while the ledger (and
+ * every other profit endpoint) only recognizes PAID/PARTIAL ones as real
+ * expenses.
  */
 export async function GET(request: NextRequest) {
   const notices: string[] = [];
@@ -25,67 +38,75 @@ export async function GET(request: NextRequest) {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    // Get all sales for current month
-    const sales = await prisma.sale.findMany({
-      where: {
-        saleDate: {
-          gte: startOfMonth,
-          lte: endOfMonth
-        }
-      }
-    });
+    const financialSummary = await getFinancialSummary(startOfMonth, endOfMonth);
 
-    if (sales.length === 0) {
+    // Revenue split by source (ORDER vs MANUAL_SALE), plus the real refund
+    // total for the period — the ledger posts refund reversals as
+    // DEBIT/REFUND/REVENUE entries (see createRefundReversalEntries), which
+    // getFinancialSummary already nets against `revenue`. Read separately
+    // here purely so the dashboard can show gross sales, returns, and net
+    // revenue individually instead of a hardcoded `returns: 0`.
+    const [revenueEntries, returnRevenueAgg, costsCount, salariesAll] = await Promise.all([
+      prisma.financialLedger.findMany({
+        where: {
+          createdAt: { gte: startOfMonth, lte: endOfMonth },
+          direction: 'CREDIT',
+          category: 'REVENUE',
+          sourceType: { in: ['ORDER', 'MANUAL_SALE'] },
+        },
+        select: { sourceType: true, amount: true },
+      }),
+      prisma.financialLedger.aggregate({
+        where: {
+          createdAt: { gte: startOfMonth, lte: endOfMonth },
+          direction: 'DEBIT',
+          sourceType: 'REFUND',
+          category: 'REVENUE',
+        },
+        _sum: { amount: true },
+      }),
+      prisma.operationalCost.count({
+        where: { date: { gte: startOfMonth, lte: endOfMonth } },
+      }),
+      prisma.salary.findMany({
+        where: { month: now.getMonth() + 1, year: now.getFullYear() },
+        select: { id: true },
+      }),
+    ]);
+
+    if (revenueEntries.length === 0) {
       notices.push('No sales data available for the current month');
     }
-
-    // Calculate total revenue
-    const totalRevenue = sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
-    
-    // Calculate COGS (Cost of Goods Sold) - treat missing costPrice as 0
-    const missingCostPrice = sales.filter(s => !s.costPrice || s.costPrice === 0);
-    if (missingCostPrice.length > 0) {
-      notices.push(`${missingCostPrice.length} sales missing costPrice - COGS calculation may be inaccurate`);
-    }
-    const cogs = sales.reduce((sum, sale) => sum + ((sale.costPrice || 0) * (sale.quantity || 0)), 0);
-
-    // Get all operational costs for current month
-    const costs = await prisma.operationalCost.findMany({
-      where: {
-        date: {
-          gte: startOfMonth,
-          lte: endOfMonth
-        }
-      }
-    });
-
-    if (costs.length === 0) {
+    if (costsCount === 0) {
       notices.push('No operational costs recorded for the current month');
     }
-
-    const totalOperationalCosts = costs.reduce((sum, cost) => sum + (cost.amount || 0), 0);
-    
-    // Get salary costs
-    const salaries = await prisma.salary.findMany({
-      where: {
-        month: now.getMonth() + 1,
-        year: now.getFullYear()
-      }
-    });
-
-    if (salaries.length === 0) {
+    if (salariesAll.length === 0) {
       notices.push('No salary data recorded for the current month');
     }
 
-    const totalSalaries = salaries.reduce((sum, salary) => sum + (salary.netSalary || 0), 0);
+    const directSalesRevenue = revenueEntries
+      .filter((e) => e.sourceType === 'MANUAL_SALE')
+      .reduce((sum, e) => sum + e.amount, 0);
+    const orderSalesRevenue = revenueEntries
+      .filter((e) => e.sourceType === 'ORDER')
+      .reduce((sum, e) => sum + e.amount, 0);
+    const grossRevenue = directSalesRevenue + orderSalesRevenue;
+    const returns = returnRevenueAgg._sum.amount || 0;
+
+    // Ledger-derived top-line figures (net of refunds, PAID/PARTIAL costs
+    // and salaries only — see file header comment).
+    const totalRevenue = financialSummary.revenue;
+    const cogs = financialSummary.cogs;
+    const grossProfit = financialSummary.grossProfit;
+    const totalOperationalCosts = financialSummary.operationalCosts;
+    const totalSalaries = financialSummary.salaryExpenses;
 
     // Calculate total costs
     const totalCosts = cogs + totalOperationalCosts + totalSalaries;
 
     // Calculate profits
-    const grossProfit = totalRevenue - cogs;
     const operatingProfit = grossProfit - totalOperationalCosts;
-    const netProfit = totalRevenue - totalCosts;
+    const netProfit = financialSummary.netProfitBeforeDistribution;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
     // Get active partners
@@ -123,14 +144,18 @@ export async function GET(request: NextRequest) {
       remainingProfit
     };
 
-    // Get cost breakdown by category
+    // Get cost breakdown by category — scoped to PAID/PARTIAL costs so the
+    // per-category totals sum to `totalOperationalCosts` above (the same
+    // ledger-posting scope used in costs/route.ts and
+    // comprehensiveProfitCalculation.ts's calculateOperatingExpenses).
     const costsByCategory = await prisma.operationalCost.groupBy({
       by: ['category'],
       where: {
         date: {
           gte: startOfMonth,
           lte: endOfMonth
-        }
+        },
+        paymentStatus: { in: ['PAID', 'PARTIAL'] }
       },
       _sum: {
         amount: true
@@ -144,8 +169,8 @@ export async function GET(request: NextRequest) {
       category: item.category,
       total: item._sum.amount || 0,
       count: item._count.id,
-      percentage: totalOperationalCosts > 0 
-        ? ((item._sum.amount || 0) / totalOperationalCosts) * 100 
+      percentage: totalOperationalCosts > 0
+        ? ((item._sum.amount || 0) / totalOperationalCosts) * 100
         : 0
     }));
 
@@ -153,53 +178,27 @@ export async function GET(request: NextRequest) {
     costSummary.push({
       category: 'INVENTORY' as any, // COGS
       total: cogs,
-      count: sales.length,
+      count: revenueEntries.length,
       percentage: totalCosts > 0 ? (cogs / totalCosts) * 100 : 0
     });
 
     costSummary.push({
       category: 'SALARIES' as any,
       total: totalSalaries,
-      count: salaries.length,
+      count: salariesAll.length,
       percentage: totalCosts > 0 ? (totalSalaries / totalCosts) * 100 : 0
     });
 
-    // Get monthly trends for last 6 months
+    // Get monthly trends for last 6 months — same ledger-based calculation
+    // as the current month, per month.
     const monthlyTrends = [];
     for (let i = 5; i >= 0; i--) {
       const trendMonth = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const trendMonthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
-      
-      const monthSales = await prisma.sale.findMany({
-        where: {
-          saleDate: {
-            gte: trendMonth,
-            lte: trendMonthEnd
-          }
-        }
-      });
 
-      const monthCosts = await prisma.operationalCost.findMany({
-        where: {
-          date: {
-            gte: trendMonth,
-            lte: trendMonthEnd
-          }
-        }
-      });
-
-      const monthSalaries = await prisma.salary.findMany({
-        where: {
-          month: trendMonth.getMonth() + 1,
-          year: trendMonth.getFullYear()
-        }
-      });
-
-      const revenue = monthSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-      const monthCogs = monthSales.reduce((sum, sale) => sum + (sale.costPrice || 0) * sale.quantity, 0);
-      const costs = monthCosts.reduce((sum, cost) => sum + cost.amount, 0) 
-        + monthSalaries.reduce((sum, salary) => sum + salary.netSalary, 0)
-        + monthCogs;
+      const monthSummary = await getFinancialSummary(trendMonth, trendMonthEnd);
+      const revenue = monthSummary.revenue;
+      const costs = monthSummary.cogs + monthSummary.operationalCosts + monthSummary.salaryExpenses;
       const profit = revenue - costs;
 
       monthlyTrends.push({
@@ -210,7 +209,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get recent transactions (last 10)
+    // Get recent transactions (last 10) — a raw activity feed, not a
+    // profit total, so still sourced from the underlying Sale/
+    // OperationalCost records directly.
     const recentSales = await prisma.sale.findMany({
       take: 5,
       orderBy: { saleDate: 'desc' },
@@ -250,11 +251,11 @@ export async function GET(request: NextRequest) {
       notices,
       stats,
       revenueBreakdown: {
-        directSales: sales.filter(s => s.saleType === 'DIRECT').reduce((sum, s) => sum + s.totalAmount, 0),
-        orderSales: sales.filter(s => s.saleType === 'ORDER_BASED').reduce((sum, s) => sum + s.totalAmount, 0),
-        totalSales: totalRevenue,
-        returns: 0, // TODO: Implement returns tracking
-        netRevenue: totalRevenue
+        directSales: directSalesRevenue,
+        orderSales: orderSalesRevenue,
+        totalSales: grossRevenue,
+        returns,
+        netRevenue: grossRevenue - returns
       },
       costsByCategory: costSummary.sort((a, b) => b.total - a.total),
       monthlyTrends,
@@ -274,8 +275,8 @@ export async function GET(request: NextRequest) {
     }
     console.error('Error fetching dashboard data:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Failed to fetch dashboard data',
         details: error instanceof Error ? error.message : 'Unknown error',
         notices: notices.length > 0 ? notices : ['Server error occurred']

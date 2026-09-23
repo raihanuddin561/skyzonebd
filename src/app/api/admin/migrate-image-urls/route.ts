@@ -60,8 +60,6 @@ export async function GET(request: NextRequest) {
       { success: false, error: 'Failed to check migration status' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -147,7 +145,5 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

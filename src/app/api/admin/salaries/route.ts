@@ -82,21 +82,50 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    
+
+    // Validate every numeric field before use — parseFloat on malformed
+    // input (e.g. missing/non-numeric strings) silently produces NaN, which
+    // would otherwise be written straight into grossSalary/netSalary and
+    // persisted (same gap already closed in employees/route.ts's baseSalary
+    // check).
+    const numericFields: Record<string, number> = {
+      baseSalary: parseFloat(body.baseSalary),
+      allowances: parseFloat(body.allowances ?? 0),
+      bonuses: parseFloat(body.bonuses ?? 0),
+      overtime: parseFloat(body.overtime ?? 0),
+      tax: parseFloat(body.tax ?? 0),
+      providentFund: parseFloat(body.providentFund ?? 0),
+      insurance: parseFloat(body.insurance ?? 0),
+      loan: parseFloat(body.loan ?? 0),
+      otherDeductions: parseFloat(body.otherDeductions ?? 0),
+    };
+
+    for (const [field, value] of Object.entries(numericFields)) {
+      if (!Number.isFinite(value)) {
+        return NextResponse.json(
+          { success: false, error: `${field} must be a valid number` },
+          { status: 400 }
+        );
+      }
+    }
+
+    const {
+      baseSalary,
+      allowances,
+      bonuses,
+      overtime,
+      tax,
+      providentFund,
+      insurance,
+      loan,
+      otherDeductions,
+    } = numericFields;
+
     // Calculate totals
-    const grossSalary = 
-      parseFloat(body.baseSalary) +
-      parseFloat(body.allowances || 0) +
-      parseFloat(body.bonuses || 0) +
-      parseFloat(body.overtime || 0);
-    
-    const totalDeductions = 
-      parseFloat(body.tax || 0) +
-      parseFloat(body.providentFund || 0) +
-      parseFloat(body.insurance || 0) +
-      parseFloat(body.loan || 0) +
-      parseFloat(body.otherDeductions || 0);
-    
+    const grossSalary = baseSalary + allowances + bonuses + overtime;
+
+    const totalDeductions = tax + providentFund + insurance + loan + otherDeductions;
+
     const netSalary = grossSalary - totalDeductions;
     const paymentStatus = body.paymentStatus || 'PENDING';
 
@@ -111,16 +140,16 @@ export async function POST(request: NextRequest) {
           employeeId: body.employeeId,
           month: parseInt(body.month),
           year: parseInt(body.year),
-          baseSalary: parseFloat(body.baseSalary),
-          allowances: parseFloat(body.allowances) || 0,
-          bonuses: parseFloat(body.bonuses) || 0,
-          overtime: parseFloat(body.overtime) || 0,
+          baseSalary,
+          allowances,
+          bonuses,
+          overtime,
           grossSalary,
-          tax: parseFloat(body.tax) || 0,
-          providentFund: parseFloat(body.providentFund) || 0,
-          insurance: parseFloat(body.insurance) || 0,
-          loan: parseFloat(body.loan) || 0,
-          otherDeductions: parseFloat(body.otherDeductions) || 0,
+          tax,
+          providentFund,
+          insurance,
+          loan,
+          otherDeductions,
           totalDeductions,
           netSalary,
           paymentStatus,

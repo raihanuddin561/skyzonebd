@@ -67,8 +67,6 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -107,8 +105,6 @@ export async function GET(request: NextRequest) {
     } catch (e) {
       // Could not count all tables (some may not exist yet)
     }
-
-    await prisma.$disconnect();
 
     return NextResponse.json({
       success: true,

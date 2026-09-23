@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logActivity } from '@/lib/activityLogger';
 import { prisma } from '@/lib/prisma';
 import { validateWholesalePricing, formatValidationErrors } from '@/utils/wholesaleValidation';
-import { requireAdmin, verifyToken } from '@/lib/auth';
+import { requireAdmin, authenticateUser } from '@/lib/auth';
 import { UserRole, isAdmin as isAdminRole } from '@/types/roles';
 
 // Vercel configuration
@@ -22,16 +22,15 @@ export async function GET(
     // inactive products). Previously this only checked whether the header
     // *started with* "Bearer " — never verifying the token at all, so any
     // string prefixed "Bearer " (valid or not) was treated as admin access
-    // and bypassed the isActive filter entirely. Now verifies the token and
-    // checks the actual role (docs/architecture-review/14_Technical_Debt.md §22).
-    const authHeader = request.headers.get('authorization');
-    let isAdminRequest = false;
-    if (authHeader?.startsWith('Bearer ')) {
-      const decoded = verifyToken(authHeader.substring(7));
-      if (decoded) {
-        isAdminRequest = isAdminRole(decoded.role as UserRole);
-      }
-    }
+    // and bypassed the isActive filter entirely. Now uses authenticateUser,
+    // which re-fetches role/isActive from the database on every call rather
+    // than trusting a JWT's embedded `role` claim directly — a
+    // demoted/deactivated admin's still-valid token could otherwise keep
+    // seeing inactive products indefinitely (same "stale token" bug class
+    // fixed elsewhere in this codebase, e.g. orders/route.ts's GET handler
+    // via requireAuth()) (docs/architecture-review/14_Technical_Debt.md §22).
+    const authResult = await authenticateUser(request);
+    const isAdminRequest = authResult.success && !!authResult.user && isAdminRole(authResult.user.role as UserRole);
 
     // Find product by ID or slug
     const product = await prisma.product.findFirst({
@@ -157,8 +156,6 @@ export async function GET(
       { success: false, error: 'Failed to fetch product', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -372,8 +369,6 @@ export async function PUT(
       { error: 'Failed to update product', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -512,7 +507,5 @@ export async function DELETE(
       { error: 'Failed to delete product', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

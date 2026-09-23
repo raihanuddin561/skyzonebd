@@ -101,6 +101,17 @@ export async function POST(request: NextRequest) {
     const paymentStatus = body.paymentStatus || 'PENDING';
     const amount = parseFloat(body.amount);
 
+    // Validate before use — parseFloat on malformed input (e.g. missing/
+    // non-numeric strings) silently produces NaN, which would otherwise be
+    // written straight into the cost record and posted to the ledger (same
+    // gap already closed in employees/route.ts's baseSalary check).
+    if (!Number.isFinite(amount)) {
+      return NextResponse.json(
+        { success: false, error: 'amount must be a valid number' },
+        { status: 400 }
+      );
+    }
+
     // Only PAID/PARTIAL costs are real expenses that should hit the ledger —
     // a PENDING cost is a planned/recorded liability, not yet money spent
     // (Amazon-style gap-closure Phase 2 part 1: ledger completeness).

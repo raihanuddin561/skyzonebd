@@ -232,7 +232,5 @@ export async function PATCH(
       { success: false, error: 'Failed to update order items' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

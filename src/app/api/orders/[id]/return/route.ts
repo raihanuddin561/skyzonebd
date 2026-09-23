@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import { roundPrice } from '@/utils/pricingEngine';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -107,10 +108,22 @@ export async function POST(
         );
       }
 
+      // Refund amount must come from the actually-charged line total
+      // (orderItem.total), not be reconstructed via orderItem.price *
+      // quantity — a customer discount can leave orderItem.price /
+      // orderItem.total independently rounded (see pricingEngine.ts's
+      // calculateItemPrice), so price * quantity can under/over-refund by a
+      // cent. A full-quantity return uses the line total directly; a
+      // partial return prorates it and rounds once at the end.
+      const isFullReturn = quantity === orderItem.quantity;
+      const refundAmount = isFullReturn
+        ? orderItem.total
+        : roundPrice(orderItem.total * (quantity / orderItem.quantity));
+
       returnItemsToCreate.push({
         orderItemId: orderItem.id,
         quantity,
-        refundAmount: orderItem.price * quantity,
+        refundAmount,
       });
     }
 

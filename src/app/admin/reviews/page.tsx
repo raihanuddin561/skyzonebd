@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import StarRating from '@/components/reviews/StarRating';
+import { api } from '@/utils/apiClient';
 
 interface Review {
   id: string;
@@ -66,16 +67,17 @@ export default function AdminReviewsPage() {
         params.set('status', statusFilter);
       }
       
-      const response = await fetch(`/api/admin/reviews?${params}`);
+      const response = await api.get(`/api/admin/reviews?${params}`);
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to load reviews');
       }
-      
-      setReviews(data.reviews);
-      setSummary(data.summary);
-      setTotalPages(data.pagination.totalPages);
+
+      const fetchedReviews = data.data?.reviews;
+      setReviews(Array.isArray(fetchedReviews) ? fetchedReviews : []);
+      setSummary(data.data?.summary ?? null);
+      setTotalPages(data.pagination?.pages || 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load reviews');
     } finally {
@@ -87,17 +89,11 @@ export default function AdminReviewsPage() {
     setModeratingId(reviewId);
     
     try {
-      const response = await fetch(`/api/admin/reviews/${reviewId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          status,
-          moderationNote: moderationNote || undefined
-        })
+      const response = await api.patch(`/api/admin/reviews/${reviewId}`, {
+        status,
+        moderationNote: moderationNote || undefined
       });
-      
+
       const data = await response.json();
       
       if (!response.ok) {
@@ -122,10 +118,8 @@ export default function AdminReviewsPage() {
     setModeratingId(reviewId);
     
     try {
-      const response = await fetch(`/api/admin/reviews/${reviewId}`, {
-        method: 'DELETE'
-      });
-      
+      const response = await api.delete(`/api/admin/reviews/${reviewId}`);
+
       const data = await response.json();
       
       if (!response.ok) {

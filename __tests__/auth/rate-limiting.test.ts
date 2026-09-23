@@ -74,7 +74,7 @@ describe('auth rate limiting (P2-6)', () => {
     for (let i = 0; i < 11; i++) {
       results.push(
         await registerPOST(
-          req({ name: 'A', email: `a${i}@example.com`, password: 'pw', companyName: 'Co', phone: '123' }, ip)
+          req({ name: 'A', email: `a${i}@example.com`, password: 'password123', companyName: 'Co', phone: '123' }, ip)
         )
       );
     }

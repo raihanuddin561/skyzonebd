@@ -51,8 +51,6 @@ export async function GET(
       { error: 'Failed to fetch category', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -134,8 +132,6 @@ export async function PUT(
       { error: 'Failed to update category', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -195,7 +191,5 @@ export async function DELETE(
       { error: 'Failed to delete category', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
+import { api } from '@/utils/apiClient';
 
 interface Sale {
   id: string;
@@ -72,19 +73,6 @@ export default function SalesManagement() {
     endDate: '',
   });
 
-  // New sale modal
-  const [showNewSaleModal, setShowNewSaleModal] = useState(false);
-  const [newSaleData, setNewSaleData] = useState({
-    productId: '',
-    quantity: 1,
-    unitPrice: 0,
-    customerName: '',
-    customerPhone: '',
-    customerEmail: '',
-    paymentMethod: 'Cash',
-    notes: '',
-  });
-
   useEffect(() => {
     fetchSales();
     fetchDeliveredOrders();
@@ -104,8 +92,8 @@ export default function SalesManagement() {
         params.append('endDate', dateRange.endDate);
       }
 
-      const response = await fetch(`/api/admin/sales?${params}`);
-      
+      const response = await api.get(`/api/admin/sales?${params}`);
+
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -122,8 +110,8 @@ export default function SalesManagement() {
 
   const fetchDeliveredOrders = async () => {
     try {
-      const response = await fetch('/api/admin/sales/generate');
-      
+      const response = await api.get('/api/admin/sales/generate');
+
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -140,11 +128,7 @@ export default function SalesManagement() {
 
     try {
       setGenerating(true);
-      const response = await fetch('/api/admin/sales/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId }),
-      });
+      const response = await api.post('/api/admin/sales/generate', { orderId });
 
       const data = await response.json();
       
@@ -195,12 +179,12 @@ export default function SalesManagement() {
           <h1 className="text-3xl font-bold text-gray-900">Sales Management</h1>
           <p className="text-gray-600 mt-1">Track direct sales and order-based sales</p>
         </div>
-        <button
-          onClick={() => setShowNewSaleModal(true)}
+        <Link
+          href="/admin/manual-sales/new"
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
           + Add Direct Sale
-        </button>
+        </Link>
       </div>
 
       {/* Statistics */}

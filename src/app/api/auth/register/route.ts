@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sign } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getJwtSecret } from '@/lib/auth';
 import { rateLimiters, withRateLimit } from '@/lib/rate-limiter';
@@ -27,6 +28,15 @@ async function handleRegister(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    if (password.length < 6) {
+      return NextResponse.json(
+        { success: false, error: 'Password must be at least 6 characters' },
+        { status: 400 }
+      );
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Self-registration may only create BUYER or SELLER accounts with
     // RETAIL or WHOLESALE pricing — ADMIN/GUEST and other roles/types have
     // their own creation paths and must never be reachable from this public
@@ -40,9 +50,9 @@ async function handleRegister(request: NextRequest): Promise<NextResponse> {
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email: normalizedEmail }
     });
-    
+
     if (existingUser) {
       return NextResponse.json(
         { success: false, error: 'User with this email already exists' },
@@ -54,31 +64,49 @@ async function handleRegister(request: NextRequest): Promise<NextResponse> {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create new user
-    const newUser = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        companyName,
-        phone,
-        role: finalRole,
-        userType: finalUserType,
-        isVerified: false,
-        isActive: true
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        companyName: true,
-        phone: true,
-        role: true,
-        userType: true,
-        isVerified: true,
-        isActive: true,
-        createdAt: true
+    let newUser;
+    try {
+      newUser = await prisma.user.create({
+        data: {
+          name,
+          email: normalizedEmail,
+          password: hashedPassword,
+          companyName,
+          phone,
+          role: finalRole,
+          userType: finalUserType,
+          isVerified: false,
+          isActive: true
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          companyName: true,
+          phone: true,
+          role: true,
+          userType: true,
+          isVerified: true,
+          isActive: true,
+          createdAt: true
+        }
+      });
+    } catch (createError) {
+      // Two concurrent registrations for the same email can both pass the
+      // findUnique check above; the loser of the race hits this unique
+      // constraint violation instead. Surface it as the same clean 409 a
+      // sequential duplicate gets, rather than a raw 500.
+      if (
+        createError instanceof Prisma.PrismaClientKnownRequestError &&
+        createError.code === 'P2002'
+      ) {
+        return NextResponse.json(
+          { success: false, error: 'User with this email already exists' },
+          { status: 409 }
+        );
       }
-    });
+      throw createError;
+    }
 
     // Best-effort welcome email (Amazon-style gap-closure Phase 4 part 1) —
     // emailService.sendEmail never throws (returns { success, error }), so
@@ -91,10 +119,10 @@ async function handleRegister(request: NextRequest): Promise<NextResponse> {
 
     // Generate JWT token
     const token = sign(
-      { 
-        userId: newUser.id, 
-        email: newUser.email, 
-        role: newUser.role.toLowerCase()
+      {
+        userId: newUser.id,
+        email: newUser.email,
+        role: newUser.role // Keep original case (ADMIN, SUPER_ADMIN, etc.), matching login
       },
       getJwtSecret(),
       { expiresIn: '7d' }
@@ -104,8 +132,8 @@ async function handleRegister(request: NextRequest): Promise<NextResponse> {
       success: true,
       user: {
         ...newUser,
-        role: newUser.role.toLowerCase(),
-        userType: newUser.userType.toLowerCase()
+        role: newUser.role, // Keep original case
+        userType: newUser.userType // Keep original case
       },
       token
     }, { status: 201 });
@@ -116,7 +144,5 @@ async function handleRegister(request: NextRequest): Promise<NextResponse> {
       { success: false, error: 'Internal server error' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

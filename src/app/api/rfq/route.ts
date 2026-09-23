@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { UserRole, isAdmin } from '@/types/roles';
@@ -126,45 +127,69 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate RFQ number
-    const rfqCount = await prisma.rFQ.count();
-    const rfqNumber = `RFQ-${String(rfqCount + 1).padStart(6, '0')}`;
+    for (const item of items) {
+      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+        return NextResponse.json(
+          { success: false, error: `Invalid quantity for product ${item.productId}: must be a positive integer` },
+          { status: 400 }
+        );
+      }
+    }
 
     // Set expiration date (30 days from now)
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    // Create RFQ with items
-    const rfq = await prisma.rFQ.create({
-      data: {
-        rfqNumber,
-        userId,
-        subject,
-        message,
-        targetPrice,
-        status: 'PENDING',
-        expiresAt,
-        items: {
-          create: items.map((item: any) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            notes: item.notes,
-          })),
-        },
-      },
-      include: {
-        items: {
+    // rfqNumber is derived from a plain count, not an atomic sequence — two
+    // concurrent submissions can compute the same number. The DB's @unique
+    // constraint catches the resulting collision (P2002); retry with a
+    // freshly-recomputed number instead of failing the whole request.
+    let rfq;
+    let rfqNumber = '';
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const rfqCount = await prisma.rFQ.count();
+      rfqNumber = `RFQ-${String(rfqCount + 1).padStart(6, '0')}`;
+      try {
+        rfq = await prisma.rFQ.create({
+          data: {
+            rfqNumber,
+            userId,
+            subject,
+            message,
+            targetPrice,
+            status: 'PENDING',
+            expiresAt,
+            items: {
+              create: items.map((item: any) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                notes: item.notes,
+              })),
+            },
+          },
           include: {
-            product: {
-              select: {
-                name: true,
-                imageUrl: true,
+            items: {
+              include: {
+                product: {
+                  select: {
+                    name: true,
+                    imageUrl: true,
+                  },
+                },
               },
             },
           },
-        },
-      },
-    });
+        });
+        break;
+      } catch (error) {
+        const isDuplicateNumber =
+          error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+        if (!isDuplicateNumber || attempt === maxAttempts) {
+          throw error;
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,

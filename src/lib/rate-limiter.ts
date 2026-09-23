@@ -41,12 +41,12 @@ export class RateLimiter {
     // Try to get IP address from various headers
     const forwarded = request.headers.get('x-forwarded-for');
     const realIp = request.headers.get('x-real-ip');
-    const ip = forwarded?.split(',')[0] || realIp || 'unknown';
-    
-    // Optionally include user agent for more granular limiting
-    const userAgent = request.headers.get('user-agent') || 'unknown';
-    
-    return `${ip}:${userAgent}`;
+    const ip = forwarded?.split(',')[0]?.trim() || realIp || 'unknown';
+
+    // Key on IP alone. Including the User-Agent here previously let anyone
+    // bypass the limit outright by sending a different User-Agent header on
+    // every request — no proxy/IP rotation required.
+    return ip;
   }
 
   async check(request: NextRequest): Promise<{

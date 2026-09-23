@@ -1,10 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { put } from '@vercel/blob';
 import { requireAdmin } from '@/lib/auth';
 
 // Increase body size limit for this route
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 60 seconds timeout
+
+// Verifies the actual file bytes match a real image format, instead of
+// trusting the client-supplied `Content-Type` (trivially spoofable) — an
+// admin session uploading arbitrary content while claiming `image/png`
+// would otherwise sail through the `allowedTypes.includes(file.type)`
+// check below.
+function detectImageExtension(buffer: Buffer): string | null {
+  if (buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+    return 'png';
+  }
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return 'jpg';
+  }
+  if (buffer.length >= 6 && buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) {
+    return 'gif';
+  }
+  if (
+    buffer.length >= 12 &&
+    buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+    buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50
+  ) {
+    return 'webp';
+  }
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,10 +95,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upload to Vercel Blob
-    const filename = `${folder}/${Date.now()}-${file.name}`;
+    // Verify the actual bytes, not just the declared Content-Type.
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const detectedExtension = detectImageExtension(buffer);
+    if (!detectedExtension) {
+      return NextResponse.json(
+        { success: false, error: 'File content does not match a supported image format.' },
+        { status: 400 }
+      );
+    }
+
+    // Upload to Vercel Blob. The filename is derived from a random UUID and
+    // the format verified above — never from the client-supplied `file.name`,
+    // which could otherwise inject `/`/`..`/control characters into the
+    // storage key.
+    const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, '') || 'images';
+    const filename = `${safeFolder}/${randomUUID()}.${detectedExtension}`;
     const blobToken = process.env.BLOB_READ_WRITE_TOKEN || process.env.SKY_ZONE_BD_BLOB_READ_WRITE_TOKEN;
-    
+
     if (!blobToken) {
       console.error('❌ No Blob token found in environment variables');
       console.error('❌ Available env keys:', Object.keys(process.env).filter(k => k.includes('BLOB')));
@@ -84,10 +125,11 @@ export async function POST(request: NextRequest) {
 
     let blob;
     try {
-      blob = await put(filename, file, {
+      blob = await put(filename, buffer, {
         access: 'public',
         addRandomSuffix: true,
         token: blobToken,
+        contentType: file.type || `image/${detectedExtension}`,
       });
     } catch (uploadError) {
       console.error('Vercel Blob upload error:', uploadError);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { put, del } from '@vercel/blob';
 import { requireAdmin } from '@/lib/auth';
 
@@ -6,6 +7,28 @@ import { requireAdmin } from '@/lib/auth';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
+
+// Verifies the actual file bytes match a real image format, instead of
+// trusting the client-supplied `Content-Type` (trivially spoofable).
+function detectImageExtension(buffer: Buffer): string | null {
+  if (buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+    return 'png';
+  }
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return 'jpg';
+  }
+  if (buffer.length >= 6 && buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) {
+    return 'gif';
+  }
+  if (
+    buffer.length >= 12 &&
+    buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+    buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50
+  ) {
+    return 'webp';
+  }
+  return null;
+}
 
 // POST - Upload multiple images
 export async function POST(request: NextRequest) {
@@ -58,18 +81,33 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        // Upload to Vercel Blob
-        const filename = `${folder}/${Date.now()}-${i}-${file.name}`;
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const detectedExtension = detectImageExtension(buffer);
+        if (!detectedExtension) {
+          errors.push({
+            index: i,
+            filename: file.name,
+            error: 'File content does not match a supported image format'
+          });
+          continue;
+        }
+
+        // Filename derived from a random UUID + the verified format, never
+        // from the client-supplied `file.name` (path-injection risk).
+        const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, '') || 'images';
+        const filename = `${safeFolder}/${randomUUID()}.${detectedExtension}`;
         const blobToken = process.env.BLOB_READ_WRITE_TOKEN || process.env.SKY_ZONE_BD_BLOB_READ_WRITE_TOKEN;
-        
+
         if (!blobToken) {
           throw new Error('No Blob token configured');
         }
 
-        const blob = await put(filename, file, {
+        const blob = await put(filename, buffer, {
           access: 'public',
           addRandomSuffix: true,
           token: blobToken,
+          contentType: file.type || `image/${detectedExtension}`,
         });
 
         uploadResults.push({
