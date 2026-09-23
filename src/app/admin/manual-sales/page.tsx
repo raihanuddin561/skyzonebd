@@ -51,7 +51,6 @@ interface FilterState {
   startDate: string;
   endDate: string;
   paymentStatus: string;
-  search: string;
 }
 
 export default function ManualSalesListPage() {
@@ -65,8 +64,7 @@ export default function ManualSalesListPage() {
     saleType: '',
     startDate: '',
     endDate: '',
-    paymentStatus: '',
-    search: ''
+    paymentStatus: ''
   });
   const [stats, setStats] = useState({
     totalSales: 0,
@@ -75,17 +73,18 @@ export default function ManualSalesListPage() {
   });
 
   // Fetch sales
-  const fetchSales = async (page: number = 1) => {
+  const fetchSales = async (page: number = 1, filtersOverride?: FilterState) => {
     setLoading(true);
     try {
+      const activeFilters = filtersOverride || filters;
       const token = localStorage.getItem('token');
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '20',
-        ...(filters.saleType && { saleType: filters.saleType }),
-        ...(filters.startDate && { startDate: filters.startDate }),
-        ...(filters.endDate && { endDate: filters.endDate }),
-        ...(filters.paymentStatus && { paymentStatus: filters.paymentStatus }),
+        ...(activeFilters.saleType && { saleType: activeFilters.saleType }),
+        ...(activeFilters.startDate && { startDate: activeFilters.startDate }),
+        ...(activeFilters.endDate && { endDate: activeFilters.endDate }),
+        ...(activeFilters.paymentStatus && { paymentStatus: activeFilters.paymentStatus }),
       });
 
       const response = await fetch(`/api/admin/manual-sales?${params}`, {
@@ -94,18 +93,19 @@ export default function ManualSalesListPage() {
 
       if (response.ok) {
         const result = await response.json();
-        setSales(result.data || []);
+        const salesData: ManualSale[] = result.data || [];
+        setSales(salesData);
         setCurrentPage(result.pagination?.currentPage || 1);
         setTotalPages(result.pagination?.totalPages || 1);
         setTotalCount(result.pagination?.totalCount || 0);
-        
+
         // Calculate stats
-        const totalSales = result.data.reduce((sum: number, sale: ManualSale) => sum + sale.total, 0);
-        const totalProfit = result.data.reduce((sum: number, sale: ManualSale) => sum + sale.totalProfit, 0);
-        const averageMargin = result.data.length > 0
-          ? result.data.reduce((sum: number, sale: ManualSale) => sum + sale.profitMargin, 0) / result.data.length
+        const totalSales = salesData.reduce((sum: number, sale: ManualSale) => sum + sale.total, 0);
+        const totalProfit = salesData.reduce((sum: number, sale: ManualSale) => sum + sale.totalProfit, 0);
+        const averageMargin = salesData.length > 0
+          ? salesData.reduce((sum: number, sale: ManualSale) => sum + sale.profitMargin, 0) / salesData.length
           : 0;
-        
+
         setStats({ totalSales, totalProfit, averageMargin });
       } else {
         toast.error('Failed to fetch sales');
@@ -130,15 +130,15 @@ export default function ManualSalesListPage() {
 
   // Reset filters
   const handleResetFilters = () => {
-    setFilters({
+    const blankFilters: FilterState = {
       saleType: '',
       startDate: '',
       endDate: '',
-      paymentStatus: '',
-      search: ''
-    });
+      paymentStatus: ''
+    };
+    setFilters(blankFilters);
     setCurrentPage(1);
-    setTimeout(() => fetchSales(1), 0);
+    fetchSales(1, blankFilters);
   };
 
   // Delete sale

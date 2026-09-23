@@ -1,12 +1,14 @@
 // Permission Management API
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  grantPermission, 
-  revokePermission, 
+import {
+  grantPermission,
+  revokePermission,
   getUserPermissions,
   grantRolePermissions,
   revokeAllPermissions
 } from '@/utils/permissions';
+import { prisma } from '@/lib/prisma';
+import { UserRole, isAdmin } from '@/types/roles';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -93,6 +95,32 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'userId and module are required' },
         { status: 400 }
       );
+    }
+
+    // Granting/editing the PERMISSIONS_MANAGE module itself must go through a
+    // hard-coded admin-role check, not the generic, data-driven permission
+    // table lookup above — otherwise any account merely holding a
+    // PERMISSIONS_MANAGE:create grant could re-grant itself (or anyone else)
+    // PERMISSIONS_MANAGE for every module, becoming an unremovable
+    // shadow-admin without ever holding the ADMIN role. This mirrors the
+    // same idiom used for role assignment in
+    // /api/admin/users/[id]/role/route.ts (isSuperAdmin gate on top of the
+    // generic auth check).
+    if (module === 'PERMISSIONS_MANAGE') {
+      const granter = await prisma.user.findUnique({
+        where: { id: granterId },
+        select: { role: true },
+      });
+
+      if (!granter || !isAdmin(granter.role as UserRole)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Only an admin can grant or edit the PERMISSIONS_MANAGE permission module',
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const permission = await grantPermission(

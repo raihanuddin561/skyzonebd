@@ -40,6 +40,7 @@ export default function ProductDetailPage() {
   const [reviewableOrderId, setReviewableOrderId] = useState<string | null>(null);
   const [showReviewForm, setShowReviewForm] = useState<boolean>(false);
   const [reviewListKey, setReviewListKey] = useState<number>(0);
+  const [hasSubmittedReview, setHasSubmittedReview] = useState<boolean>(false);
 
   // Update page title and meta tags dynamically
   useEffect(() => {
@@ -78,6 +79,7 @@ export default function ProductDetailPage() {
       return;
     }
 
+    setHasSubmittedReview(false);
     let cancelled = false;
 
     const findReviewableOrder = async () => {
@@ -708,6 +710,11 @@ export default function ProductDetailPage() {
                       Write a Review
                     </button>
                   )}
+                  {hasSubmittedReview && !reviewableOrderId && (
+                    <span className="text-sm text-green-700 font-medium">
+                      You&apos;ve reviewed this order
+                    </span>
+                  )}
                 </div>
 
                 {showReviewForm && reviewableOrderId && (
@@ -718,6 +725,8 @@ export default function ProductDetailPage() {
                       orderId={reviewableOrderId}
                       onSuccess={() => {
                         setShowReviewForm(false);
+                        setReviewableOrderId(null);
+                        setHasSubmittedReview(true);
                         toast.success('Review submitted! It will appear after moderation.');
                         setReviewListKey((k) => k + 1);
                       }}

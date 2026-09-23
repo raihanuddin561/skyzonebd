@@ -184,41 +184,71 @@ export async function POST(request: NextRequest) {
     // concurrent "Generate Payout" requests for the same partner/period can
     // both pass it before either writes, each creating a PENDING
     // distribution for the full amount and double-paying the partner once
-    // both are approved. The real guard is the
-    // `@@unique([partnerId, startDate, endDate])` constraint on
-    // ProfitDistribution (prisma/schema.prisma) — a concurrent second
-    // create() throws Prisma's unique-violation error (P2002), caught
-    // below. NOTE: that constraint is prepared in the schema but requires a
-    // migration to take effect — until then this catch is a no-op and the
-    // plain read-check above remains the only protection.
+    // both are approved. `ProfitDistribution(partnerId, startDate, endDate)`
+    // has a `@@unique` constraint prepared in prisma/schema.prisma, but it
+    // has never actually been migrated into the database (no migration
+    // under prisma/migrations creates it), so it provides no real
+    // protection today. Until that migration lands, a Postgres
+    // transaction-scoped advisory lock — pure application code, no schema
+    // change required — closes the race instead: the lock key is
+    // deterministic per partner+period, so a second concurrent request
+    // blocks until the first's transaction commits (releasing the lock),
+    // then re-runs the existence check against the now-committed row and
+    // safely conflicts instead of creating a duplicate.
     let profitDistribution;
     try {
-      profitDistribution = await prisma.profitDistribution.create({
-        data: {
-          partnerId,
-          periodType: periodType || 'CUSTOM',
-          startDate: start,
-          endDate: end,
-          totalRevenue,
-          totalCosts: totalCOGS + totalOperationalCosts,
-          netProfit,
-          partnerShare: partnerSharePercentage,
-          distributionAmount,
-          status: 'PENDING',
-          notes: notes || `Generated on ${new Date().toISOString()}`
-        },
-        include: {
-          partner: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              profitSharePercentage: true
+      profitDistribution = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${partnerId} || ':' || ${start.toISOString()} || ':' || ${end.toISOString()}))`;
+
+        const concurrentDuplicate = await tx.profitDistribution.findFirst({
+          where: {
+            partnerId,
+            startDate: start,
+            endDate: end
+          }
+        });
+
+        if (concurrentDuplicate) {
+          throw new Response(
+            JSON.stringify({
+              success: false,
+              error: 'A payout already exists for this partner and period (created concurrently)',
+              existingPayoutId: concurrentDuplicate.id
+            }),
+            { status: 409, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        return tx.profitDistribution.create({
+          data: {
+            partnerId,
+            periodType: periodType || 'CUSTOM',
+            startDate: start,
+            endDate: end,
+            totalRevenue,
+            totalCosts: totalCOGS + totalOperationalCosts,
+            netProfit,
+            partnerShare: partnerSharePercentage,
+            distributionAmount,
+            status: 'PENDING',
+            notes: notes || `Generated on ${new Date().toISOString()}`
+          },
+          include: {
+            partner: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                profitSharePercentage: true
+              }
             }
           }
-        }
+        });
       });
     } catch (createError) {
+      if (createError instanceof Response) {
+        return createError;
+      }
       if (createError instanceof Prisma.PrismaClientKnownRequestError && createError.code === 'P2002') {
         return NextResponse.json(
           { success: false, error: 'A payout already exists for this partner and period (created concurrently)' },

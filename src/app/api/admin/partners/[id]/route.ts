@@ -222,6 +222,28 @@ export async function DELETE(
     }
 
     const { id } = await params;
+
+    // ProfitDistribution.partner is `onDelete: Cascade` (prisma/schema.prisma),
+    // so a hard delete here would silently erase every payout record for this
+    // partner — including PAID distributions with real payment references —
+    // with no way to reconstruct that a payment ever happened. Block the
+    // delete whenever any distribution row exists; deactivating the partner
+    // (isActive: false, supported by PATCH on this same route) is the safe
+    // alternative for a partner who should no longer be active.
+    const distributionCount = await prisma.profitDistribution.count({
+      where: { partnerId: id },
+    });
+
+    if (distributionCount > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Cannot delete a partner with existing payout history — deactivate the partner instead (PATCH /api/admin/partners/[id] with isActive: false).',
+        },
+        { status: 400 }
+      );
+    }
+
     await prisma.partner.delete({
       where: { id },
     });

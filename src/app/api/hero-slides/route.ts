@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAdmin } from '@/lib/auth';
+import { requireAdmin, authenticateUser } from '@/lib/auth';
+import { UserRole, isAdmin as isAdminRole } from '@/types/roles';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -11,8 +12,11 @@ export const maxDuration = 60; // 60 seconds timeout
 // GET - Get all active hero slides (public) or all slides (admin)
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const isAdmin = authHeader?.startsWith('Bearer ');
+    // Publicly accessible route — anonymous storefront visitors must still
+    // get the active slides. Only a REAL, signature-verified admin token
+    // (not merely "any string after Bearer") unlocks inactive/draft slides.
+    const authResult = await authenticateUser(request);
+    const isAdmin = authResult.success && !!authResult.user && isAdminRole(authResult.user.role as UserRole);
 
     const slides = await prisma.heroSlide.findMany({
       where: isAdmin ? {} : { isActive: true },

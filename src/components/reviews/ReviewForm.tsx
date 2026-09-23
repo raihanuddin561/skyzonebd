@@ -47,10 +47,12 @@ export default function ReviewForm({
     setError('');
     
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch('/api/reviews', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           productId,

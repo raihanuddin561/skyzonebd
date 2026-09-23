@@ -17,6 +17,20 @@ export interface EmailProvider {
 }
 
 /**
+ * Escapes a string for safe interpolation into an HTML email body.
+ * Defense-in-depth against HTML injection from customer/admin-supplied
+ * free text (names, RFQ response messages, rejection reasons, etc.).
+ */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * Resend Email Provider (Recommended for Next.js)
  * Install: npm install resend
  */
@@ -92,6 +106,26 @@ class ConsoleProvider implements EmailProvider {
 }
 
 /**
+ * Fail-Closed Email Provider
+ * Used outside development when RESEND_API_KEY is missing/misconfigured.
+ * Never reports a fake success — every call explicitly returns failure so
+ * a misconfigured deployment is loud and detectable (emails visibly fail
+ * to send) instead of silently discarding real customer emails while
+ * reporting success to every caller.
+ */
+class FailClosedProvider implements EmailProvider {
+  async sendEmail(_options: EmailOptions) {
+    console.error(
+      'Email not sent: RESEND_API_KEY is not configured. Refusing to report a fake success outside development.'
+    );
+    return {
+      success: false,
+      error: 'Email provider not configured (RESEND_API_KEY missing)',
+    };
+  }
+}
+
+/**
  * Email Service - Main class
  */
 class EmailService {
@@ -101,10 +135,23 @@ class EmailService {
     const apiKey = process.env.RESEND_API_KEY;
     const isDevelopment = process.env.NODE_ENV === 'development';
 
-    if (isDevelopment || !apiKey) {
+    if (isDevelopment) {
       this.provider = new ConsoleProvider();
-    } else {
+    } else if (apiKey) {
       this.provider = new ResendProvider(apiKey);
+    } else {
+      // Outside development (production, preview, test, or NODE_ENV unset),
+      // a missing RESEND_API_KEY must never silently succeed — every
+      // password-reset/order-confirmation/RFQ-quote/return-status email
+      // would appear to "send" while no customer ever receives it. Fail
+      // closed instead, consistent with this codebase's getJwtSecret()
+      // fail-closed pattern (see lib/auth.ts): log loudly now, and make
+      // every subsequent send attempt explicitly report failure so
+      // callers/monitoring can detect and alert on the misconfiguration.
+      console.error(
+        'FATAL: RESEND_API_KEY environment variable is not set outside development. All emails will fail to send until it is configured.'
+      );
+      this.provider = new FailClosedProvider();
     }
   }
 
@@ -119,6 +166,7 @@ class EmailService {
    * Send welcome email to new user
    */
   async sendWelcomeEmail(to: string, userName: string, userType: 'RETAIL' | 'WHOLESALE') {
+    const safeUserName = escapeHtml(userName);
     const subject = 'Welcome to SkyzoneBD!';
     const html = `
       <!DOCTYPE html>
@@ -139,7 +187,7 @@ class EmailService {
               <h1>Welcome to SkyzoneBD!</h1>
             </div>
             <div class="content">
-              <h2>Hi ${userName},</h2>
+              <h2>Hi ${safeUserName},</h2>
               <p>Thank you for registering as a ${userType === 'WHOLESALE' ? 'Wholesale Business' : 'Retail'} customer!</p>
               
               ${userType === 'WHOLESALE' ? `
@@ -238,6 +286,7 @@ class EmailService {
    * Send business verification email
    */
   async sendBusinessVerificationStatus(to: string, userName: string, status: 'APPROVED' | 'REJECTED', reason?: string) {
+    const safeReason = reason !== undefined ? escapeHtml(reason) : undefined;
     const subject = status === 'APPROVED' ? 'Business Account Approved!' : 'Business Account Update';
     const html = `
       <!DOCTYPE html>
@@ -253,7 +302,7 @@ class EmailService {
               </a>
             ` : `
               <p style="color: #dc2626;">We're unable to approve your business account at this time.</p>
-              ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+              ${safeReason ? `<p><strong>Reason:</strong> ${safeReason}</p>` : ''}
               <p>Please contact our support team for more information.</p>
             `}
           </div>
@@ -340,6 +389,7 @@ class EmailService {
    * could ever have existed until the quote itself was actually persisted.
    */
   async sendRFQQuote(to: string, rfqNumber: string, quotedPrice: number | null, responseMessage: string) {
+    const safeResponseMessage = escapeHtml(responseMessage);
     const subject = `Your quote for RFQ ${rfqNumber} is ready`;
     const html = `
       <!DOCTYPE html>
@@ -353,7 +403,7 @@ class EmailService {
               <p><strong>RFQ Number:</strong> ${rfqNumber}</p>
               ${quotedPrice != null ? `<p><strong>Quoted Price:</strong> ৳${quotedPrice.toLocaleString()} per unit</p>` : ''}
               <p><strong>Message from our team:</strong></p>
-              <p style="background: white; padding: 12px; border-radius: 5px;">${responseMessage}</p>
+              <p style="background: white; padding: 12px; border-radius: 5px;">${safeResponseMessage}</p>
               <a href="${process.env.NEXT_PUBLIC_SITE_URL || ''}/rfq" style="display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
                 View Quote
               </a>
@@ -381,6 +431,8 @@ class EmailService {
     status: 'APPROVED' | 'REJECTED' | 'REFUNDED',
     details: { refundAmount?: number; rejectionReason?: string }
   ) {
+    const safeRejectionReason =
+      details.rejectionReason !== undefined ? escapeHtml(details.rejectionReason) : undefined;
     const subjectByStatus: Record<typeof status, string> = {
       APPROVED: `Your return ${returnNumber} has been approved`,
       REJECTED: `Your return ${returnNumber} could not be approved`,
@@ -388,7 +440,7 @@ class EmailService {
     };
     const bodyByStatus: Record<typeof status, string> = {
       APPROVED: `<p>Your return request has been approved. We'll process your refund shortly.</p>`,
-      REJECTED: `<p>We're unable to approve this return request.</p>${details.rejectionReason ? `<p><strong>Reason:</strong> ${details.rejectionReason}</p>` : ''}`,
+      REJECTED: `<p>We're unable to approve this return request.</p>${safeRejectionReason ? `<p><strong>Reason:</strong> ${safeRejectionReason}</p>` : ''}`,
       REFUNDED: `<p>Your refund has been processed.</p>${details.refundAmount != null ? `<p><strong>Refund Amount:</strong> ৳${details.refundAmount.toLocaleString()}</p>` : ''}`,
     };
     const subject = subjectByStatus[status];
@@ -445,4 +497,4 @@ class EmailService {
 export const emailService = new EmailService();
 
 // Export for testing
-export { ConsoleProvider, ResendProvider };
+export { ConsoleProvider, ResendProvider, FailClosedProvider };

@@ -12,11 +12,15 @@ export function CartMigration() {
   const { items, clearCart } = useCart();
 
   useEffect(() => {
-    // Check if any cart items have numeric IDs (old format)
+    // Check if any cart items have numeric IDs (old format). Old-format ids
+    // were plain integers; current ids are Prisma cuid() strings, whose
+    // leading characters are a base36 timestamp that drifts over time (e.g.
+    // "cl...", "cm...", "cn..."), so we can't reliably match on a fixed
+    // prefix. The only real signal of the legacy format is that the id is
+    // actually numeric.
     const hasOldFormat = items.some(item => {
       const id = item.product.id;
-      const idStr = String(id);
-      return typeof id === 'number' || (typeof id === 'string' && !idStr.startsWith('cm'));
+      return typeof id === 'number' || (typeof id === 'string' && /^\d+$/.test(id));
     });
 
     if (hasOldFormat && items.length > 0) {

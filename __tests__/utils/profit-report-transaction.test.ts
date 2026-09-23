@@ -67,14 +67,24 @@ it('creates the ProfitReport and updates the Order inside one $transaction call'
 
   const reportCreate = jest.fn().mockResolvedValue({ id: 'report-1' });
   const orderUpdate = jest.fn().mockResolvedValue({});
+  const txFindFirst = jest.fn().mockResolvedValue(null);
+  const txExecuteRaw = jest.fn().mockResolvedValue(undefined);
   (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
-    cb({ profitReport: { create: reportCreate }, order: { update: orderUpdate } })
+    cb({
+      $executeRaw: txExecuteRaw,
+      profitReport: { create: reportCreate, findFirst: txFindFirst },
+      order: { update: orderUpdate },
+    })
   );
   mockCreateOrderLedgerEntries.mockResolvedValueOnce([{}, {}]);
 
   const result = await autoGenerateProfitReport('order-1');
 
   expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  // The advisory lock must be acquired before the in-transaction duplicate
+  // recheck, which must happen before the report is created.
+  expect(txExecuteRaw).toHaveBeenCalledTimes(1);
+  expect(txFindFirst).toHaveBeenCalledTimes(1);
   expect(reportCreate).toHaveBeenCalledTimes(1);
   expect(orderUpdate).toHaveBeenCalledTimes(1);
   expect(result.success).toBe(true);
@@ -88,7 +98,11 @@ it('a forced failure on the order update rolls back the report creation too (one
   const reportCreate = jest.fn().mockResolvedValue({ id: 'report-1' });
   const orderUpdate = jest.fn().mockRejectedValue(new Error('simulated order-update failure'));
   (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
-    cb({ profitReport: { create: reportCreate }, order: { update: orderUpdate } })
+    cb({
+      $executeRaw: jest.fn().mockResolvedValue(undefined),
+      profitReport: { create: reportCreate, findFirst: jest.fn().mockResolvedValue(null) },
+      order: { update: orderUpdate },
+    })
   );
 
   const result = await autoGenerateProfitReport('order-1');
@@ -104,7 +118,11 @@ it('reports the report+order transaction as successful even if ledger posting su
   const reportCreate = jest.fn().mockResolvedValue({ id: 'report-1' });
   const orderUpdate = jest.fn().mockResolvedValue({});
   (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
-    cb({ profitReport: { create: reportCreate }, order: { update: orderUpdate } })
+    cb({
+      $executeRaw: jest.fn().mockResolvedValue(undefined),
+      profitReport: { create: reportCreate, findFirst: jest.fn().mockResolvedValue(null) },
+      order: { update: orderUpdate },
+    })
   );
   mockCreateOrderLedgerEntries.mockRejectedValueOnce(new Error('simulated ledger failure'));
 

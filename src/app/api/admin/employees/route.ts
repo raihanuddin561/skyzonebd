@@ -79,13 +79,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    
+
+    const baseSalary = parseFloat(body.baseSalary);
+    if (!Number.isFinite(baseSalary) || baseSalary < 0) {
+      return NextResponse.json(
+        { success: false, error: 'baseSalary must be a valid number (>= 0)' },
+        { status: 400 }
+      );
+    }
+
     // Generate employee ID if not provided
     if (!body.employeeId) {
       const count = await prisma.employee.count();
       body.employeeId = `EMP-${String(count + 1).padStart(4, '0')}`;
     }
-    
+
     const employee = await prisma.employee.create({
       data: {
         employeeId: body.employeeId,
@@ -102,7 +110,7 @@ export async function POST(request: NextRequest) {
         designation: body.designation,
         employmentType: body.employmentType || 'FULL_TIME',
         joiningDate: new Date(body.joiningDate),
-        baseSalary: parseFloat(body.baseSalary),
+        baseSalary,
         allowances: parseFloat(body.allowances) || 0,
         bonuses: parseFloat(body.bonuses) || 0,
         emergencyContact: body.emergencyContact,

@@ -21,9 +21,15 @@ const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-on
 
 const mockPrismaClient: any = {
   user: { findUnique: jest.fn() },
-  profitDistribution: { update: jest.fn(), findUnique: jest.fn() },
+  profitDistribution: {
+    update: jest.fn(),
+    findUnique: jest.fn(),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    findUniqueOrThrow: jest.fn(),
+  },
   financialLedger: { create: jest.fn().mockResolvedValue({ id: 'ledger-1' }) },
   partner: { update: jest.fn().mockResolvedValue({}) },
+  $transaction: jest.fn((cb: any) => cb(mockPrismaClient)),
 };
 
 jest.mock('@/lib/prisma', () => ({
@@ -59,6 +65,12 @@ beforeEach(() => {
 it('posts a DEBIT commission entry on the APPROVED -> PAID transition', async () => {
   mockPrismaClient.profitDistribution.findUnique.mockResolvedValue({
     id: 'pay1', partnerId: 'p1', distributionAmount: 7000, status: 'APPROVED', notes: null, partner: { name: 'Beta Partner', email: 'b@x.com' },
+  });
+  // The guarded APPROVED->PAID transition re-fetches the full row inside
+  // the transaction (via findUniqueOrThrow) after the atomic updateMany
+  // flip, to build the commission ledger entry from a post-write read.
+  mockPrismaClient.profitDistribution.findUniqueOrThrow.mockResolvedValue({
+    id: 'pay1', partnerId: 'p1', distributionAmount: 7000, status: 'PAID', partner: { id: 'p1', name: 'Beta Partner', email: 'b@x.com' },
   });
 
   const res = await PATCH(req({ status: 'PAID' }), params('pay1'));

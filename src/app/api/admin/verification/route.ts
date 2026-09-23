@@ -219,11 +219,13 @@ export async function PATCH(request: NextRequest) {
         userUpdate = { isVerified: false };
         // Note: rejectionReason would need to be added to schema
         break;
-      case 'review':
-        updateData = {
-          verificationStatus: 'UNDER_REVIEW',
-        };
-        break;
+      // Note: there is no 'review'/UNDER_REVIEW case here — the
+      // VerificationStatus enum only has PENDING | APPROVED | REJECTED |
+      // RESUBMIT, so this action always threw a Prisma validation error
+      // (caught generically as a 500) and had no corresponding caller in the
+      // admin frontend. Removed rather than left as a dead, always-failing
+      // action; adding UNDER_REVIEW back requires a schema migration and is
+      // tracked separately.
       default:
         return NextResponse.json(
           { success: false, error: 'Invalid action' },

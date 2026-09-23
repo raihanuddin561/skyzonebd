@@ -169,15 +169,21 @@ export async function GET(request: NextRequest) {
       // Partner's share
       partnerShare = netProfit * (partner.profitSharePercentage / 100);
 
-      // Get distributions for this period
+      // Get distributions for this period. This is an overlap check (the
+      // distribution's own window overlaps the query window), not a
+      // containment check — requiring the distribution's period to be
+      // fully contained inside the query range meant a query for a
+      // sub-range nested inside a previously-generated distribution's
+      // period matched nothing, understating approved/paid/pending
+      // amounts.
       const distributions = await prisma.profitDistribution.findMany({
         where: {
           partnerId: partner.id,
           startDate: {
-            gte: startDate
+            lte: endDate
           },
           endDate: {
-            lte: endDate
+            gte: startDate
           }
         },
         select: {

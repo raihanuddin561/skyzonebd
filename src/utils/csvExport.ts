@@ -6,7 +6,21 @@
 
 function escapeCsvValue(value: unknown): string {
   if (value === null || value === undefined) return '';
-  const str = String(value);
+  let str = String(value);
+
+  // CSV/formula-injection mitigation (OWASP): a cell that starts with
+  // =, +, -, @, a tab, or a carriage return is interpreted as a live
+  // formula by Excel/Google Sheets the moment the exported file is opened.
+  // Any customer-controlled free-text field (name, partner name, etc.)
+  // could smuggle a formula like =HYPERLINK(...) through an export. Prefix
+  // with a literal single quote so spreadsheet apps render the cell as
+  // plain text instead of executing it. This must happen BEFORE the
+  // quote/comma/newline escaping below so the quoting still applies
+  // correctly to the (now-prefixed) value.
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
+
   if (/[",\n]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;
   }

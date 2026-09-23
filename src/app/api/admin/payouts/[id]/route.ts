@@ -179,39 +179,101 @@ export async function PATCH(
         : `[${timestamp}] ${notes}`;
     }
     
-    // Update payout
-    const updatedPayout = await prisma.profitDistribution.update({
-      where: { id },
-      data: updateData,
-      include: {
-        partner: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            profitSharePercentage: true
+    // Update payout.
+    //
+    // The APPROVED -> PAID transition is special: it's the one that posts a
+    // commission FinancialLedger entry and increments the partner's
+    // lifetime totalProfitReceived. The `existingPayout` read above is a
+    // plain pre-transaction read, not a lock — two concurrent PATCH
+    // requests (double-click, retry, two admin tabs) both marking the same
+    // APPROVED distribution as PAID could both pass that read-check before
+    // either write commits, so both would execute the ledger-posting branch
+    // and double-post/double-credit for one real payment. Guarding the
+    // actual status write with `updateMany({ where: { id, status: 'APPROVED' } })`
+    // and checking the affected row count — same pattern as
+    // admin/orders/[id]/verify-payment/route.ts — makes this the real point
+    // that prevents double-payment: only the request that actually flips
+    // APPROVED -> PAID gets to post the ledger entry and increment the
+    // partner's total; a concurrent loser sees count === 0 and gets a 409
+    // instead of silently re-running the side effects.
+    let updatedPayout;
+
+    if (status === 'PAID' && existingPayout.status === 'APPROVED') {
+      try {
+        updatedPayout = await prisma.$transaction(async (tx) => {
+          const updateResult = await tx.profitDistribution.updateMany({
+            where: { id, status: 'APPROVED' },
+            data: updateData,
+          });
+
+          if (updateResult.count === 0) {
+            throw new Response(
+              JSON.stringify({ success: false, error: 'This payout was already updated by another request' }),
+              { status: 409, headers: { 'Content-Type': 'application/json' } }
+            );
+          }
+
+          const payout = await tx.profitDistribution.findUniqueOrThrow({
+            where: { id },
+            include: {
+              partner: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  profitSharePercentage: true
+                }
+              }
+            }
+          });
+
+          // Amazon-style gap-closure Phase 2 part 1: ledger completeness;
+          // Phase 3 part 1: this route is now the sole canonical
+          // payout-status path — admin/distributions/route.ts, the only
+          // other place that ever incremented totalProfitReceived, was dead
+          // code with zero UI callers and has been removed. Posted inside
+          // the same transaction as the guarded status flip, gated on
+          // `updateResult.count === 1`, so it can never run twice for one
+          // real payment.
+          await createCommissionEntry({
+            id: payout.id,
+            partnerId: payout.partnerId,
+            partnerName: payout.partner?.name,
+            distributionAmount: payout.distributionAmount,
+          }, tx);
+
+          await tx.partner.update({
+            where: { id: payout.partnerId },
+            data: { totalProfitReceived: { increment: payout.distributionAmount } },
+          });
+
+          return payout;
+        });
+      } catch (error) {
+        if (error instanceof Response) {
+          return error;
+        }
+        throw error;
+      }
+    } else {
+      // No APPROVED -> PAID transition is happening (either `status` wasn't
+      // supplied, it's some other transition, or this is a repeat PATCH
+      // against an already-PAID payout that's just updating notes/payment
+      // reference) — no ledger side effects are gated on this write, so a
+      // plain update is safe.
+      updatedPayout = await prisma.profitDistribution.update({
+        where: { id },
+        data: updateData,
+        include: {
+          partner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              profitSharePercentage: true
+            }
           }
         }
-      }
-    });
-
-    // Only post to the ledger / increment the partner's running total on
-    // the actual ... -> PAID transition, not on a repeat PATCH against an
-    // already-paid payout (Amazon-style gap-closure Phase 2 part 1:
-    // ledger completeness; Phase 3 part 1: this route is now the sole
-    // canonical payout-status path — admin/distributions/route.ts, the
-    // only other place that ever incremented totalProfitReceived, was
-    // dead code with zero UI callers and has been removed).
-    if (status === 'PAID' && existingPayout.status !== 'PAID') {
-      await createCommissionEntry({
-        id: updatedPayout.id,
-        partnerId: updatedPayout.partnerId,
-        partnerName: updatedPayout.partner?.name,
-        distributionAmount: updatedPayout.distributionAmount,
-      });
-      await prisma.partner.update({
-        where: { id: updatedPayout.partnerId },
-        data: { totalProfitReceived: { increment: updatedPayout.distributionAmount } },
       });
     }
 

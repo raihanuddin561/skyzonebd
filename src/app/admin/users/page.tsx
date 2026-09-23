@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
+import { api } from '@/utils/apiClient';
 
 interface User {
   id: string;
@@ -41,6 +42,22 @@ export default function UsersManagement() {
   const [discountValidUntil, setDiscountValidUntil] = useState('');
   const [discountSaving, setDiscountSaving] = useState(false);
 
+  // Stats derived from the currently loaded (filtered/paginated) users. The
+  // GET /api/admin/users response doesn't return global aggregate counts, so
+  // these reflect the current page/filter results rather than platform-wide
+  // totals — still real data, no more hardcoded placeholder numbers.
+  // Note: the API returns `role`/`userType` as lowercase strings (e.g.
+  // 'seller', 'wholesale') even though the User interface above types them
+  // as uppercase enum-like literals — match the real runtime values here,
+  // same as getRoleBadge/getUserTypeBadge do below.
+  const stats = {
+    total: users.length,
+    retail: users.filter(u => (u.userType as string).toLowerCase() === 'retail').length,
+    wholesale: users.filter(u => (u.userType as string).toLowerCase() === 'wholesale').length,
+    sellers: users.filter(u => (u.role as string).toLowerCase() === 'seller').length,
+    pending: users.filter(u => u.status === 'pending').length,
+  };
+
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -52,14 +69,14 @@ export default function UsersManagement() {
           ...(searchTerm && { search: searchTerm }),
         });
 
-        const response = await fetch(`/api/admin/users?${params}`);
-        
+        const response = await api.get(`/api/admin/users?${params}`);
+
         if (!response.ok) {
           throw new Error('Failed to fetch users');
         }
 
         const result = await response.json();
-        
+
         if (result.success) {
           setUsers(result.data.users);
         } else {
@@ -135,28 +152,22 @@ export default function UsersManagement() {
         action = 'reset-to-pending';
       }
 
-      const response = await fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          action,
-        }),
+      const response = await api.patch('/api/admin/users', {
+        userId,
+        action,
       });
 
       const result = await response.json();
 
       if (result.success) {
         // Refetch users to get accurate status based on server calculation
-        const refetchResponse = await fetch(`/api/admin/users?${new URLSearchParams({
+        const refetchResponse = await api.get(`/api/admin/users?${new URLSearchParams({
           role: filterRole,
           userType: filterType,
           status: filterStatus,
           ...(searchTerm && { search: searchTerm }),
         })}`);
-        
+
         if (refetchResponse.ok) {
           const refetchResult = await refetchResponse.json();
           if (refetchResult.success) {
@@ -183,35 +194,29 @@ export default function UsersManagement() {
 
     try {
       const promises = selectedUsers.map(userId =>
-        fetch('/api/admin/users', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId,
-            action: 'activate',
-          }),
+        api.patch('/api/admin/users', {
+          userId,
+          action: 'activate',
         })
       );
 
       await Promise.all(promises);
 
       // Refetch users to get accurate status
-      const refetchResponse = await fetch(`/api/admin/users?${new URLSearchParams({
+      const refetchResponse = await api.get(`/api/admin/users?${new URLSearchParams({
         role: filterRole,
         userType: filterType,
         status: filterStatus,
         ...(searchTerm && { search: searchTerm }),
       })}`);
-      
+
       if (refetchResponse.ok) {
         const refetchResult = await refetchResponse.json();
         if (refetchResult.success) {
           setUsers(refetchResult.data.users);
         }
       }
-      
+
       setSelectedUsers([]);
       toast.success(`${selectedUsers.length} user(s) activated successfully!`);
     } catch (error) {
@@ -229,35 +234,29 @@ export default function UsersManagement() {
 
     try {
       const promises = selectedUsers.map(userId =>
-        fetch('/api/admin/users', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId,
-            action: 'suspend',
-          }),
+        api.patch('/api/admin/users', {
+          userId,
+          action: 'suspend',
         })
       );
 
       await Promise.all(promises);
 
       // Refetch users to get accurate status
-      const refetchResponse = await fetch(`/api/admin/users?${new URLSearchParams({
+      const refetchResponse = await api.get(`/api/admin/users?${new URLSearchParams({
         role: filterRole,
         userType: filterType,
         status: filterStatus,
         ...(searchTerm && { search: searchTerm }),
       })}`);
-      
+
       if (refetchResponse.ok) {
         const refetchResult = await refetchResponse.json();
         if (refetchResult.success) {
           setUsers(refetchResult.data.users);
         }
       }
-      
+
       setSelectedUsers([]);
       toast.success(`${selectedUsers.length} user(s) suspended successfully!`);
     } catch (error) {
@@ -285,30 +284,28 @@ export default function UsersManagement() {
 
     try {
       setDiscountSaving(true);
-      const response = await fetch(`/api/admin/customers/${selectedUser.id}/discount`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const response = await api.patch('/api/admin/users', {
+        userId: selectedUser.id,
+        action: 'update',
+        data: {
           discountPercent: percent,
           discountReason: discountReason || null,
           discountValidUntil: discountValidUntil || null,
-        }),
+        },
       });
 
       const result = await response.json();
 
       if (result.success) {
         // Update user in the list
-        setUsers(users.map(u => 
-          u.id === selectedUser.id 
-            ? { 
-                ...u, 
+        setUsers(users.map(u =>
+          u.id === selectedUser.id
+            ? {
+                ...u,
                 discountPercent: percent,
                 discountReason: discountReason || undefined,
                 discountValidUntil: discountValidUntil || undefined,
-              } 
+              }
             : u
         ));
         setShowDiscountModal(false);
@@ -333,30 +330,28 @@ export default function UsersManagement() {
 
     try {
       setDiscountSaving(true);
-      const response = await fetch(`/api/admin/customers/${selectedUser.id}/discount`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const response = await api.patch('/api/admin/users', {
+        userId: selectedUser.id,
+        action: 'update',
+        data: {
           discountPercent: 0,
           discountReason: null,
           discountValidUntil: null,
-        }),
+        },
       });
 
       const result = await response.json();
 
       if (result.success) {
         // Update user in the list
-        setUsers(users.map(u => 
-          u.id === selectedUser.id 
-            ? { 
-                ...u, 
+        setUsers(users.map(u =>
+          u.id === selectedUser.id
+            ? {
+                ...u,
                 discountPercent: undefined,
                 discountReason: undefined,
                 discountValidUntil: undefined,
-              } 
+              }
             : u
         ));
         setShowDiscountModal(false);
@@ -402,7 +397,7 @@ export default function UsersManagement() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Total Users</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">1,247</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total.toLocaleString()}</p>
             </div>
             <span className="text-2xl sm:text-3xl">👥</span>
           </div>
@@ -411,7 +406,7 @@ export default function UsersManagement() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Retail Buyers</p>
-              <p className="text-xl sm:text-2xl font-bold text-blue-600">856</p>
+              <p className="text-xl sm:text-2xl font-bold text-blue-600">{stats.retail.toLocaleString()}</p>
             </div>
             <span className="text-2xl sm:text-3xl">🛍️</span>
           </div>
@@ -420,7 +415,7 @@ export default function UsersManagement() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Wholesale</p>
-              <p className="text-xl sm:text-2xl font-bold text-purple-600">312</p>
+              <p className="text-xl sm:text-2xl font-bold text-purple-600">{stats.wholesale.toLocaleString()}</p>
             </div>
             <span className="text-2xl sm:text-3xl">🏢</span>
           </div>
@@ -429,7 +424,7 @@ export default function UsersManagement() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Sellers</p>
-              <p className="text-xl sm:text-2xl font-bold text-green-600">68</p>
+              <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.sellers.toLocaleString()}</p>
             </div>
             <span className="text-2xl sm:text-3xl">🏪</span>
           </div>
@@ -438,7 +433,7 @@ export default function UsersManagement() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Pending</p>
-              <p className="text-xl sm:text-2xl font-bold text-yellow-600">11</p>
+              <p className="text-xl sm:text-2xl font-bold text-yellow-600">{stats.pending.toLocaleString()}</p>
             </div>
             <span className="text-2xl sm:text-3xl">⏳</span>
           </div>

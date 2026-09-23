@@ -150,6 +150,40 @@ export default function CheckoutPage() {
       return;
     }
 
+    // A logged-in user's token can expire while they're sitting on this page.
+    // AuthContext only checks expiry once at load, so `user` can still be
+    // populated from stale state/localStorage even though the token is dead.
+    // Submitting in that state used to silently fall back to the guest order
+    // path server-side (since the expired token fails verification) and
+    // produce a confusing "Guest name and mobile number are required" error.
+    // Catch that here and prompt for a fresh login instead.
+    if (checkoutType === 'user' && user) {
+      const token = localStorage.getItem('token');
+      let isExpired = !token;
+      if (token) {
+        try {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            const now = Date.now() / 1000;
+            if (payload.exp && payload.exp < now) {
+              isExpired = true;
+            }
+          }
+        } catch {
+          isExpired = true;
+        }
+      }
+
+      if (isExpired) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        toast.error('Your session has expired — please log in again.');
+        router.push('/auth/login?redirect=/checkout');
+        return;
+      }
+    }
+
     // Mirror the filled address into the empty one so both are always populated
     const finalShippingAddress = shippingFilled ? orderData.shippingAddress : orderData.billingAddress;
     const finalBillingAddress = billingFilled ? orderData.billingAddress : orderData.shippingAddress;
@@ -690,7 +724,6 @@ export default function CheckoutPage() {
                         </h4>
                         <div className="bg-green-50 border border-green-200 rounded-md p-3">
                           <p className="mb-1">✓ Pay in cash when your order is delivered</p>
-                          <p className="mb-1">✓ Additional COD charge: <strong>৳50</strong></p>
                           <p className="mb-1">✓ Available in Dhaka metropolitan area only</p>
                           <p className="text-xs text-green-700 mt-2">Please keep exact change ready for smooth delivery.</p>
                         </div>

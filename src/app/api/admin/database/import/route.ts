@@ -42,7 +42,18 @@ function coerceValue(field: string, value: unknown): unknown {
     return normalized === 'true' || normalized === '1';
   }
   if (NUMBER_FIELDS.has(field)) {
-    return typeof value === 'number' ? value : Number(value);
+    const result = typeof value === 'number' ? value : Number(value);
+    // A malformed cell (typo, currency symbol, stray dash, etc.) coerces to
+    // NaN, which is not a string/null/'' and would otherwise sail straight
+    // through into prisma.product.create/update, silently corrupting that
+    // row's pricing/stock data. Fail this row loudly instead — the caller
+    // (the per-row processing loop in POST) already catches thrown errors
+    // and records them as `{ success: false, error }` for that row, so this
+    // preserves the existing partial-success reporting shape.
+    if (!Number.isFinite(result)) {
+      throw new Error(`Invalid numeric value for field ${field}: ${String(value)}`);
+    }
+    return result;
   }
   if (ARRAY_FIELDS.has(field)) {
     if (Array.isArray(value)) return value;

@@ -156,6 +156,11 @@ export default function PurchaseOrderDetailPage() {
 
   const canReceive = po.status === 'SENT' || po.status === 'PARTIALLY_RECEIVED';
   const allowedNext = ALLOWED_TRANSITIONS[po.status] || [];
+  const hasExceededRemaining = po.items.some((item) => {
+    const remaining = item.quantityOrdered - item.quantityReceived;
+    const qty = parseInt(receiveQty[item.id] || '0', 10);
+    return !isNaN(qty) && qty > remaining;
+  });
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -244,7 +249,20 @@ export default function PurchaseOrderDetailPage() {
                             max={remaining}
                             placeholder={`up to ${remaining}`}
                             value={receiveQty[item.id] || ''}
-                            onChange={(e) => setReceiveQty({ ...receiveQty, [item.id]: e.target.value })}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              if (raw === '') {
+                                setReceiveQty({ ...receiveQty, [item.id]: '' });
+                                return;
+                              }
+                              const parsed = parseInt(raw, 10);
+                              if (isNaN(parsed)) {
+                                setReceiveQty({ ...receiveQty, [item.id]: raw });
+                                return;
+                              }
+                              const clamped = Math.min(Math.max(parsed, 0), remaining);
+                              setReceiveQty({ ...receiveQty, [item.id]: clamped.toString() });
+                            }}
                             className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
                           />
                         ) : (
@@ -262,11 +280,16 @@ export default function PurchaseOrderDetailPage() {
           <div className="px-4 py-3 border-t border-gray-200">
             <button
               onClick={handleReceive}
-              disabled={saving}
+              disabled={saving || hasExceededRemaining}
               className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
             >
               {saving ? 'Receiving...' : 'Receive Stock'}
             </button>
+            {hasExceededRemaining && (
+              <p className="text-xs text-red-600 mt-2">
+                One or more quantities exceed the remaining amount for that line item.
+              </p>
+            )}
             <p className="text-xs text-gray-500 mt-2">
               Receiving creates a stock lot per line item, increments product stock quantity, and logs the movement — no
               schema/database changes are made outside this transaction.

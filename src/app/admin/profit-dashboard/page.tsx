@@ -249,15 +249,7 @@ export default function ProfitDashboardPage() {
 
   const handleTogglePartnerStatus = async (partnerId: string, currentStatus: boolean) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/partners/${partnerId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isActive: !currentStatus })
-      });
+      const response = await api.patch(`/api/admin/partners/${partnerId}`, { isActive: !currentStatus });
 
       const data = await response.json();
 
@@ -492,7 +484,7 @@ export default function ProfitDashboardPage() {
                     <div className="text-right">
                       <p className="text-sm font-semibold text-green-600">{formatCurrency(product.netProfit)}</p>
                       <p className="text-xs text-gray-500">
-                        {((product.netProfit / product.revenue) * 100).toFixed(1)}% margin
+                        {product.revenue > 0 ? `${((product.netProfit / product.revenue) * 100).toFixed(1)}% margin` : '— margin'}
                       </p>
                     </div>
                   </div>

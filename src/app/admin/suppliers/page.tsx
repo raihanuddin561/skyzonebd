@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import { api } from '@/utils/apiClient';
 
 interface Supplier {
   id: string;
@@ -41,10 +42,7 @@ export default function SuppliersPage() {
   const fetchSuppliers = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/suppliers?limit=100', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.get('/api/admin/suppliers?limit=100');
       const data = await response.json();
       if (response.ok && data.success) {
         setSuppliers(data.data);
@@ -86,16 +84,10 @@ export default function SuppliersPage() {
     }
     setSaving(true);
     try {
-      const token = localStorage.getItem('token');
       const url = editingId ? `/api/admin/suppliers/${editingId}` : '/api/admin/suppliers';
-      const response = await fetch(url, {
-        method: editingId ? 'PATCH' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(form),
-      });
+      const response = editingId
+        ? await api.patch(url, form)
+        : await api.post(url, form);
       const data = await response.json();
       if (response.ok && data.success) {
         toast.success(editingId ? 'Supplier updated' : 'Supplier created');
@@ -114,15 +106,7 @@ export default function SuppliersPage() {
 
   const toggleActive = async (supplier: Supplier) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/suppliers/${supplier.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isActive: !supplier.isActive }),
-      });
+      const response = await api.patch(`/api/admin/suppliers/${supplier.id}`, { isActive: !supplier.isActive });
       const data = await response.json();
       if (response.ok && data.success) {
         toast.success(`Supplier ${supplier.isActive ? 'deactivated' : 'activated'}`);

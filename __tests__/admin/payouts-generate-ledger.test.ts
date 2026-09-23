@@ -19,6 +19,12 @@ const mockPrismaClient: any = {
   partner: { findUnique: jest.fn() },
   profitDistribution: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn() },
   order: { findMany: jest.fn() },
+  // Duplicate-generation guard now acquires an advisory lock and re-checks
+  // for an existing distribution inside a transaction (see
+  // payouts/generate/route.ts) instead of relying on a since-unenforced DB
+  // unique constraint.
+  $executeRaw: jest.fn(),
+  $transaction: jest.fn((cb: any) => cb(mockPrismaClient)),
 };
 
 jest.mock('@/lib/prisma', () => ({

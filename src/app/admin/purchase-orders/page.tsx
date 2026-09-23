@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
+import { api } from '@/utils/apiClient';
 
 interface Supplier {
   id: string;
@@ -64,11 +65,8 @@ export default function PurchaseOrdersPage() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
       const qs = statusFilter ? `?status=${statusFilter}&limit=50` : '?limit=50';
-      const response = await fetch(`/api/admin/purchase-orders${qs}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.get(`/api/admin/purchase-orders${qs}`);
       const data = await response.json();
       if (response.ok && data.success) {
         setOrders(data.data);
@@ -90,14 +88,9 @@ export default function PurchaseOrdersPage() {
     setLines([{ productId: '', quantityOrdered: '', costPerUnit: '' }]);
     setShowModal(true);
     try {
-      const token = localStorage.getItem('token');
       const [suppliersRes, productsRes] = await Promise.all([
-        fetch('/api/admin/suppliers?activeOnly=true&limit=200', {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch('/api/products?limit=200&includeInactive=true', {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        api.get('/api/admin/suppliers?activeOnly=true&limit=200'),
+        api.get('/api/products?limit=200&includeInactive=true'),
       ]);
       const suppliersData = await suppliersRes.json();
       const productsData = await productsRes.json();
@@ -135,19 +128,11 @@ export default function PurchaseOrdersPage() {
 
     setSaving(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/purchase-orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          supplierId,
-          expectedDate: expectedDate || undefined,
-          notes: notes || undefined,
-          items,
-        }),
+      const response = await api.post('/api/admin/purchase-orders', {
+        supplierId,
+        expectedDate: expectedDate || undefined,
+        notes: notes || undefined,
+        items,
       });
       const data = await response.json();
       if (response.ok && data.success) {

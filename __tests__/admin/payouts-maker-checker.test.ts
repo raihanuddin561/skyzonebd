@@ -19,9 +19,15 @@ const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-on
 
 const mockPrismaClient: any = {
   user: { findUnique: jest.fn() },
-  profitDistribution: { update: jest.fn(), findUnique: jest.fn() },
+  profitDistribution: {
+    update: jest.fn(),
+    findUnique: jest.fn(),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    findUniqueOrThrow: jest.fn(),
+  },
   financialLedger: { create: jest.fn().mockResolvedValue({ id: 'ledger-1' }) },
   partner: { update: jest.fn().mockResolvedValue({}) },
+  $transaction: jest.fn((cb: any) => cb(mockPrismaClient)),
 };
 
 jest.mock('@/lib/prisma', () => ({
@@ -78,14 +84,18 @@ it('allows APPROVED -> PAID and records paidBy from the authenticated session', 
   mockPrismaClient.profitDistribution.findUnique.mockResolvedValue({
     id: 'pay1', partnerId: 'p1', distributionAmount: 7000, status: 'APPROVED', notes: null, partner: { name: 'Beta Partner', email: 'b@x.com' },
   });
-  mockPrismaClient.profitDistribution.update.mockResolvedValue({
-    id: 'pay1', partnerId: 'p1', distributionAmount: 7000, status: 'PAID', paidBy: 'admin-1', partner: { name: 'Beta Partner' },
+  // The real APPROVED->PAID transition now flows through a guarded
+  // updateMany (atomic, race-safe) followed by a post-write re-fetch,
+  // instead of a plain update — see payouts/[id]/route.ts's double-payment
+  // race fix.
+  mockPrismaClient.profitDistribution.findUniqueOrThrow.mockResolvedValue({
+    id: 'pay1', partnerId: 'p1', distributionAmount: 7000, status: 'PAID', paidBy: 'admin-1', partner: { id: 'p1', name: 'Beta Partner' },
   });
 
   const res = await PATCH(req({ status: 'PAID' }), params('pay1'));
 
   expect(res.status).toBe(200);
-  const updateArg = mockPrismaClient.profitDistribution.update.mock.calls[0][0];
+  const updateArg = mockPrismaClient.profitDistribution.updateMany.mock.calls[0][0];
   expect(updateArg.data.paidBy).toBe('admin-1');
   expect(updateArg.data.approvedBy).toBeUndefined(); // already approved — not re-set
 });

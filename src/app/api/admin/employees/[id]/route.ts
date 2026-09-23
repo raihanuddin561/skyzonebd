@@ -75,7 +75,18 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    
+
+    let baseSalary: number | undefined;
+    if (body.baseSalary !== undefined) {
+      baseSalary = parseFloat(body.baseSalary);
+      if (!Number.isFinite(baseSalary) || baseSalary < 0) {
+        return NextResponse.json(
+          { success: false, error: 'baseSalary must be a valid number (>= 0)' },
+          { status: 400 }
+        );
+      }
+    }
+
     const employee = await prisma.employee.update({
       where: { id },
       data: {
@@ -91,7 +102,7 @@ export async function PUT(
         department: body.department,
         designation: body.designation,
         employmentType: body.employmentType,
-        baseSalary: body.baseSalary !== undefined ? parseFloat(body.baseSalary) : undefined,
+        baseSalary,
         allowances: body.allowances !== undefined ? parseFloat(body.allowances) : undefined,
         bonuses: body.bonuses !== undefined ? parseFloat(body.bonuses) : undefined,
         emergencyContact: body.emergencyContact,

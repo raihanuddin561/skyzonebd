@@ -123,6 +123,13 @@ export default function CartPage() {
                       {user && user.userType === 'WHOLESALE' && item.product.minOrderQuantity && item.product.minOrderQuantity > 0 && (
                         <p className="text-xs sm:text-sm text-gray-500 mt-1">MOQ: {item.product.minOrderQuantity}</p>
                       )}
+
+                      {/* Flag items that have gone out of stock since being added to the cart */}
+                      {item.product.stock === 0 && (
+                        <p className="text-xs sm:text-sm font-medium text-red-600 mt-1">
+                          Out of stock — this item may not be available at checkout
+                        </p>
+                      )}
                       
                       {/* Price */}
                       <p className="text-lg sm:text-xl font-bold text-blue-700 mt-2">
@@ -138,7 +145,7 @@ export default function CartPage() {
                             value={item.quantity}
                             onChange={(newQty) => handleQuantityChange(item.product.id, newQty, item.product.minOrderQuantity || 1)}
                             min={(user && user.userType === 'WHOLESALE') ? (item.product.minOrderQuantity || 1) : 1}
-                            max={item.product.stock || undefined}
+                            max={item.product.stock ?? undefined}
                             showLabel={false}
                           />
                         </div>
