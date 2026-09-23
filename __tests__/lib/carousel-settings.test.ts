@@ -4,18 +4,22 @@
 // __tests__/lib/carousel-settings.test.ts
 // Verifies the new homepage carousel settings feature: admin-configurable
 // autoplay/transition/arrows/dots/counter behavior, persisted via the
-// existing filesystem-backed site-settings store (src/lib/siteSettings.ts),
+// PlatformConfig-backed site-settings store (src/lib/siteSettings.ts),
 // and exposed publicly (no auth) via GET /api/carousel-settings since a
 // visitor's homepage load needs it before any login.
 
-const mockFs = {
-  existsSync: jest.fn(),
-  mkdirSync: jest.fn(),
-  readFileSync: jest.fn(),
-  writeFileSync: jest.fn(),
+const mockPrismaClient: any = {
+  platformConfig: {
+    findUnique: jest.fn(),
+    upsert: jest.fn(),
+  },
 };
 
-jest.mock('fs', () => mockFs);
+jest.mock('@/lib/prisma', () => ({
+  __esModule: true,
+  prisma: mockPrismaClient,
+  default: mockPrismaClient,
+}));
 
 import { readSettings, writeSettings, defaultSettings } from '@/lib/siteSettings';
 
@@ -24,29 +28,31 @@ beforeEach(() => {
 });
 
 describe('readSettings', () => {
-  it('returns the full defaults, including carousel, when no settings file exists', () => {
-    mockFs.existsSync.mockReturnValue(false);
-    const settings = readSettings();
+  it('returns the full defaults, including carousel, when no settings record exists', async () => {
+    mockPrismaClient.platformConfig.findUnique.mockResolvedValue(null);
+    const settings = await readSettings();
     expect(settings.carousel).toEqual(defaultSettings.carousel);
   });
 
-  it('fills in carousel defaults for a settings file saved before that category existed', () => {
-    mockFs.existsSync.mockReturnValue(true);
-    mockFs.readFileSync.mockReturnValue(JSON.stringify({
-      general: { siteName: 'Custom Name' },
-      // no `carousel` key at all — simulates a pre-existing settings file
-    }));
-    const settings = readSettings();
+  it('fills in carousel defaults for a settings record saved before that category existed', async () => {
+    mockPrismaClient.platformConfig.findUnique.mockResolvedValue({
+      value: JSON.stringify({
+        general: { siteName: 'Custom Name' },
+        // no `carousel` key at all — simulates a pre-existing settings record
+      }),
+    });
+    const settings = await readSettings();
     expect(settings.general.siteName).toBe('Custom Name');
     expect(settings.carousel).toEqual(defaultSettings.carousel);
   });
 
-  it('merges a partially-saved carousel section with defaults', () => {
-    mockFs.existsSync.mockReturnValue(true);
-    mockFs.readFileSync.mockReturnValue(JSON.stringify({
-      carousel: { autoplaySpeed: 8, transitionEffect: 'slide' },
-    }));
-    const settings = readSettings();
+  it('merges a partially-saved carousel section with defaults', async () => {
+    mockPrismaClient.platformConfig.findUnique.mockResolvedValue({
+      value: JSON.stringify({
+        carousel: { autoplaySpeed: 8, transitionEffect: 'slide' },
+      }),
+    });
+    const settings = await readSettings();
     expect(settings.carousel).toEqual({
       ...defaultSettings.carousel,
       autoplaySpeed: 8,
@@ -56,21 +62,28 @@ describe('readSettings', () => {
 });
 
 describe('writeSettings', () => {
-  it('writes the given settings object to disk', () => {
-    mockFs.existsSync.mockReturnValue(true);
-    const result = writeSettings({ ...defaultSettings, carousel: { ...defaultSettings.carousel, autoplayEnabled: false } });
+  it('upserts the given settings object into PlatformConfig', async () => {
+    mockPrismaClient.platformConfig.upsert.mockResolvedValue({});
+    const result = await writeSettings({ ...defaultSettings, carousel: { ...defaultSettings.carousel, autoplayEnabled: false } });
     expect(result).toBe(true);
-    expect(mockFs.writeFileSync).toHaveBeenCalledWith(
-      expect.stringContaining('site-settings.json'),
-      expect.stringContaining('"autoplayEnabled": false'),
-      'utf8'
+    expect(mockPrismaClient.platformConfig.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { key: 'site_settings' },
+        create: expect.objectContaining({
+          key: 'site_settings',
+          value: expect.stringContaining('"autoplayEnabled":false'),
+        }),
+        update: expect.objectContaining({
+          value: expect.stringContaining('"autoplayEnabled":false'),
+        }),
+      })
     );
   });
 });
 
 describe('GET /api/carousel-settings', () => {
   it('returns the carousel settings without requiring authentication', async () => {
-    mockFs.existsSync.mockReturnValue(false);
+    mockPrismaClient.platformConfig.findUnique.mockResolvedValue(null);
     const { GET } = require('@/app/api/carousel-settings/route');
     const res = await GET();
     const body = await res.json();
@@ -80,10 +93,11 @@ describe('GET /api/carousel-settings', () => {
   });
 
   it('reflects saved carousel settings', async () => {
-    mockFs.existsSync.mockReturnValue(true);
-    mockFs.readFileSync.mockReturnValue(JSON.stringify({
-      carousel: { autoplaySpeed: 3, showArrows: false },
-    }));
+    mockPrismaClient.platformConfig.findUnique.mockResolvedValue({
+      value: JSON.stringify({
+        carousel: { autoplaySpeed: 3, showArrows: false },
+      }),
+    });
     const { GET } = require('@/app/api/carousel-settings/route');
     const res = await GET();
     const body = await res.json();

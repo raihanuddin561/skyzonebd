@@ -52,6 +52,7 @@ model User {
   invoices              Invoice[] // NET30/60/90 invoices where this user is the customer
   wishlist              Wishlist? // Persistent wishlist (one per user)
   returns               Return[] // Return requests filed by this user
+  reviewVotes           ReviewVote[] // Helpfulness votes this user cast on reviews
 
   @@map("users")
 }
@@ -664,7 +665,9 @@ model HeroSlide {
 // Admin Activity Tracking
 model ActivityLog {
   id          String         @id @default(cuid())
-  userId      String // Admin who performed the action
+  userId      String? // Admin who performed the action — nullable so the log
+  // entry survives if that admin's account is later hard-deleted (see
+  // onDelete: SetNull below); userName is the durable snapshot either way.
   userName    String // Store name for quick reference
   action      ActivityAction // Type of action performed
   entityType  String // Product, Order, Category, User, etc.
@@ -677,7 +680,13 @@ model ActivityLog {
   createdAt   DateTime       @default(now())
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  //
+  // Was onDelete: Cascade — a super admin hard-deleting a departing/rogue
+  // admin's account instantly wiped every ActivityLog row for actions they
+  // ever performed, destroying the audit trail exactly when it matters
+  // most. SetNull keeps the log entry (with its userName snapshot) even
+  // after the account is gone.
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([action])
@@ -721,7 +730,13 @@ model InventoryLog {
   createdAt     DateTime        @default(now())
 
   // Relations
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  //
+  // Was onDelete: Cascade — a product with restock history but no sales
+  // (so it has no OrderItem rows, and the product-delete route's guard only
+  // ever checked OrderItem) could be hard-deleted, silently destroying its
+  // entire inventory audit trail. Restrict forces the delete route to
+  // handle this explicitly instead.
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
   @@index([productId])
   @@index([action])
@@ -1202,7 +1217,7 @@ model ProfitDistribution {
   distributionAmount Float // Actual amount to distribute
 
   // Status
-  status           String    @default("PENDING") // PENDING, APPROVED, PAID
+  status           ProfitDistributionStatus @default(PENDING)
   approvedBy       String?
   approvedAt       DateTime?
   paidBy           String? // Amazon-style gap-closure Phase 3 part 2: who executed the PAID transition — recorded for audit completeness, mirroring approvedBy
@@ -1229,6 +1244,18 @@ model ProfitDistribution {
   @@index([startDate, endDate])
   @@index([status])
   @@map("profit_distributions")
+}
+
+// Was a free-text String with a comment listing "PENDING, APPROVED, PAID"
+// that had already drifted from reality (REJECTED is a real, handled state
+// with zero schema-level enforcement) — any write path other than
+// admin/payouts/[id]/route.ts's hand-rolled validStatuses check could
+// silently persist an invalid value with nothing to catch it.
+enum ProfitDistributionStatus {
+  PENDING
+  APPROVED
+  PAID
+  REJECTED
 }
 
 // Data Deletion Request Model (for GDPR/Google Play compliance)
@@ -1314,7 +1341,8 @@ model Review {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
+  votes     ReviewVote[]
+
   @@unique([userId, productId, orderId]) // One review per user per product per order
   @@index([productId])
   @@index([userId])
@@ -1322,6 +1350,26 @@ model Review {
   @@index([rating])
   @@index([createdAt])
   @@map("reviews")
+}
+
+// One helpfulness vote per user per review — PATCH /api/reviews/[id]
+// previously just did a bare `increment: 1` on helpfulCount/notHelpfulCount
+// with nothing recording who had already voted (only a client-side,
+// refresh-resettable guard), so the same user (or a script hitting the
+// endpoint directly) could vote an unlimited number of times.
+model ReviewVote {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String
+  vote      Boolean // true = helpful, false = not helpful
+  createdAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId])
+  @@index([reviewId])
+  @@map("review_votes")
 }
 
 enum ReviewStatus {
@@ -1489,7 +1537,14 @@ model StockLot {
   updatedAt        DateTime @updatedAt
   
   // Relations
-  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  //
+  // Was onDelete: Cascade — deleting a product that had been restocked
+  // (real supplier cost data, StockLot.totalCost, StockAllocation rows) but
+  // never sold (so it has no OrderItem rows) silently destroyed all of that
+  // cost history, with the FinancialLedger entry the restock posted left
+  // pointing at a lot that no longer exists. Restrict forces the delete
+  // route to handle this explicitly instead.
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
   allocations      StockAllocation[] // Track which orders consumed this lot
   
   @@index([productId])
@@ -1526,7 +1581,11 @@ model Supplier {
   id           String   @id @default(cuid())
   name         String
   contactName  String?
-  email        String?
+  // @unique: Postgres allows any number of NULLs in a unique column, so
+  // suppliers without an email are unaffected — this only rejects a second
+  // supplier being created with the same real-world vendor's email,
+  // preventing accidental duplicate entry.
+  email        String?  @unique
   phone        String?
   address      String?
   paymentTerms String?  // Free text (e.g. "NET30", "COD") — same convention as Order.paymentTerms
@@ -1588,6 +1647,19 @@ model PurchaseOrderItem {
   @@map("purchase_order_items")
 }
 
+// The full, fixed set of options the "New Manual Sale" admin form actually
+// offers (src/app/admin/manual-sales/new/page.tsx) — was a free-text String
+// with an open-ended "etc." in its comment, so nothing stopped a future
+// write path from persisting a value the UI/filters don't know how to
+// display or filter by.
+enum ManualSaleType {
+  OFFLINE
+  PHONE_ORDER
+  WHOLESALE_DIRECT
+  EXTERNAL_CHANNEL
+  OTHER
+}
+
 // Manual Sales Entry - For recording offline/external sales
 model ManualSalesEntry {
   id              String   @id @default(cuid())
@@ -1595,7 +1667,7 @@ model ManualSalesEntry {
   // Sale Information
   saleDate        DateTime // Date of actual sale
   referenceNumber String?  // Invoice/Receipt number
-  saleType        String   @default("OFFLINE") // OFFLINE, PHONE_ORDER, WHOLESALE_DIRECT, etc.
+  saleType        ManualSaleType @default(OFFLINE)
   
   // Customer Information (Optional)
   customerId      String?
@@ -1615,7 +1687,10 @@ model ManualSalesEntry {
   
   // Payment Details
   paymentMethod   String?  // CASH, BANK_TRANSFER, MOBILE_PAYMENT, etc.
-  paymentStatus   String   @default("PAID") // PAID, PENDING, PARTIAL
+  // Reuses the same PaymentStatus enum as Sale/Salary/OperationalCost
+  // (only PENDING/PAID/PARTIAL are ever assigned here) instead of a
+  // free-text String with no schema-level validation.
+  paymentStatus   PaymentStatus @default(PAID)
   amountPaid      Float?   // If partial payment
   
   // Inventory Impact

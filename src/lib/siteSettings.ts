@@ -1,7 +1,6 @@
-import fs from 'fs';
-import path from 'path';
+import { prisma } from '@/lib/prisma';
 
-const SETTINGS_FILE = path.join(process.cwd(), 'data', 'site-settings.json');
+const SITE_SETTINGS_KEY = 'site_settings';
 
 export const defaultSettings = {
   general: {
@@ -37,21 +36,16 @@ export const defaultSettings = {
 
 export type SiteSettings = typeof defaultSettings;
 
-function ensureDataDir() {
-  const dataDir = path.join(process.cwd(), 'data');
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-}
-
-// Read settings from file, merged with defaults so a settings file saved
-// before a new category existed still returns that category's defaults
-// instead of `undefined`.
-export function readSettings(): SiteSettings {
+// Read settings from the PlatformConfig table, merged with defaults so a
+// settings record saved before a new category existed still returns that
+// category's defaults instead of `undefined`.
+export async function readSettings(): Promise<SiteSettings> {
   try {
-    ensureDataDir();
-    if (fs.existsSync(SETTINGS_FILE)) {
-      const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+    const record = await prisma.platformConfig.findUnique({
+      where: { key: SITE_SETTINGS_KEY },
+    });
+    if (record) {
+      const data = JSON.parse(record.value);
       return {
         general: { ...defaultSettings.general, ...data.general },
         orders: { ...defaultSettings.orders, ...data.orders },
@@ -66,10 +60,19 @@ export function readSettings(): SiteSettings {
   }
 }
 
-export function writeSettings(settings: SiteSettings): boolean {
+export async function writeSettings(settings: SiteSettings): Promise<boolean> {
   try {
-    ensureDataDir();
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8');
+    const value = JSON.stringify(settings);
+    await prisma.platformConfig.upsert({
+      where: { key: SITE_SETTINGS_KEY },
+      create: {
+        key: SITE_SETTINGS_KEY,
+        value,
+        category: 'general',
+        description: 'Site settings (general/orders/system/carousel config)',
+      },
+      update: { value },
+    });
     return true;
   } catch (error) {
     console.error('Error writing settings:', error);

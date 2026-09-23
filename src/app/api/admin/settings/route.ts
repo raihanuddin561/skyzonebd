@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const settings = readSettings();
+    const settings = await readSettings();
     return NextResponse.json({
       success: true,
       data: settings,
@@ -48,7 +48,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const currentSettings = readSettings();
+    const currentSettings = await readSettings();
 
     // Merge new settings with current settings
     const updatedSettings = {
@@ -58,7 +58,7 @@ export async function PUT(request: NextRequest) {
       carousel: { ...currentSettings.carousel, ...body.carousel },
     };
 
-    const success = writeSettings(updatedSettings);
+    const success = await writeSettings(updatedSettings);
 
     if (success) {
       return NextResponse.json({

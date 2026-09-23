@@ -68,11 +68,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedEmail = email ? email.trim() : null;
+
+    // Friendly pre-check so a typo re-entry / double-click doesn't fragment
+    // one real-world vendor into multiple Supplier rows — the DB's own
+    // unique constraint on email is the real (race-safe) guard, caught
+    // below as a fallback for the concurrent case.
+    if (normalizedEmail) {
+      const existing = await prisma.supplier.findUnique({ where: { email: normalizedEmail } });
+      if (existing) {
+        return NextResponse.json(
+          { success: false, error: `A supplier with email ${normalizedEmail} already exists (${existing.name})` },
+          { status: 400 }
+        );
+      }
+    }
+
     const supplier = await prisma.supplier.create({
       data: {
         name: name.trim(),
         contactName: contactName || null,
-        email: email || null,
+        email: normalizedEmail,
         phone: phone || null,
         address: address || null,
         paymentTerms: paymentTerms || null,
@@ -87,6 +103,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof Response) {
       return error;
+    }
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      return NextResponse.json(
+        { success: false, error: 'A supplier with this email already exists' },
+        { status: 409 }
+      );
     }
     console.error('Error creating supplier:', error);
     return NextResponse.json(

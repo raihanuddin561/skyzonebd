@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { UserRole, isAdmin } from '@/types/roles';
 
@@ -9,8 +8,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
-
-const SHIPPING_FILE = path.join(process.cwd(), 'data', 'shipping-zones.json');
+const SHIPPING_CONFIG_KEY = 'shipping_config';
 
 // Default shipping zones for Bangladesh
 const defaultShippingZones = [
@@ -75,21 +73,14 @@ const deliveryPartners = [
   },
 ];
 
-// Ensure data directory exists
-function ensureDataDir() {
-  const dataDir = path.join(process.cwd(), 'data');
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-}
-
-// Read shipping config from file
-function readShippingConfig() {
+// Read shipping config from the PlatformConfig table
+async function readShippingConfig() {
   try {
-    ensureDataDir();
-    if (fs.existsSync(SHIPPING_FILE)) {
-      const data = fs.readFileSync(SHIPPING_FILE, 'utf8');
-      return JSON.parse(data);
+    const record = await prisma.platformConfig.findUnique({
+      where: { key: SHIPPING_CONFIG_KEY },
+    });
+    if (record) {
+      return JSON.parse(record.value);
     }
     return {
       zones: defaultShippingZones,
@@ -104,11 +95,20 @@ function readShippingConfig() {
   }
 }
 
-// Write shipping config to file
-function writeShippingConfig(config: any) {
+// Write shipping config to the PlatformConfig table
+async function writeShippingConfig(config: any) {
   try {
-    ensureDataDir();
-    fs.writeFileSync(SHIPPING_FILE, JSON.stringify(config, null, 2), 'utf8');
+    const value = JSON.stringify(config);
+    await prisma.platformConfig.upsert({
+      where: { key: SHIPPING_CONFIG_KEY },
+      create: {
+        key: SHIPPING_CONFIG_KEY,
+        value,
+        category: 'general',
+        description: 'Shipping zones and delivery partners config',
+      },
+      update: { value },
+    });
     return true;
   } catch (error) {
     console.error('Error writing shipping config:', error);
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const config = readShippingConfig();
+    const config = await readShippingConfig();
 
     return NextResponse.json({
       success: true,
@@ -169,7 +169,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const config = readShippingConfig();
+    const config = await readShippingConfig();
 
     if (type === 'zone') {
       const zoneIndex = config.zones.findIndex((z: any) => z.id === id);
@@ -202,7 +202,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const success = writeShippingConfig(config);
+    const success = await writeShippingConfig(config);
 
     if (success) {
       return NextResponse.json({

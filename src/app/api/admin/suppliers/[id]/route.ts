@@ -73,7 +73,7 @@ export async function PATCH(
       updateData.name = body.name.trim();
     }
     if (body.contactName !== undefined) updateData.contactName = body.contactName || null;
-    if (body.email !== undefined) updateData.email = body.email || null;
+    if (body.email !== undefined) updateData.email = body.email ? body.email.trim() : null;
     if (body.phone !== undefined) updateData.phone = body.phone || null;
     if (body.address !== undefined) updateData.address = body.address || null;
     if (body.paymentTerms !== undefined) updateData.paymentTerms = body.paymentTerms || null;
@@ -89,6 +89,12 @@ export async function PATCH(
   } catch (error) {
     if (error instanceof Response) {
       return error;
+    }
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      return NextResponse.json(
+        { success: false, error: 'A supplier with this email already exists' },
+        { status: 409 }
+      );
     }
     console.error('Error updating supplier:', error);
     return NextResponse.json(

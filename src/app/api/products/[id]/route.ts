@@ -408,9 +408,63 @@ export async function DELETE(
 
     if (orderItemCount > 0) {
       return NextResponse.json(
-        { 
+        {
           error: 'Cannot delete product',
           message: `This product cannot be deleted because it has been used in ${orderItemCount} order(s). Products with order history must be kept for record-keeping purposes.`,
+          suggestion: 'You can deactivate the product instead by setting it to inactive.'
+        },
+        { status: 400 }
+      );
+    }
+
+    // Check every other relation that now uses onDelete: Restrict (or was
+    // already implicitly Restrict) at the database level. A product with
+    // restock/inventory/purchasing/RFQ/sales history but no OrderItem rows
+    // would previously pass the guard above and then blow up on
+    // prisma.product.delete() with a raw, uncaught Postgres FK-violation
+    // surfaced as an opaque 500 — check these explicitly instead so we can
+    // return a clear 400.
+    const [
+      stockLotCount,
+      inventoryLogCount,
+      purchaseOrderItemCount,
+      rfqItemCount,
+      saleCount,
+      manualSalesItemCount,
+    ] = await Promise.all([
+      prisma.stockLot.count({ where: { productId } }),
+      prisma.inventoryLog.count({ where: { productId } }),
+      prisma.purchaseOrderItem.count({ where: { productId } }),
+      prisma.rFQItem.count({ where: { productId } }),
+      prisma.sale.count({ where: { productId } }),
+      prisma.manualSalesItem.count({ where: { productId } }),
+    ]);
+
+    const blockers: string[] = [];
+    if (stockLotCount > 0) {
+      blockers.push(`${stockLotCount} stock lot/restock record(s)`);
+    }
+    if (inventoryLogCount > 0) {
+      blockers.push(`${inventoryLogCount} inventory log record(s)`);
+    }
+    if (purchaseOrderItemCount > 0) {
+      blockers.push(`${purchaseOrderItemCount} purchase order line item(s)`);
+    }
+    if (rfqItemCount > 0) {
+      blockers.push(`${rfqItemCount} RFQ (quote request) item(s)`);
+    }
+    if (saleCount > 0) {
+      blockers.push(`${saleCount} sale record(s)`);
+    }
+    if (manualSalesItemCount > 0) {
+      blockers.push(`${manualSalesItemCount} manual sales entry item(s)`);
+    }
+
+    if (blockers.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'Cannot delete product',
+          message: `This product cannot be deleted because it has ${blockers.join(', ')}. Products with restock, inventory, purchasing, or sales history must be kept for record-keeping purposes.`,
           suggestion: 'You can deactivate the product instead by setting it to inactive.'
         },
         { status: 400 }
