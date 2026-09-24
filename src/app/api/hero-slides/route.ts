@@ -64,6 +64,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (productId) {
+      const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
+      if (!product) {
+        return NextResponse.json(
+          { success: false, error: `Product ${productId} not found` },
+          { status: 400 }
+        );
+      }
+    }
+
     const slide = await prisma.heroSlide.create({
       data: {
         title,

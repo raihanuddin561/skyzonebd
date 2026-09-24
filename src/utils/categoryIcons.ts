@@ -24,7 +24,7 @@ export const getCategoryIcon = (categoryName: string): string => {
     'console': '🎮',
     
     // Fashion & Apparel
-    'fashion': '�',
+    'fashion': '👗',
     'clothing': '👕',
     'clothes': '👕',
     'apparel': '👔',
@@ -113,7 +113,7 @@ export const getCategoryIcon = (categoryName: string): string => {
     'books': '📚',
     'book': '📖',
     'stationery': '✏️',
-    'office': '�',
+    'office': '💼',
     'office supplies': '📎',
     'pen': '✒️',
     'notebook': '📓',
@@ -128,8 +128,8 @@ export const getCategoryIcon = (categoryName: string): string => {
     'motorcycle': '🏍️',
     'parts': '🔧',
     'car parts': '🔧',
-    'car accessories': '�',
-    'tires': '�',
+    'car accessories': '🔧',
+    'tires': '🛞',
     
     // Pet Supplies
     'pets': '🐾',

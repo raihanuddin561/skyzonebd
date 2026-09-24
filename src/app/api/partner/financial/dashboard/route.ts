@@ -251,13 +251,17 @@ export async function GET(request: NextRequest) {
     const partnerCurrentShare = partner ? currentProfit * (partner.profitSharePercentage / 100) : 0;
     const partnerPreviousShare = partner ? previousProfit * (partner.profitSharePercentage / 100) : 0;
     
-    // Calculate percentage changes
-    const revenueChange = calculatePercentageChange(previousRevenue, currentRevenue);
-    const profitChange = calculatePercentageChange(previousProfit, currentProfit);
-    const ordersChange = calculatePercentageChange(previousOrderCount, currentOrderCount);
-    const aovChange = calculatePercentageChange(previousAOV, currentAOV);
-    const profitMarginChange = calculatePercentageChange(previousProfitMargin, currentProfitMargin);
-    const partnerShareChange = calculatePercentageChange(partnerPreviousShare, partnerCurrentShare);
+    // Calculate percentage changes. calculatePercentageChange(current, previous)
+    // computes (current - previous) / previous * 100 — it must be called with
+    // the newer value first. Calling it (previous, current) as this route
+    // used to silently flipped the sign and magnitude of every trend shown
+    // to the partner (e.g. a genuine +100% revenue increase rendered as -50%).
+    const revenueChange = calculatePercentageChange(currentRevenue, previousRevenue);
+    const profitChange = calculatePercentageChange(currentProfit, previousProfit);
+    const ordersChange = calculatePercentageChange(currentOrderCount, previousOrderCount);
+    const aovChange = calculatePercentageChange(currentAOV, previousAOV);
+    const profitMarginChange = calculatePercentageChange(currentProfitMargin, previousProfitMargin);
+    const partnerShareChange = calculatePercentageChange(partnerCurrentShare, partnerPreviousShare);
     
     return NextResponse.json({
       success: true,

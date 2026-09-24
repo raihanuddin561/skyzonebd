@@ -527,12 +527,12 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                       >
                         <div className="relative rounded-lg w-20 h-20 bg-gray-100 overflow-hidden">
                           <img
-                            src={item.imageUrl || '/images/placeholder.jpg'}
+                            src={item.imageUrl || '/images/placeholder.svg'}
                             alt={item.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
-                              target.src = '/images/placeholder.jpg';
+                              target.src = '/images/placeholder.svg';
                             }}
                           />
                         </div>

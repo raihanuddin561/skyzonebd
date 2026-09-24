@@ -126,16 +126,22 @@ function validateWholesaleTiers(
     // Check for overlapping ranges with next tier
     if (i < sortedTiers.length - 1) {
       const nextTier = sortedTiers[i + 1];
-      
-      // Current tier's max should be less than next tier's min (no overlap)
-      if (tier.maxQuantity !== null) {
-        if (tier.maxQuantity >= nextTier.minQuantity) {
-          errors.push(
-            `Overlapping tier ranges detected: ` +
-            `Tier ${i + 1} (${tier.minQuantity}-${tier.maxQuantity}) overlaps with ` +
-            `Tier ${i + 2} (${nextTier.minQuantity}-${nextTier.maxQuantity || '∞'})`
-          );
-        }
+
+      // An unbounded tier (maxQuantity === null) covers every quantity from
+      // its minQuantity upward, so it always overlaps whichever tier sorts
+      // after it — the admin product form lets "max" be left blank
+      // ("Leave empty for ∞") on ANY tier row, not just the last one
+      // (src/app/admin/products/new/page.tsx), so a non-last unbounded tier
+      // is a real, reachable input, not a hypothetical. Previously this
+      // branch only compared bounded tiers (`tier.maxQuantity !== null`),
+      // so e.g. tier 1 = 10-∞ followed by tier 2 = 50-100 passed validation
+      // silently even though tier 1 swallows tier 2's entire range.
+      if (tier.maxQuantity === null || tier.maxQuantity >= nextTier.minQuantity) {
+        errors.push(
+          `Overlapping tier ranges detected: ` +
+          `Tier ${i + 1} (${tier.minQuantity}-${tier.maxQuantity ?? '∞'}) overlaps with ` +
+          `Tier ${i + 2} (${nextTier.minQuantity}-${nextTier.maxQuantity ?? '∞'})`
+        );
       }
     }
 

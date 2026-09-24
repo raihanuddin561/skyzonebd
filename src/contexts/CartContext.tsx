@@ -118,8 +118,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Save cart to localStorage whenever it changes (but only after initial load)
   useEffect(() => {
     if (typeof window !== 'undefined' && isLoaded) {
-
-      localStorage.setItem('cart', JSON.stringify(items));
+      try {
+        localStorage.setItem('cart', JSON.stringify(items));
+      } catch (error) {
+        console.error('Error saving cart to localStorage:', error);
+      }
     }
   }, [items, isLoaded]);
 

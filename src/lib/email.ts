@@ -286,6 +286,7 @@ class EmailService {
    * Send business verification email
    */
   async sendBusinessVerificationStatus(to: string, userName: string, status: 'APPROVED' | 'REJECTED', reason?: string) {
+    const safeUserName = escapeHtml(userName);
     const safeReason = reason !== undefined ? escapeHtml(reason) : undefined;
     const subject = status === 'APPROVED' ? 'Business Account Approved!' : 'Business Account Update';
     const html = `
@@ -293,7 +294,7 @@ class EmailService {
       <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2>Hi ${userName},</h2>
+            <h2>Hi ${safeUserName},</h2>
             ${status === 'APPROVED' ? `
               <p style="color: #059669; font-weight: bold;">Your business account has been approved! 🎉</p>
               <p>You now have access to wholesale pricing and bulk order features.</p>
@@ -474,13 +475,14 @@ class EmailService {
    * Send data deletion confirmation email
    */
   async sendDataDeletionConfirmation(to: string, userName: string) {
+    const safeUserName = escapeHtml(userName);
     const subject = 'Data Deletion Request Received';
     const html = `
       <!DOCTYPE html>
       <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2>Hi ${userName},</h2>
+            <h2>Hi ${safeUserName},</h2>
             <p>We've received your request to delete your account and associated data.</p>
             <p>Your data will be deleted within 30 days as per our privacy policy.</p>
             <p>If you didn't request this, please contact us immediately.</p>

@@ -241,11 +241,16 @@ export async function GET(request: NextRequest) {
       const latest = enrichedData[0];
       const previous = enrichedData[1];
       
+      // calculatePercentageChange(current, previous) computes
+      // (current - previous) / previous * 100 — the newer value must be
+      // passed first. This call had them reversed, which flipped the sign
+      // and magnitude of every change figure (e.g. a real +100% revenue
+      // increase would have rendered as -50%).
       comparison = {
-        revenueChange: calculatePercentageChange(previous.revenue, latest.revenue),
-        profitChange: calculatePercentageChange(previous.profit, latest.profit),
-        ordersChange: calculatePercentageChange(previous.orderCount, latest.orderCount),
-        aovChange: calculatePercentageChange(previous.averageOrderValue, latest.averageOrderValue)
+        revenueChange: calculatePercentageChange(latest.revenue, previous.revenue),
+        profitChange: calculatePercentageChange(latest.profit, previous.profit),
+        ordersChange: calculatePercentageChange(latest.orderCount, previous.orderCount),
+        aovChange: calculatePercentageChange(latest.averageOrderValue, previous.averageOrderValue)
       };
     }
     

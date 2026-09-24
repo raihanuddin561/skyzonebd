@@ -196,9 +196,19 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Check if any products are using this unit
+    const unitToDelete = await prisma.unit.findUnique({ where: { id } });
+    if (!unitToDelete) {
+      return NextResponse.json(
+        { success: false, error: 'Unit not found' },
+        { status: 404 }
+      );
+    }
+
+    // Product.unit stores the unit's symbol (e.g. "kg"), not its id, so the
+    // in-use check must match on symbol — matching on `id` never matched any
+    // product and silently let in-use units be deleted.
     const productsCount = await prisma.product.count({
-      where: { unit: id },
+      where: { unit: unitToDelete.symbol },
     });
 
     if (productsCount > 0) {

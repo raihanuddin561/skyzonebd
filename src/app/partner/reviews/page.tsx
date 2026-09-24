@@ -43,6 +43,13 @@ export default function PartnerReviewsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   
+  // Changing a filter should return to page 1 — otherwise a partner
+  // narrowing from a filter with many pages to one with fewer can land past
+  // the end and see an empty result with no indication why.
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, ratingFilter]);
+
   useEffect(() => {
     fetchReviews();
   }, [statusFilter, ratingFilter, page]);

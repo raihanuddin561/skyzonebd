@@ -11,9 +11,13 @@ const ORDER_STATUS_STYLES: Record<string, { color: string; icon: string; label: 
   pending: { color: 'bg-yellow-100 text-yellow-800', icon: '⏳', label: 'Pending' },
   confirmed: { color: 'bg-blue-100 text-blue-800', icon: '✅', label: 'Confirmed' },
   processing: { color: 'bg-purple-100 text-purple-800', icon: '⚙️', label: 'Processing' },
+  packed: { color: 'bg-cyan-100 text-cyan-800', icon: '📋', label: 'Packed' },
   shipped: { color: 'bg-indigo-100 text-indigo-800', icon: '🚚', label: 'Shipped' },
+  in_transit: { color: 'bg-indigo-100 text-indigo-800', icon: '🚛', label: 'In Transit' },
   delivered: { color: 'bg-green-100 text-green-800', icon: '📦', label: 'Delivered' },
   cancelled: { color: 'bg-red-100 text-red-800', icon: '❌', label: 'Cancelled' },
+  returned: { color: 'bg-orange-100 text-orange-800', icon: '↩️', label: 'Returned' },
+  refunded: { color: 'bg-gray-100 text-gray-800', icon: '💸', label: 'Refunded' },
 };
 
 const FALLBACK = { color: 'bg-gray-100 text-gray-800', icon: '•', label: 'Unknown' };

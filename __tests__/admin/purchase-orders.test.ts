@@ -15,8 +15,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-on
 const mockPrismaClient: any = {
   user: { findUnique: jest.fn() },
   supplier: { findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn(), create: jest.fn() },
-  purchaseOrder: { findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn(), create: jest.fn(), update: jest.fn() },
-  purchaseOrderItem: { update: jest.fn(), findMany: jest.fn(), findUniqueOrThrow: jest.fn() },
+  purchaseOrder: { findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findUniqueOrThrow: jest.fn() },
+  purchaseOrderItem: { update: jest.fn(), updateMany: jest.fn(), findMany: jest.fn(), findUniqueOrThrow: jest.fn() },
   product: { findUnique: jest.fn(), update: jest.fn().mockResolvedValue({}) },
   stockLot: { create: jest.fn() },
   inventoryLog: { create: jest.fn() },
@@ -104,9 +104,24 @@ describe('PATCH /api/admin/purchase-orders/[id]', () => {
   it('allows DRAFT -> SENT', async () => {
     const { PATCH } = require('@/app/api/admin/purchase-orders/[id]/route');
     (mockPrismaClient.purchaseOrder.findUnique as jest.Mock).mockResolvedValueOnce({ id: 'po1', status: 'DRAFT' });
-    (mockPrismaClient.purchaseOrder.update as jest.Mock).mockResolvedValueOnce({ id: 'po1', status: 'SENT', supplier: {}, items: [] });
+    (mockPrismaClient.purchaseOrder.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+    (mockPrismaClient.purchaseOrder.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({ id: 'po1', status: 'SENT', supplier: {}, items: [] });
     const res = await PATCH(req({ status: 'SENT' }), { params });
     expect(res.status).toBe(200);
+    expect(mockPrismaClient.purchaseOrder.updateMany).toHaveBeenCalledWith({
+      where: { id: 'po1', status: 'DRAFT' },
+      data: { status: 'SENT' },
+    });
+  });
+
+  it('rejects a status transition that was concurrently changed underneath it', async () => {
+    const { PATCH } = require('@/app/api/admin/purchase-orders/[id]/route');
+    (mockPrismaClient.purchaseOrder.findUnique as jest.Mock).mockResolvedValueOnce({ id: 'po1', status: 'DRAFT' });
+    // Another request already moved it off DRAFT between the read above and
+    // this guarded write, so the conditional updateMany matches nothing.
+    (mockPrismaClient.purchaseOrder.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+    const res = await PATCH(req({ status: 'SENT' }), { params });
+    expect(res.status).toBe(409);
   });
 });
 
@@ -141,9 +156,11 @@ describe('POST /api/admin/purchase-orders/[id]/receive', () => {
     const { POST } = require('@/app/api/admin/purchase-orders/[id]/receive/route');
     mockStockLotCreation();
     (mockPrismaClient.purchaseOrder.findUnique as jest.Mock).mockResolvedValueOnce(basePO);
-    (mockPrismaClient.purchaseOrderItem.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({
-      id: 'poi-1', quantityOrdered: 10, quantityReceived: 0,
-    });
+    // Fresh in-transaction re-check that the PO itself wasn't concurrently cancelled.
+    (mockPrismaClient.purchaseOrder.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({ status: 'SENT' });
+    // Guarded updateMany closes the double-receive race — count: 1 means this
+    // call's increment was the one that applied.
+    (mockPrismaClient.purchaseOrderItem.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
     (mockPrismaClient.purchaseOrderItem.findMany as jest.Mock).mockResolvedValueOnce([
       { id: 'poi-1', quantityOrdered: 10, quantityReceived: 6 },
     ]);
@@ -153,8 +170,9 @@ describe('POST /api/admin/purchase-orders/[id]/receive', () => {
     expect(res.status).toBe(200);
     const updateArg = (mockPrismaClient.purchaseOrder.update as jest.Mock).mock.calls[0][0];
     expect(updateArg.data.status).toBe('PARTIALLY_RECEIVED');
-    expect(mockPrismaClient.purchaseOrderItem.update).toHaveBeenCalledWith({
-      where: { id: 'poi-1' }, data: { quantityReceived: { increment: 6 } },
+    expect(mockPrismaClient.purchaseOrderItem.updateMany).toHaveBeenCalledWith({
+      where: { id: 'poi-1', quantityReceived: { lte: 4 } },
+      data: { quantityReceived: { increment: 6 } },
     });
   });
 
@@ -162,9 +180,8 @@ describe('POST /api/admin/purchase-orders/[id]/receive', () => {
     const { POST } = require('@/app/api/admin/purchase-orders/[id]/receive/route');
     mockStockLotCreation();
     (mockPrismaClient.purchaseOrder.findUnique as jest.Mock).mockResolvedValueOnce(basePO);
-    (mockPrismaClient.purchaseOrderItem.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({
-      id: 'poi-1', quantityOrdered: 10, quantityReceived: 0,
-    });
+    (mockPrismaClient.purchaseOrder.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({ status: 'SENT' });
+    (mockPrismaClient.purchaseOrderItem.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
     (mockPrismaClient.purchaseOrderItem.findMany as jest.Mock).mockResolvedValueOnce([
       { id: 'poi-1', quantityOrdered: 10, quantityReceived: 10 },
     ]);
@@ -176,20 +193,36 @@ describe('POST /api/admin/purchase-orders/[id]/receive', () => {
     expect(updateArg.data.status).toBe('RECEIVED');
   });
 
+  it('rejects receiving against a purchase order that was concurrently cancelled', async () => {
+    const { POST } = require('@/app/api/admin/purchase-orders/[id]/receive/route');
+    mockStockLotCreation();
+    (mockPrismaClient.purchaseOrder.findUnique as jest.Mock).mockResolvedValueOnce(basePO);
+    // The pre-transaction check saw SENT, but a concurrent PATCH cancelled
+    // the PO before this transaction's fresh in-tx read.
+    (mockPrismaClient.purchaseOrder.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({ status: 'CANCELLED' });
+
+    const res = await POST(req({ items: [{ purchaseOrderItemId: 'poi-1', quantityReceived: 6 }] }), { params });
+    expect(res.status).toBe(409);
+    expect(mockPrismaClient.purchaseOrderItem.updateMany).not.toHaveBeenCalled();
+  });
+
   it('aborts if a concurrent receipt already consumed the remaining quantity before this transaction runs', async () => {
     const { POST } = require('@/app/api/admin/purchase-orders/[id]/receive/route');
     mockStockLotCreation();
     (mockPrismaClient.purchaseOrder.findUnique as jest.Mock).mockResolvedValueOnce(basePO);
+    (mockPrismaClient.purchaseOrder.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({ status: 'SENT' });
     // The pre-transaction validation pass reads the stale `basePO` snapshot
-    // (quantityReceived: 0, so 6 looks valid), but a fresh in-transaction
-    // read shows another concurrent receipt already consumed all 10 units.
+    // (quantityReceived: 0, so 6 looks valid), but the guarded updateMany
+    // matches nothing because another concurrent receipt already consumed
+    // all 10 units before this one committed.
+    (mockPrismaClient.purchaseOrderItem.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
     (mockPrismaClient.purchaseOrderItem.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({
       id: 'poi-1', quantityOrdered: 10, quantityReceived: 10,
     });
 
     const res = await POST(req({ items: [{ purchaseOrderItemId: 'poi-1', quantityReceived: 6 }] }), { params });
-    expect(res.status).toBe(500);
-    expect(mockPrismaClient.purchaseOrderItem.update).not.toHaveBeenCalled();
+    expect(res.status).toBe(409);
+    expect(mockPrismaClient.stockLot.create).not.toHaveBeenCalled();
     expect(mockPrismaClient.purchaseOrder.update).not.toHaveBeenCalled();
   });
 });

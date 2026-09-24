@@ -70,6 +70,7 @@ export async function PATCH(
     }
 
     const updateData: any = {};
+    let expectedStatus: typeof existing.status | undefined;
 
     if (body.status !== undefined) {
       const allowed = ALLOWED_TRANSITIONS[existing.status] || [];
@@ -80,13 +81,33 @@ export async function PATCH(
         );
       }
       updateData.status = body.status;
+      expectedStatus = existing.status;
     }
     if (body.notes !== undefined) updateData.notes = body.notes || null;
     if (body.expectedDate !== undefined) updateData.expectedDate = body.expectedDate ? new Date(body.expectedDate) : null;
 
-    const purchaseOrder = await prisma.purchaseOrder.update({
+    // When changing status, guard the write with a conditional updateMany
+    // (same idiom as orders/cancel and admin/stock/adjust) so a concurrent
+    // status change — most importantly the receive route flipping this PO
+    // to PARTIALLY_RECEIVED/RECEIVED — can't be silently clobbered by a
+    // stale transition decided from the `existing` read above.
+    if (expectedStatus !== undefined) {
+      const guard = await prisma.purchaseOrder.updateMany({
+        where: { id, status: expectedStatus },
+        data: updateData,
+      });
+      if (guard.count === 0) {
+        return NextResponse.json(
+          { success: false, error: 'This purchase order was concurrently modified — refresh and try again' },
+          { status: 409 }
+        );
+      }
+    } else {
+      await prisma.purchaseOrder.update({ where: { id }, data: updateData });
+    }
+
+    const purchaseOrder = await prisma.purchaseOrder.findUniqueOrThrow({
       where: { id },
-      data: updateData,
       include: {
         supplier: { select: { id: true, name: true } },
         items: { include: { product: { select: { id: true, name: true, sku: true } } } },

@@ -28,8 +28,6 @@ export default function DashboardStats({ summary, profitSharePercentage }: Dashb
     {
       title: 'Total Profit Earned',
       value: formatCurrency(summary.totalEarned),
-      change: '+12.5%',
-      trend: 'up',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -94,11 +92,6 @@ export default function DashboardStats({ summary, profitSharePercentage }: Dashb
                 <p className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</p>
                 {stat.subtitle && (
                   <p className="text-xs text-gray-500">{stat.subtitle}</p>
-                )}
-                {stat.change && (
-                  <p className={`text-xs mt-1 ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                    {stat.change} from last month
-                  </p>
                 )}
               </div>
               <div className={`w-12 h-12 ${colors.iconBg} rounded-lg flex items-center justify-center ${colors.text}`}>

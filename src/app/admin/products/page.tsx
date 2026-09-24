@@ -121,7 +121,7 @@ export default function ProductsManagement() {
           price: product.wholesalePrice || product.price || 0,
           stock: product.stockQuantity || 0,
           availability: product.stockQuantity > 20 ? 'in_stock' : product.stockQuantity > 0 ? 'limited' : 'out_of_stock',
-          image: product.imageUrl || '/images/placeholder.jpg',
+          image: product.imageUrl || '/images/placeholder.svg',
           featured: product.isFeatured || false,
           isActive: product.isActive ?? true, // Default to true if undefined/null
           createdAt: product.createdAt || new Date().toISOString(),

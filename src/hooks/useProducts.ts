@@ -71,6 +71,8 @@ export const useProduct = (id: number | string) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchProduct = async () => {
       try {
         setLoading(true);
@@ -78,17 +80,21 @@ export const useProduct = (id: number | string) => {
         // Convert to number if it looks like a numeric ID, otherwise keep as string
         const productId = typeof id === 'string' && !isNaN(Number(id)) ? Number(id) : id;
         const data = await dataService.products.getById(productId as number);
+        if (cancelled) return;
         setProduct(data as Product | null);
       } catch (err) {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to fetch product');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     if (id) {
       fetchProduct();
     }
+
+    return () => { cancelled = true; };
   }, [id]);
 
   return { product, loading, error };
@@ -100,22 +106,28 @@ export const useProductsByCategory = (category: string, queryParams?: any) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchProducts = async () => {
       try {
         setLoading(true);
         setError(null);
         const data = await dataService.products.getByCategory(category, queryParams);
+        if (cancelled) return;
         setProducts(data as Product[]);
       } catch (err) {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to fetch products');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     if (category) {
       fetchProducts();
     }
+
+    return () => { cancelled = true; };
   }, [category, JSON.stringify(queryParams)]);
 
   return { products, loading, error };
@@ -160,6 +172,8 @@ export const useRelatedProducts = (id: number | string) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchProducts = async () => {
       try {
         setLoading(true);
@@ -167,17 +181,21 @@ export const useRelatedProducts = (id: number | string) => {
         // Convert to number if it looks like a numeric ID, otherwise keep as string
         const productId = typeof id === 'string' && !isNaN(Number(id)) ? Number(id) : id;
         const data = await dataService.products.getRelated(productId as number);
+        if (cancelled) return;
         setProducts(data as Product[]);
       } catch (err) {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to fetch related products');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     if (id) {
       fetchProducts();
     }
+
+    return () => { cancelled = true; };
   }, [id]);
 
   return { products, loading, error };
@@ -224,23 +242,29 @@ export const useFrequentlyBoughtTogether = (id: number | string) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchProducts = async () => {
       try {
         setLoading(true);
         setError(null);
         const productId = typeof id === 'string' && !isNaN(Number(id)) ? Number(id) : id;
         const data = await dataService.products.getFrequentlyBoughtTogether(productId as number);
+        if (cancelled) return;
         setProducts(data as Product[]);
       } catch (err) {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to fetch frequently bought together products');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     if (id) {
       fetchProducts();
     }
+
+    return () => { cancelled = true; };
   }, [id]);
 
   return { products, loading, error };

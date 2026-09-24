@@ -233,19 +233,25 @@ export async function PATCH(request: NextRequest) {
         );
     }
 
-    // Update business info
-    await prisma.businessInfo.update({
-      where: { id: applicationId },
-      data: updateData,
-    });
-
-    // Update user if needed
-    if (Object.keys(userUpdate).length > 0) {
-      await prisma.user.update({
-        where: { id: businessInfo.userId },
-        data: userUpdate,
+    // Update business info and the user's isVerified flag together — these
+    // were previously two separate top-level calls, so a failure between
+    // them (e.g. a dropped connection) could leave verificationStatus
+    // APPROVED while the user's isVerified flag stays false (or vice versa),
+    // silently granting/denying B2B pricing access inconsistent with the
+    // application's own recorded status.
+    await prisma.$transaction(async (tx) => {
+      await tx.businessInfo.update({
+        where: { id: applicationId },
+        data: updateData,
       });
-    }
+
+      if (Object.keys(userUpdate).length > 0) {
+        await tx.user.update({
+          where: { id: businessInfo.userId },
+          data: userUpdate,
+        });
+      }
+    });
 
     // Best-effort status-change email (Amazon-style gap-closure Phase 4
     // part 1) — only for approve/reject, not the intermediate "review" action.

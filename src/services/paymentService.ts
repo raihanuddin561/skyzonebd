@@ -6,7 +6,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { PaymentMethod, PaymentStatus, OrderStatus } from '@prisma/client';
+import { Prisma, PaymentMethod, PaymentStatus, OrderStatus } from '@prisma/client';
 
 export interface OrderDueInfo {
   total: number;
@@ -54,6 +54,59 @@ export async function calculateOrderDue(orderId: string): Promise<OrderDueInfo> 
  * Validates amount and updates order payment status
  */
 export async function recordPayment({
+  orderId,
+  amount,
+  method,
+  transactionId,
+  gateway,
+  gatewayResponse,
+  notes,
+  receivedBy,
+  attachmentUrl,
+}: {
+  orderId: string;
+  amount: number;
+  method: PaymentMethod;
+  transactionId?: string;
+  gateway?: string;
+  gatewayResponse?: any;
+  notes?: string;
+  receivedBy: string;
+  attachmentUrl?: string;
+}) {
+  try {
+    return await recordPaymentTx({
+      orderId,
+      amount,
+      method,
+      transactionId,
+      gateway,
+      gatewayResponse,
+      notes,
+      receivedBy,
+      attachmentUrl,
+    });
+  } catch (error) {
+    // The pre-check below (`tx.payment.findUnique({ where: { transactionId } })`)
+    // is a check-then-act that isn't atomic with the create — two concurrent
+    // webhook retries for the same transactionId can both pass the pre-check
+    // before either has inserted. The DB's `@unique` constraint on
+    // Payment.transactionId still catches it, but as a raw Prisma P2002
+    // error rather than the friendly message the sequential-call path below
+    // throws. Convert it here so retried webhooks get the same clear error
+    // either way instead of an unhandled constraint-violation exception.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002' &&
+      (error.meta?.target as string[] | undefined)?.includes('transactionId')
+    ) {
+      throw new Error('Duplicate transaction ID. This payment may have already been recorded.');
+    }
+    throw error;
+  }
+}
+
+async function recordPaymentTx({
   orderId,
   amount,
   method,

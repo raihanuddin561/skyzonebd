@@ -26,7 +26,14 @@ export async function GET(
     
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;
-    const status = searchParams.get('status') || 'APPROVED'; // Default to approved only
+    // This is a public, unauthenticated endpoint — status is hardcoded to
+    // APPROVED rather than read from the query string. Previously
+    // `searchParams.get('status') || 'APPROVED'` let any caller pass
+    // `?status=PENDING` or `?status=REJECTED` to read unmoderated or
+    // rejected review content before/without approval. Moderation queues
+    // (PENDING/REJECTED) are served exclusively by the admin-only
+    // /api/admin/reviews endpoints.
+    const status = 'APPROVED';
     const sortBy = searchParams.get('sortBy') || 'createdAt'; // createdAt, rating, helpful
     const sortOrder = searchParams.get('sortOrder') || 'desc';
     const ratingFilter = searchParams.get('rating'); // Filter by specific rating

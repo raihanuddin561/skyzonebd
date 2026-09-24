@@ -16,6 +16,15 @@ interface RateLimitStore {
 
 const store: RateLimitStore = {};
 
+// Each RateLimiter instance must key into `store` with its own prefix.
+// `store` is shared at module scope (so the single cleanup timer below can
+// sweep every limiter), but without a per-instance prefix, two different
+// limiters (e.g. `strict` and `generous`) would collide on the same
+// `identifier` (IP) key and share one counter/window — a request against
+// the lenient `generous` limiter would silently consume/reset the budget
+// tracked for the same IP under the strict `auth` limiter, and vice versa.
+let limiterInstanceCounter = 0;
+
 // Clean up old entries every 5 minutes. `.unref()` so this timer never
 // keeps the Node process (or a test run) alive on its own — this module
 // was previously unused by anything, so the missing unref never mattered
@@ -32,9 +41,11 @@ cleanupInterval.unref?.();
 
 export class RateLimiter {
   private config: RateLimitConfig;
+  private readonly instanceId: number;
 
   constructor(config: RateLimitConfig) {
     this.config = config;
+    this.instanceId = limiterInstanceCounter++;
   }
 
   private getIdentifier(request: NextRequest): string {
@@ -43,10 +54,15 @@ export class RateLimiter {
     const realIp = request.headers.get('x-real-ip');
     const ip = forwarded?.split(',')[0]?.trim() || realIp || 'unknown';
 
-    // Key on IP alone. Including the User-Agent here previously let anyone
-    // bypass the limit outright by sending a different User-Agent header on
-    // every request — no proxy/IP rotation required.
-    return ip;
+    // Key on IP plus this limiter instance. Including the User-Agent here
+    // previously let anyone bypass the limit outright by sending a
+    // different User-Agent header on every request — no proxy/IP rotation
+    // required — so IP alone (not IP+UA) is intentional. But IP alone
+    // *without* the instance prefix meant every exported limiter in
+    // `rateLimiters` below (strict/auth/standard/generous/write/deletion)
+    // shared the same `store` keyspace for a given IP, so hitting one
+    // limiter's endpoint consumed and reset another's budget/window.
+    return `${this.instanceId}:${ip}`;
   }
 
   async check(request: NextRequest): Promise<{

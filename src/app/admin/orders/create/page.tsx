@@ -371,7 +371,7 @@ function CreateOrderPage() {
                           className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b last:border-b-0 flex items-center gap-3 cursor-pointer transition-colors"
                         >
                           <img 
-                            src={product.imageUrl || '/images/placeholder.jpg'} 
+                            src={product.imageUrl || '/images/placeholder.svg'} 
                             alt={product.name}
                             className="w-12 h-12 object-cover rounded"
                           />
@@ -403,7 +403,7 @@ function CreateOrderPage() {
                     {items.map((item, index) => (
                       <div key={index} className="flex gap-3 p-3 border border-gray-200 rounded-lg">
                         <img 
-                          src={item.imageUrl || '/images/placeholder.jpg'} 
+                          src={item.imageUrl || '/images/placeholder.svg'} 
                           alt={item.productName}
                           className="w-16 h-16 object-cover rounded"
                         />

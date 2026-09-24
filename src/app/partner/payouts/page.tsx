@@ -43,18 +43,29 @@ export default function PartnerPayoutsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Changing the status filter should return to page 1 — otherwise a
+  // partner filtering from a status with many pages to one with fewer can
+  // land past the end and see an empty table with no indication why.
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
+
   useEffect(() => {
     fetchPayouts();
-  }, [statusFilter]);
-  
+  }, [statusFilter, page]);
+
   const fetchPayouts = async () => {
     try {
       setIsLoading(true);
-      
-      const url = statusFilter === 'all'
-        ? '/api/partner/financial/distributions'
-        : `/api/partner/financial/distributions?status=${statusFilter}`;
+
+      const params = new URLSearchParams({ page: page.toString() });
+      if (statusFilter !== 'all') {
+        params.set('status', statusFilter);
+      }
+      const url = `/api/partner/financial/distributions?${params}`;
 
       const token = localStorage.getItem('token');
       const response = await fetch(url, {
@@ -64,11 +75,12 @@ export default function PartnerPayoutsPage() {
       if (!response.ok) {
         throw new Error('Failed to fetch payouts');
       }
-      
+
       const data = await response.json();
-      
+
       setPayouts(data.data?.distributions || []);
       setSummary(data.data?.summary || null);
+      setTotalPages(data.pagination?.pages || 1);
     } catch (err) {
       setError('Failed to load payout data');
       console.error(err);
@@ -229,6 +241,29 @@ export default function PartnerPayoutsPage() {
           />
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-6">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-gray-600">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+      )}
         </div>
         <Footer />
       </main>

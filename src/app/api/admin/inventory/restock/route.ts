@@ -39,20 +39,36 @@ export async function POST(request: NextRequest) {
     } = body;
     
     // Validation
-    if (!productId || !quantity || !costPerUnit) {
+    if (!productId || quantity === undefined || quantity === null || costPerUnit === undefined || costPerUnit === null) {
       return NextResponse.json(
         { error: 'Product ID, quantity, and cost per unit are required' },
         { status: 400 }
       );
     }
-    
-    if (quantity <= 0 || costPerUnit <= 0) {
+
+    // Coerce once, up front, and require the result to be a real finite
+    // number — quantity/costPerUnit <= 0 on a non-numeric value (e.g. "abc")
+    // evaluates to NaN <= 0, which is false, so a malformed value used to
+    // sail past this check and only turn into NaN later at parseInt/
+    // parseFloat time, silently corrupting Product.stockQuantity and the
+    // new StockLot's quantity/cost fields with NaN.
+    const quantityNum = typeof quantity === 'number' ? quantity : parseInt(quantity, 10);
+    const costPerUnitNum = typeof costPerUnit === 'number' ? costPerUnit : parseFloat(costPerUnit);
+
+    if (!Number.isFinite(quantityNum) || !Number.isFinite(costPerUnitNum)) {
+      return NextResponse.json(
+        { error: 'Quantity and cost per unit must be valid numbers' },
+        { status: 400 }
+      );
+    }
+
+    if (quantityNum <= 0 || costPerUnitNum <= 0) {
       return NextResponse.json(
         { error: 'Quantity and cost must be positive numbers' },
         { status: 400 }
       );
     }
-    
+
     // Verify product exists
     const product = await prisma.product.findUnique({
       where: { id: productId },
@@ -69,8 +85,8 @@ export async function POST(request: NextRequest) {
     // Create stock lot
     const stockLot = await addStockLot({
       productId,
-      quantity: parseInt(quantity),
-      costPerUnit: parseFloat(costPerUnit),
+      quantity: quantityNum,
+      costPerUnit: costPerUnitNum,
       lotNumber,
       supplierId,
       supplierName,
@@ -88,12 +104,12 @@ export async function POST(request: NextRequest) {
       entityType: 'StockLot',
       entityId: stockLot.id,
       entityName: stockLot.lotNumber,
-      description: `Added stock lot: ${quantity} units of ${product.name} at ${costPerUnit} per unit`,
-      metadata: { 
-        productId, 
+      description: `Added stock lot: ${quantityNum} units of ${product.name} at ${costPerUnitNum} per unit`,
+      metadata: {
+        productId,
         productName: product.name,
-        quantity, 
-        costPerUnit,
+        quantity: quantityNum,
+        costPerUnit: costPerUnitNum,
         totalCost: stockLot.totalCost,
       },
     });

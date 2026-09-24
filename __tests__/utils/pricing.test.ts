@@ -115,7 +115,7 @@ describe('Wholesale Pricing Calculations', () => {
       const result = getNextTierBenefit(mockProduct, 30);
       expect(result).not.toBeNull();
       expect(result!.quantityNeeded).toBe(20); // Need 20 more to reach 50
-      expect(result!.nextTier.minQuantity).toBe(50);
+      expect(result!.nextTier!.minQuantity).toBe(50);
       expect(result!.currentUnitPrice).toBe(95);
       expect(result!.nextUnitPrice).toBe(90);
     });

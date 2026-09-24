@@ -73,7 +73,14 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   // pre-login guest picks, since there's no server-side identity to merge
   // them into until this point.
   useEffect(() => {
-    if (authLoading || !isAuthenticated) return;
+    if (authLoading) return;
+
+    if (!isAuthenticated) {
+      // Logout (or no session): drop any previously loaded user's wishlist
+      // so it doesn't stay visible to the next guest/user on this browser.
+      dispatch({ type: 'CLEAR_WISHLIST' });
+      return;
+    }
 
     let cancelled = false;
     (async () => {

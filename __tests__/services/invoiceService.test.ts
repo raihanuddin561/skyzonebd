@@ -94,7 +94,10 @@ describe('createInvoiceForOrder', () => {
 
     expect(invoice.status).toBe('UNPAID');
     expect(invoice.amount).toBe(5000);
-    expect(invoice.invoiceNumber).toMatch(/^INV-\d{6}-\d{4}$/);
+    // Day-granularity date + 6-digit random suffix (was month + 4-digit),
+    // widened to cut the invoiceNumber collision probability against the
+    // @unique DB constraint — see generateInvoiceNumber in invoiceService.ts.
+    expect(invoice.invoiceNumber).toMatch(/^INV-\d{8}-\d{6}$/);
     const daysDiff = Math.round((invoice.dueDate.getTime() - invoice.issueDate.getTime()) / (1000 * 60 * 60 * 24));
     expect(daysDiff).toBe(30);
   });

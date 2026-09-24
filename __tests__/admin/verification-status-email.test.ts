@@ -15,6 +15,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-on
 const mockPrismaClient: any = {
   user: { findUnique: jest.fn(), update: jest.fn().mockResolvedValue({}) },
   businessInfo: { findUnique: jest.fn(), update: jest.fn().mockResolvedValue({}) },
+  $transaction: jest.fn((cb: any) => cb(mockPrismaClient)),
 };
 
 jest.mock('@/lib/prisma', () => ({

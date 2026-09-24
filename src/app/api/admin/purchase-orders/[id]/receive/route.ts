@@ -217,24 +217,48 @@ export async function POST(
       validatedReceipts.push({ receipt, poItem });
     }
 
-    const { updatedPO, receivedLots } = await prisma.$transaction(async (tx) => {
+    let updatedPO, receivedLots;
+    try {
+      ({ updatedPO, receivedLots } = await prisma.$transaction(async (tx) => {
+      // Re-check the PO itself hasn't been concurrently cancelled since the
+      // pre-transaction read above (e.g. a racing PATCH to
+      // /purchase-orders/[id] flipping it to CANCELLED). That earlier check
+      // only read a stale snapshot before this transaction opened.
+      const freshPO = await tx.purchaseOrder.findUniqueOrThrow({
+        where: { id },
+        select: { status: true },
+      });
+      if (freshPO.status === 'DRAFT' || freshPO.status === 'CANCELLED') {
+        throw new Error(
+          `Cannot receive against a ${freshPO.status} purchase order (concurrent status change detected)`
+        );
+      }
+
       const receivedLots = [];
 
       for (const { receipt, poItem } of validatedReceipts) {
-        // Re-validate against a FRESH read of quantityReceived inside the
-        // transaction, immediately before applying this line's stock-lot
-        // creation and increment. The pre-transaction validation pass above
-        // only guards against invalid requests being processed at all — it
-        // reads `remaining` before the transaction opens, so two concurrent
-        // receive calls for the same PO line could both pass that check
-        // against the same stale value and both commit, letting
-        // quantityReceived exceed quantityOrdered. Recomputing here, inside
-        // the transaction, against a fresh row read closes that race.
-        const freshPoItem = await tx.purchaseOrderItem.findUniqueOrThrow({
-          where: { id: poItem.id },
+        // Guarded updateMany + count-check (same idiom as orders/cancel and
+        // admin/stock/adjust): only increment quantityReceived if the row's
+        // CURRENT committed value still leaves enough room for this receipt,
+        // evaluated atomically by Postgres at UPDATE time under a row lock.
+        // A plain read-then-compare-then-write here (as this used to do)
+        // would let two concurrent receive calls for the same PO line both
+        // read the same stale quantityReceived, both pass validation, and
+        // both commit — pushing quantityReceived past quantityOrdered and
+        // double-crediting stock for units that were only physically
+        // received once. quantityOrdered is immutable once the PO item is
+        // created, so comparing against it here is race-free.
+        const guard = await tx.purchaseOrderItem.updateMany({
+          where: {
+            id: poItem.id,
+            quantityReceived: { lte: poItem.quantityOrdered - receipt.quantityReceived },
+          },
+          data: { quantityReceived: { increment: receipt.quantityReceived } },
         });
-        const freshRemaining = freshPoItem.quantityOrdered - freshPoItem.quantityReceived;
-        if (receipt.quantityReceived > freshRemaining) {
+
+        if (guard.count === 0) {
+          const freshPoItem = await tx.purchaseOrderItem.findUniqueOrThrow({ where: { id: poItem.id } });
+          const freshRemaining = freshPoItem.quantityOrdered - freshPoItem.quantityReceived;
           throw new Error(
             `Cannot receive ${receipt.quantityReceived} units for ${poItem.productId} — only ${freshRemaining} remain on this order (concurrent receipt detected)`
           );
@@ -253,11 +277,6 @@ export async function POST(
           createdBy: admin.id,
         });
         receivedLots.push(lot);
-
-        await tx.purchaseOrderItem.update({
-          where: { id: poItem.id },
-          data: { quantityReceived: { increment: receipt.quantityReceived } },
-        });
       }
 
       // Recompute the PO's overall status from every line item's up-to-date
@@ -276,7 +295,13 @@ export async function POST(
       });
 
       return { updatedPO, receivedLots };
-    });
+      }));
+    } catch (txError) {
+      if (txError instanceof Error && /concurrent (receipt|status change) detected/.test(txError.message)) {
+        return NextResponse.json({ success: false, error: txError.message }, { status: 409 });
+      }
+      throw txError;
+    }
 
     return NextResponse.json({
       success: true,

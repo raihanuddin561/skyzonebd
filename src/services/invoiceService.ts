@@ -29,8 +29,18 @@ function generateInvoiceNumber(): string {
   const date = new Date();
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
-  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-  return `INV-${y}${m}-${random}`;
+  const d = String(date.getDate()).padStart(2, '0');
+  // 6-digit random suffix (1,000,000 possibilities) scoped to a single day,
+  // not a 4-digit one (10,000 possibilities) scoped to a whole month. The
+  // old scheme had a real birthday-paradox collision risk against the
+  // @unique invoiceNumber column at realistic monthly order volume (e.g.
+  // ~100 NET-terms invoices in one month was already ~39% likely to collide
+  // at least once) — createInvoiceForOrder is called from inside the same
+  // order-creation transaction in orders/route.ts and
+  // admin/orders/create/route.ts, so a collision there aborted the whole
+  // order, not just the invoice.
+  const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+  return `INV-${y}${m}${d}-${random}`;
 }
 
 export interface CreditLimitCheckResult {
