@@ -7,6 +7,7 @@ import {
 } from '@/utils/partnerProfitDistribution';
 import { requireAuth } from '@/lib/auth';
 import { UserRole, isAdmin } from '@/types/roles';
+import { prisma } from '@/lib/prisma';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -110,11 +111,40 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const result = await distributeProfitToPartners(
-        periodType,
-        new Date(startDate),
-        new Date(endDate)
-      );
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      // Unguarded double-submit race: distributeProfitToPartners() creates
+      // one ProfitDistribution per active partner for this period with no
+      // existence check of its own (there's no requireAdmin-adjacent lock
+      // inside the canonical util). Two concurrent/double-click "Distribute"
+      // requests for the same period would both pass straight through and
+      // each create a full set of distributions, double-paying every
+      // partner for the period. This mirrors the exact race already closed
+      // in admin/payouts/generate/route.ts (single-partner distributions):
+      // a Postgres transaction-scoped advisory lock keyed on the period
+      // serializes concurrent requests, and the loser's existence check
+      // (re-run after acquiring the lock) sees the winner's now-committed
+      // rows and safely rejects instead of creating duplicates.
+      const result = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${periodType} || ':' || ${start.toISOString()} || ':' || ${end.toISOString()}))`;
+
+        const existing = await tx.profitDistribution.findFirst({
+          where: { periodType, startDate: start, endDate: end },
+        });
+
+        if (existing) {
+          throw new Response(
+            JSON.stringify({
+              success: false,
+              error: 'Distributions for this period have already been generated',
+            }),
+            { status: 409, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        return distributeProfitToPartners(periodType, start, end);
+      });
 
       return NextResponse.json({
         success: result.success,

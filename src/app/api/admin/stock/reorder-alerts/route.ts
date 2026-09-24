@@ -64,7 +64,10 @@ export async function GET(request: NextRequest) {
         sku: product.sku || 'N/A',
         currentStock: product.stockQuantity || 0,
         moq: product.moq || 10,
-        reorderPoint: product.reorderLevel || 20,
+        // Same non-nullable-zero fix as the filter just above and as
+        // admin/stock/route.ts: reorderLevel of 0 is a valid setting, not
+        // "unset", so it must not be replaced by the `|| 20` fallback.
+        reorderPoint: product.reorderLevel ?? 20,
         reorderQuantity: product.reorderQuantity || 50,
         averageDailySales: soldLast30Days / 30,
       };

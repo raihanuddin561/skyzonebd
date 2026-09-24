@@ -93,6 +93,21 @@ export async function PUT(
       isDefault
     } = body;
 
+    // These columns are required (non-null) in the schema. PUT supports
+    // partial updates (e.g. a bare { isDefault: true } to set default, see
+    // the PATCH-like usage below), so only validate a field when the caller
+    // actually included it — an omitted field is left untouched by Prisma,
+    // but an explicitly-empty one would otherwise either corrupt the
+    // address or throw an unhandled Prisma error instead of a clean 400.
+    for (const [field, value] of [['street', street], ['city', city], ['country', country]] as const) {
+      if (value !== undefined && (typeof value !== 'string' || !value.trim())) {
+        return NextResponse.json(
+          { success: false, error: `${field} cannot be empty` },
+          { status: 400 }
+        );
+      }
+    }
+
     // If setting as default, unset other defaults
     if (isDefault && !existingAddress.isDefault) {
       await prisma.address.updateMany({

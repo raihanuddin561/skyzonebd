@@ -62,7 +62,10 @@ export async function GET(request: NextRequest) {
         sku: product.sku || 'N/A',
         currentStock: product.stockQuantity || 0,
         moq: product.moq || 10,
-        reorderPoint: product.reorderLevel || 20,
+        // reorderLevel is a real, non-nullable count — 0 is a valid
+        // configured value ("only alert once totally out"), not "unset".
+        // `||` would silently override that back to 20.
+        reorderPoint: product.reorderLevel ?? 20,
         reorderQuantity: product.reorderQuantity || 50,
         averageDailySales: soldLast30Days / 30,
       };

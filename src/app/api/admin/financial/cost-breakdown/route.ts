@@ -262,7 +262,11 @@ export async function GET(request: NextRequest) {
         let growth = 0;
         if (index > 0) {
           const prevTotal = array[index - 1].total;
-          growth = calculatePercentageChange(prevTotal, period.total);
+          // calculatePercentageChange(current, previous) — was called as
+          // (prevTotal, period.total), which computes the change of the
+          // previous period relative to the current one (backwards sign
+          // and magnitude) instead of this period's growth over the last.
+          growth = calculatePercentageChange(period.total, prevTotal);
         }
         
         return {

@@ -56,7 +56,14 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    if (products.length !== productIds.length) {
+    // Compare against the distinct id count, not the raw request length —
+    // the client can legitimately send the same productId more than once
+    // (e.g. two separate "add" clicks batched together), and Prisma's
+    // `id: { in: [...] }` only ever returns one row per matching id. Using
+    // productIds.length here meant any request with a duplicate productId
+    // always failed with a false "not found" even when every product existed.
+    const uniqueProductIdCount = new Set(productIds).size;
+    if (products.length !== uniqueProductIdCount) {
       return NextResponse.json(
         { success: false, error: 'One or more products not found or inactive' },
         { status: 404 }
@@ -78,9 +85,13 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // Check stock quantity
-      if (product.stockQuantity && item.quantity > product.stockQuantity) {
-        errors.push(`${product.name}: Requested ${item.quantity} but only ${product.stockQuantity} available`);
+      // Check stock quantity. stockQuantity is a real (non-nullable) count,
+      // so 0 is a meaningful value here, not "unset" — a truthy check
+      // (`product.stockQuantity && ...`) would short-circuit on exactly the
+      // out-of-stock case and let any requested quantity through.
+      const availableStock = product.stockQuantity ?? 0;
+      if (item.quantity > availableStock) {
+        errors.push(`${product.name}: Requested ${item.quantity} but only ${availableStock} available`);
         continue;
       }
 

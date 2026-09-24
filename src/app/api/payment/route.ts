@@ -44,32 +44,38 @@ export async function POST(request: NextRequest) {
         };
         break;
 
-      case 'bkash':
+      case 'bkash': {
         // Mock bKash payment
+        const bkashSuccess = Math.random() > 0.1; // 90% success rate
         paymentResult = {
-          success: Math.random() > 0.1, // 90% success rate
-          transactionId: paymentResult.success ? 'BKS-' + Date.now() : '',
-          message: paymentResult.success ? 'bKash payment successful' : 'bKash payment failed'
+          success: bkashSuccess,
+          transactionId: bkashSuccess ? 'BKS-' + Date.now() : '',
+          message: bkashSuccess ? 'bKash payment successful' : 'bKash payment failed'
         };
         break;
+      }
 
-      case 'nagad':
+      case 'nagad': {
         // Mock Nagad payment
+        const nagadSuccess = Math.random() > 0.1; // 90% success rate
         paymentResult = {
-          success: Math.random() > 0.1, // 90% success rate
-          transactionId: paymentResult.success ? 'NGD-' + Date.now() : '',
-          message: paymentResult.success ? 'Nagad payment successful' : 'Nagad payment failed'
+          success: nagadSuccess,
+          transactionId: nagadSuccess ? 'NGD-' + Date.now() : '',
+          message: nagadSuccess ? 'Nagad payment successful' : 'Nagad payment failed'
         };
         break;
+      }
 
-      case 'credit_card':
+      case 'credit_card': {
         // Mock credit card payment
+        const cardSuccess = Math.random() > 0.15; // 85% success rate
         paymentResult = {
-          success: Math.random() > 0.15, // 85% success rate
-          transactionId: paymentResult.success ? 'CC-' + Date.now() : '',
-          message: paymentResult.success ? 'Credit card payment successful' : 'Credit card payment failed'
+          success: cardSuccess,
+          transactionId: cardSuccess ? 'CC-' + Date.now() : '',
+          message: cardSuccess ? 'Credit card payment successful' : 'Credit card payment failed'
         };
         break;
+      }
 
       default:
         return NextResponse.json(
