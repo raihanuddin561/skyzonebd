@@ -80,18 +80,21 @@ export default function AdminInvoiceDetailPage() {
   return (
     <div className="space-y-4">
       <div className="print:hidden flex items-center justify-between">
-        <button onClick={() => router.push('/admin/invoices')} className="text-gray-500 hover:text-gray-700">
-          ← Back to Invoices
+        <button onClick={() => router.push('/admin/invoices')} className="text-gray-500 hover:text-gray-700 cursor-pointer flex items-center gap-1">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to Invoices
         </button>
         <button
           onClick={() => window.print()}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm cursor-pointer"
         >
           Print / Save as PDF
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-8 print:shadow-none print:border-none">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-8 print:shadow-none print:border-none">
         <div className="flex flex-wrap gap-4 justify-between items-start mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">INVOICE</h1>

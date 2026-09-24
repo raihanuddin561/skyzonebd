@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import AdminIcon from '../components/AdminIcons';
 
 interface Category {
   id: string;
@@ -20,7 +22,14 @@ export default function CategoriesManagement() {
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [uploading, setUploading] = useState(false);
-  
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; categoryId: string | null; categoryName: string; productCount: number }>({
+    isOpen: false,
+    categoryId: null,
+    categoryName: '',
+    productCount: 0,
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
@@ -140,19 +149,21 @@ export default function CategoriesManagement() {
     setShowModal(true);
   };
 
-  const handleDelete = async (categoryId: string, productCount: number) => {
+  const handleDelete = (categoryId: string, categoryName: string, productCount: number) => {
     if (productCount > 0) {
       toast.error(`Cannot delete category with ${productCount} products. Please reassign or delete products first.`);
       return;
     }
 
-    if (!confirm('Delete this category? This action cannot be undone.')) {
-      return;
-    }
+    setDeleteDialog({ isOpen: true, categoryId, categoryName, productCount });
+  };
 
+  const confirmDelete = async () => {
+    if (!deleteDialog.categoryId) return;
+    setIsDeleting(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/categories/${categoryId}`, {
+      const response = await fetch(`/api/categories/${deleteDialog.categoryId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -160,7 +171,7 @@ export default function CategoriesManagement() {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         toast.success('Category deleted successfully');
         fetchCategories();
@@ -170,6 +181,9 @@ export default function CategoriesManagement() {
     } catch (error) {
       console.error('Error deleting category:', error);
       toast.error('Failed to delete category');
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialog({ isOpen: false, categoryId: null, categoryName: '', productCount: 0 });
     }
   };
 
@@ -189,25 +203,27 @@ export default function CategoriesManagement() {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 cursor-pointer transition-colors"
         >
-          <span>+</span>
+          <AdminIcon name="plus" className="w-4 h-4" />
           <span>Add Category</span>
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Categories</p>
               <p className="text-2xl font-bold text-gray-900">{categories.length}</p>
             </div>
-            <span className="text-3xl">📁</span>
+            <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="categories" className="w-5 h-5" />
+            </span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Products</p>
@@ -215,10 +231,12 @@ export default function CategoriesManagement() {
                 {categories.reduce((sum, cat) => sum + (cat._count?.products || 0), 0)}
               </p>
             </div>
-            <span className="text-3xl">📦</span>
+            <span className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="products" className="w-5 h-5" />
+            </span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Empty Categories</p>
@@ -226,7 +244,9 @@ export default function CategoriesManagement() {
                 {categories.filter(cat => (cat._count?.products || 0) === 0).length}
               </p>
             </div>
-            <span className="text-3xl">📂</span>
+            <span className="w-10 h-10 rounded-xl bg-yellow-50 text-yellow-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="warning" className="w-5 h-5" />
+            </span>
           </div>
         </div>
       </div>
@@ -239,14 +259,16 @@ export default function CategoriesManagement() {
           </div>
         ) : categories.length === 0 ? (
           <div className="text-center py-16">
-            <div className="text-gray-300 text-6xl mb-4">📁</div>
+            <div className="w-20 h-20 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-4">
+              <AdminIcon name="categories" className="w-10 h-10" />
+            </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No categories found</h3>
             <p className="text-gray-600 mb-4">Start by creating your first category.</p>
             <button
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
             >
-              <span>+</span>
+              <AdminIcon name="plus" className="w-4 h-4" />
               <span>Add Category</span>
             </button>
           </div>
@@ -255,7 +277,7 @@ export default function CategoriesManagement() {
             {categories.map((category) => (
               <div
                 key={category.id}
-                className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
+                className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
               >
                 {category.imageUrl ? (
                   <img
@@ -265,7 +287,7 @@ export default function CategoriesManagement() {
                   />
                 ) : (
                   <div className="w-full h-40 bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                    <span className="text-5xl">📁</span>
+                    <AdminIcon name="categories" className="w-12 h-12 text-blue-400" />
                   </div>
                 )}
                 
@@ -284,13 +306,13 @@ export default function CategoriesManagement() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleEdit(category)}
-                        className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                        className="text-blue-600 hover:text-blue-700 text-sm font-medium cursor-pointer transition-colors"
                       >
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(category.id, category._count?.products || 0)}
-                        className="text-red-600 hover:text-red-700 text-sm font-medium"
+                        onClick={() => handleDelete(category.id, category.name, category._count?.products || 0)}
+                        className="text-red-600 hover:text-red-700 text-sm font-medium cursor-pointer transition-colors"
                       >
                         Delete
                       </button>
@@ -329,9 +351,11 @@ export default function CategoriesManagement() {
                 </h2>
                 <button
                   onClick={handleCloseModal}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
                 >
-                  <span className="text-2xl">×</span>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
 
@@ -402,14 +426,14 @@ export default function CategoriesManagement() {
                   <button
                     type="submit"
                     disabled={uploading}
-                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
                   >
                     {editingCategory ? 'Update Category' : 'Create Category'}
                   </button>
                   <button
                     type="button"
                     onClick={handleCloseModal}
-                    className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                    className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium cursor-pointer transition-colors"
                   >
                     Cancel
                   </button>
@@ -419,6 +443,19 @@ export default function CategoriesManagement() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => !isDeleting && setDeleteDialog({ isOpen: false, categoryId: null, categoryName: '', productCount: 0 })}
+        onConfirm={confirmDelete}
+        title="Delete Category"
+        message={`Are you sure you want to delete "${deleteDialog.categoryName}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

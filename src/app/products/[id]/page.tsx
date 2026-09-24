@@ -423,7 +423,6 @@ export default function ProductDetailPage() {
                 <span className="text-4xl font-bold text-blue-600">
                   ৳{product.price.toLocaleString()}
                   {product.unit && <span className="text-lg text-gray-600">/{product.unit}</span>}
-                  {product.unit && <span className="text-xl text-gray-600 font-normal ml-2">/ {product.unit}</span>}
                 </span>
                 {product.discount && (
                   <>
@@ -496,8 +495,11 @@ export default function ProductDetailPage() {
                   </button>
                   
                   {product.availability === 'limited' && (
-                    <p className="text-sm text-yellow-600 mt-2 text-center">
-                      ⚠ Limited stock available - Order soon!
+                    <p className="text-sm text-yellow-600 mt-2 text-center flex items-center justify-center gap-1.5">
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Limited stock available - Order soon!
                     </p>
                   )}
                 </>

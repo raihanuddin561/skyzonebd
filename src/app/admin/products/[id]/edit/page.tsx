@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { toast } from 'react-toastify';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import AdminIcon from '../../../components/AdminIcons';
 
 interface Category {
   id: string;
@@ -173,7 +174,14 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           }))
         );
 
-        setImages(product.imageUrls || [product.imageUrl] || []);
+        // product.imageUrls can be present but empty ([]), which is truthy —
+        // `imageUrls || [imageUrl]` would then silently drop the primary
+        // image and leave the gallery empty. Fall back explicitly instead.
+        setImages(
+          product.imageUrls && product.imageUrls.length > 0
+            ? product.imageUrls
+            : (product.imageUrl ? [product.imageUrl] : [])
+        );
         setPrimaryImage(product.imageUrl || '');
 
         // Check if product has existing hero slide
@@ -615,9 +623,12 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           </div>
           <button
             onClick={() => router.back()}
-            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+            className="inline-flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 cursor-pointer transition-colors"
           >
-            ← Back
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back
           </button>
         </div>
       </div>
@@ -720,7 +731,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                 <button
                   type="button"
                   onClick={() => setShowNewUnitModal(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 whitespace-nowrap"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 whitespace-nowrap cursor-pointer transition-colors"
                 >
                   + New
                 </button>
@@ -784,7 +795,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                     <button
                       type="button"
                       onClick={() => setPrimaryImage(image)}
-                      className="bg-white text-gray-700 text-xs px-2 py-1 rounded hover:bg-gray-100"
+                      className="bg-white text-gray-700 text-xs px-2 py-1 rounded hover:bg-gray-100 cursor-pointer transition-colors"
                     >
                       Set Primary
                     </button>
@@ -792,7 +803,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                   <button
                     type="button"
                     onClick={() => handleDeleteImage(image)}
-                    className="bg-red-600 text-white text-xs px-2 py-1 rounded hover:bg-red-700"
+                    className="bg-red-600 text-white text-xs px-2 py-1 rounded hover:bg-red-700 cursor-pointer transition-colors"
                   >
                     Delete
                   </button>
@@ -860,7 +871,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
               <button
                 type="button"
                 onClick={addWholesaleTier}
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer transition-colors"
               >
                 + Add Tier
               </button>
@@ -923,7 +934,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                       <button
                         type="button"
                         onClick={() => removeWholesaleTier(index)}
-                        className="w-full px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                        className="w-full px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 cursor-pointer transition-colors"
                       >
                         Remove
                       </button>
@@ -946,7 +957,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
             <button
               type="button"
               onClick={() => setStockModal({ isOpen: true, type: 'add', quantity: '', reason: '', costPerUnit: '' })}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium cursor-pointer transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -974,7 +985,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
             <button
               type="button"
               onClick={addTag}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
             >
               Add
             </button>
@@ -989,9 +1000,11 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                 <button
                   type="button"
                   onClick={() => removeTag(tag)}
-                  className="text-red-600 hover:text-red-700"
+                  className="text-red-600 hover:text-red-700 cursor-pointer transition-colors"
                 >
-                  ×
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </span>
             ))}
@@ -1019,7 +1032,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
             <button
               type="button"
               onClick={addSpecification}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
             >
               Add Specification
             </button>
@@ -1034,7 +1047,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                 <button
                   type="button"
                   onClick={() => removeSpecification(key)}
-                  className="text-red-600 hover:text-red-700"
+                  className="text-red-600 hover:text-red-700 cursor-pointer transition-colors"
                 >
                   Remove
                 </button>
@@ -1091,8 +1104,9 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
               </h4>
 
               {existingHeroSlide && (
-                <p className="text-sm text-green-700 bg-green-50 p-2 rounded">
-                  ✓ This product already has a hero slide. Changes will update it.
+                <p className="flex items-center gap-2 text-sm text-green-700 bg-green-50 p-2 rounded">
+                  <AdminIcon name="verification" className="w-4 h-4 flex-shrink-0" />
+                  This product already has a hero slide. Changes will update it.
                 </p>
               )}
 
@@ -1157,7 +1171,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
             <button
               type="button"
               onClick={() => setDeactivateDialog(true)}
-              className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all shadow-sm ${
+              className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-all shadow-sm cursor-pointer ${
                 formData.isActive
                   ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white'
                   : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white'
@@ -1182,7 +1196,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
             <button
               type="button"
               onClick={() => setDeleteProductDialog(true)}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium transition-all shadow-sm"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium transition-all shadow-sm cursor-pointer"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1194,14 +1208,14 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
             <button
               type="button"
               onClick={() => router.back()}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium cursor-pointer transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
@@ -1265,7 +1279,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                   setShowNewUnitModal(false);
                   setNewUnitData({ name: '', symbol: '', description: '' });
                 }}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium cursor-pointer transition-colors"
               >
                 Cancel
               </button>
@@ -1308,7 +1322,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                     toast.error('Failed to create unit');
                   }
                 }}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium cursor-pointer transition-colors"
               >
                 Create Unit
               </button>
@@ -1336,7 +1350,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                       key={type}
                       type="button"
                       onClick={() => setStockModal({ ...stockModal, type })}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                      className={`px-3 py-2 rounded-lg text-sm font-medium border cursor-pointer transition-colors ${
                         stockModal.type === type
                           ? 'bg-blue-600 text-white border-blue-600'
                           : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
@@ -1399,7 +1413,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                 type="button"
                 onClick={() => setStockModal({ ...stockModal, isOpen: false })}
                 disabled={isAdjustingStock}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
               >
                 Cancel
               </button>
@@ -1407,7 +1421,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
                 type="button"
                 onClick={handleAdjustStock}
                 disabled={isAdjustingStock || !stockModal.quantity || (stockModal.type === 'add' && !stockModal.costPerUnit)}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
               >
                 {isAdjustingStock ? 'Saving...' : 'Confirm Adjustment'}
               </button>

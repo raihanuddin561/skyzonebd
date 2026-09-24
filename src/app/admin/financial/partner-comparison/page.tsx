@@ -78,18 +78,18 @@ export default function PartnerComparisonPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Partner Comparison</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Revenue, profit, and distribution performance by partner</p>
         </div>
-        <button onClick={handleExport} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm">
+        <button onClick={handleExport} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm cursor-pointer transition-colors">
           Export CSV
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 flex flex-wrap gap-3">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 flex flex-wrap gap-3">
         <div className="flex gap-2 flex-wrap">
           {['today', 'week', 'month', 'quarter', 'year'].map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium capitalize transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium capitalize transition-colors cursor-pointer ${
                 period === p ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -97,7 +97,7 @@ export default function PartnerComparisonPage() {
             </button>
           ))}
         </div>
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm cursor-pointer">
           <option value="profit">Sort by Profit</option>
           <option value="revenue">Sort by Revenue</option>
           <option value="distributions">Sort by Distributions</option>
@@ -107,26 +107,26 @@ export default function PartnerComparisonPage() {
 
       {summary && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Total Revenue</div>
             <div className="text-xl sm:text-2xl font-bold text-gray-900">৳{summary.totalRevenue.toLocaleString()}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Total Profit</div>
             <div className="text-xl sm:text-2xl font-bold text-green-600">৳{summary.totalProfit.toLocaleString()}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Total Distributions</div>
             <div className="text-xl sm:text-2xl font-bold text-blue-600">৳{summary.totalDistributions.toLocaleString()}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Platform Retained</div>
             <div className="text-xl sm:text-2xl font-bold text-gray-900">৳{summary.platformRetained.toLocaleString()}</div>
           </div>
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">

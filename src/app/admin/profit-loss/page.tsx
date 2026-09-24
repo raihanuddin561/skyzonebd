@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import AdminIcon from '../components/AdminIcons';
 
 // Matches the real shape returned by calculateComprehensiveProfit /
 // calculateYTDProfit / getProfitTrend (src/utils/comprehensiveProfitCalculation.ts)
@@ -139,7 +140,7 @@ export default function ProfitLossPage() {
             <p className="text-red-800 mb-4">{error}</p>
             <button
               onClick={() => router.push('/admin')}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer"
             >
               Return to Dashboard
             </button>
@@ -173,14 +174,14 @@ export default function ProfitLossPage() {
         )}
 
         {/* Report Type Selector */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
           <div className="flex flex-wrap gap-4 items-end">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
               <div className="flex space-x-2">
                 <button
                   onClick={() => setReportType('monthly')}
-                  className={`px-4 py-2 rounded-lg font-medium ${
+                  className={`px-4 py-2 rounded-lg font-medium cursor-pointer transition-colors ${
                     reportType === 'monthly'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -190,7 +191,7 @@ export default function ProfitLossPage() {
                 </button>
                 <button
                   onClick={() => setReportType('trend')}
-                  className={`px-4 py-2 rounded-lg font-medium ${
+                  className={`px-4 py-2 rounded-lg font-medium cursor-pointer transition-colors ${
                     reportType === 'trend'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -200,7 +201,7 @@ export default function ProfitLossPage() {
                 </button>
                 <button
                   onClick={() => setReportType('ytd')}
-                  className={`px-4 py-2 rounded-lg font-medium ${
+                  className={`px-4 py-2 rounded-lg font-medium cursor-pointer transition-colors ${
                     reportType === 'ytd'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -242,7 +243,7 @@ export default function ProfitLossPage() {
             <button
               onClick={fetchReport}
               disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? 'Loading...' : 'Generate Report'}
             </button>
@@ -254,34 +255,55 @@ export default function ProfitLossPage() {
           <div className="space-y-6">
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <p className="text-sm text-gray-600">Total Revenue</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">
-                  {formatCurrency(monthlyReport.totalRevenue)}
-                </p>
+              <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Revenue</p>
+                    <p className="text-3xl font-bold text-green-600 mt-2">
+                      {formatCurrency(monthlyReport.totalRevenue)}
+                    </p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
+                    <AdminIcon name="revenueAnalytics" className="w-5 h-5" />
+                  </div>
+                </div>
               </div>
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <p className="text-sm text-gray-600">Total Costs</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">
-                  {formatCurrency(monthlyReport.cogs + monthlyReport.totalOperatingExpenses)}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  COGS {formatCurrency(monthlyReport.cogs)} + Operating {formatCurrency(monthlyReport.totalOperatingExpenses)}
-                </p>
+              <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Costs</p>
+                    <p className="text-3xl font-bold text-red-600 mt-2">
+                      {formatCurrency(monthlyReport.cogs + monthlyReport.totalOperatingExpenses)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      COGS {formatCurrency(monthlyReport.cogs)} + Operating {formatCurrency(monthlyReport.totalOperatingExpenses)}
+                    </p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0">
+                    <AdminIcon name="costBreakdown" className="w-5 h-5" />
+                  </div>
+                </div>
               </div>
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <p className="text-sm text-gray-600">Net Profit</p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">
-                  {formatCurrency(monthlyReport.netProfit)}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Margin: {monthlyReport.netMargin.toFixed(2)}%
-                </p>
+              <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Net Profit</p>
+                    <p className="text-3xl font-bold text-blue-600 mt-2">
+                      {formatCurrency(monthlyReport.netProfit)}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Margin: {monthlyReport.netMargin.toFixed(2)}%
+                    </p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                    <AdminIcon name="profitLoss" className="w-5 h-5" />
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Revenue Breakdown */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Revenue Breakdown</h2>
               <div className="space-y-3">
                 <div className="flex justify-between items-center py-2 border-b">
@@ -301,7 +323,7 @@ export default function ProfitLossPage() {
 
             {/* Costs by Category */}
             {monthlyReport.topExpenseCategories && monthlyReport.topExpenseCategories.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="bg-white rounded-xl shadow-sm p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Top Expense Categories</h2>
                 <div className="mt-4 space-y-2">
                   {monthlyReport.topExpenseCategories.map((category) => (
@@ -321,7 +343,7 @@ export default function ProfitLossPage() {
 
         {/* Trend View */}
         {reportType === 'trend' && trendData.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Annual Profit Trend</h2>
 
             {/* Summary Table */}
@@ -363,26 +385,47 @@ export default function ProfitLossPage() {
         {reportType === 'ytd' && ytdReport && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <p className="text-sm text-gray-600">YTD Revenue</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">
-                  {formatCurrency(ytdReport.totalRevenue || 0)}
-                </p>
+              <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">YTD Revenue</p>
+                    <p className="text-3xl font-bold text-green-600 mt-2">
+                      {formatCurrency(ytdReport.totalRevenue || 0)}
+                    </p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
+                    <AdminIcon name="revenueAnalytics" className="w-5 h-5" />
+                  </div>
+                </div>
               </div>
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <p className="text-sm text-gray-600">YTD Costs</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">
-                  {formatCurrency((ytdReport.cogs || 0) + (ytdReport.totalOperatingExpenses || 0))}
-                </p>
+              <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">YTD Costs</p>
+                    <p className="text-3xl font-bold text-red-600 mt-2">
+                      {formatCurrency((ytdReport.cogs || 0) + (ytdReport.totalOperatingExpenses || 0))}
+                    </p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0">
+                    <AdminIcon name="costBreakdown" className="w-5 h-5" />
+                  </div>
+                </div>
               </div>
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <p className="text-sm text-gray-600">YTD Net Profit</p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">
-                  {formatCurrency(ytdReport.netProfit || 0)}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Margin: {(ytdReport.netMargin || 0).toFixed(2)}%
-                </p>
+              <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">YTD Net Profit</p>
+                    <p className="text-3xl font-bold text-blue-600 mt-2">
+                      {formatCurrency(ytdReport.netProfit || 0)}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Margin: {(ytdReport.netMargin || 0).toFixed(2)}%
+                    </p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                    <AdminIcon name="profitLoss" className="w-5 h-5" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -390,7 +433,7 @@ export default function ProfitLossPage() {
 
         {/* Loading State */}
         {loading && (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Generating report...</p>
           </div>

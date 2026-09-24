@@ -149,35 +149,35 @@ export default function AdminReviewsPage() {
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <button
             onClick={() => setStatusFilter('')}
-            className={`p-3 sm:p-4 rounded-lg border ${!statusFilter ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'}`}
+            className={`p-3 sm:p-4 rounded-xl border transition-shadow hover:shadow-md cursor-pointer ${!statusFilter ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'}`}
           >
             <p className="text-xl sm:text-2xl font-bold text-gray-900">{summary.total}</p>
             <p className="text-xs sm:text-sm text-gray-600">Total</p>
           </button>
           <button
             onClick={() => setStatusFilter('PENDING')}
-            className={`p-3 sm:p-4 rounded-lg border ${statusFilter === 'PENDING' ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200'}`}
+            className={`p-3 sm:p-4 rounded-xl border transition-shadow hover:shadow-md cursor-pointer ${statusFilter === 'PENDING' ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200'}`}
           >
             <p className="text-xl sm:text-2xl font-bold text-yellow-600">{summary.pending}</p>
             <p className="text-xs sm:text-sm text-gray-600">Pending</p>
           </button>
           <button
             onClick={() => setStatusFilter('APPROVED')}
-            className={`p-3 sm:p-4 rounded-lg border ${statusFilter === 'APPROVED' ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}
+            className={`p-3 sm:p-4 rounded-xl border transition-shadow hover:shadow-md cursor-pointer ${statusFilter === 'APPROVED' ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}
           >
             <p className="text-xl sm:text-2xl font-bold text-green-600">{summary.approved}</p>
             <p className="text-xs sm:text-sm text-gray-600">Approved</p>
           </button>
           <button
             onClick={() => setStatusFilter('HIDDEN')}
-            className={`p-3 sm:p-4 rounded-lg border ${statusFilter === 'HIDDEN' ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'}`}
+            className={`p-3 sm:p-4 rounded-xl border transition-shadow hover:shadow-md cursor-pointer ${statusFilter === 'HIDDEN' ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'}`}
           >
             <p className="text-xl sm:text-2xl font-bold text-gray-600">{summary.hidden}</p>
             <p className="text-xs sm:text-sm text-gray-600">Hidden</p>
           </button>
           <button
             onClick={() => setStatusFilter('REJECTED')}
-            className={`p-3 sm:p-4 rounded-lg border ${statusFilter === 'REJECTED' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}
+            className={`p-3 sm:p-4 rounded-xl border transition-shadow hover:shadow-md cursor-pointer ${statusFilter === 'REJECTED' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}
           >
             <p className="text-xl sm:text-2xl font-bold text-red-600">{summary.rejected}</p>
             <p className="text-xs sm:text-sm text-gray-600">Rejected</p>
@@ -198,13 +198,13 @@ export default function AdminReviewsPage() {
           <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-blue-600"></div>
         </div>
       ) : reviews.length === 0 ? (
-        <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
+        <div className="text-center py-12 bg-white border border-gray-200 rounded-xl">
           <p className="text-gray-600">No reviews found</p>
         </div>
       ) : (
         <div className="space-y-4">
           {reviews.map((review) => (
-            <div key={review.id} className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
+            <div key={review.id} className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6">
               {/* Status Badge */}
               <div className="flex items-start justify-between mb-4">
                 <span
@@ -308,35 +308,47 @@ export default function AdminReviewsPage() {
                     <button
                       onClick={() => moderateReview(review.id, 'APPROVED')}
                       disabled={moderatingId === review.id}
-                      className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-xs sm:text-sm"
+                      className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-xs sm:text-sm inline-flex items-center gap-1.5"
                     >
-                      ✓ Approve
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Approve
                     </button>
                   )}
                   {review.status !== 'HIDDEN' && (
                     <button
                       onClick={() => moderateReview(review.id, 'HIDDEN')}
                       disabled={moderatingId === review.id}
-                      className="px-3 sm:px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 text-xs sm:text-sm"
+                      className="px-3 sm:px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-xs sm:text-sm inline-flex items-center gap-1.5"
                     >
-                      ⊘ Hide
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                      </svg>
+                      Hide
                     </button>
                   )}
                   {review.status !== 'REJECTED' && (
                     <button
                       onClick={() => moderateReview(review.id, 'REJECTED')}
                       disabled={moderatingId === review.id}
-                      className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-xs sm:text-sm"
+                      className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-xs sm:text-sm inline-flex items-center gap-1.5"
                     >
-                      ✕ Reject
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      Reject
                     </button>
                   )}
                   <button
                     onClick={() => deleteReview(review.id)}
                     disabled={moderatingId === review.id}
-                    className="ml-auto px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-xs sm:text-sm"
+                    className="ml-auto px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-xs sm:text-sm inline-flex items-center gap-1.5"
                   >
-                    🗑 Delete
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete
                   </button>
                 </div>
               </div>
@@ -351,7 +363,7 @@ export default function AdminReviewsPage() {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 text-xs sm:text-sm"
+            className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-xs sm:text-sm"
           >
             Previous
           </button>
@@ -361,7 +373,7 @@ export default function AdminReviewsPage() {
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 text-xs sm:text-sm"
+            className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-xs sm:text-sm"
           >
             Next
           </button>

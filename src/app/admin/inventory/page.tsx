@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
+import AdminIcon from '../components/AdminIcons';
 
 interface InventoryItem {
   id: string;
@@ -236,28 +237,49 @@ export default function InventoryPage() {
         </div>
         <Link
           href="/admin/products/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm sm:text-base whitespace-nowrap"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm sm:text-base whitespace-nowrap cursor-pointer transition-colors"
         >
-          + Add Product
+          <AdminIcon name="plus" className="w-4 h-4" />
+          <span>Add Product</span>
         </Link>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
-          <div className="text-xs sm:text-sm text-gray-600 mb-1">Total Products</div>
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-xs sm:text-sm text-gray-600">Total Products</div>
+            <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="products" className="w-4 h-4" />
+            </span>
+          </div>
           <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-yellow-200 p-3 sm:p-4">
-          <div className="text-xs sm:text-sm text-gray-600 mb-1">Low Stock</div>
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-yellow-200 p-3 sm:p-4">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-xs sm:text-sm text-gray-600">Low Stock</div>
+            <span className="w-8 h-8 rounded-lg bg-yellow-50 text-yellow-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="warning" className="w-4 h-4" />
+            </span>
+          </div>
           <div className="text-xl sm:text-2xl font-bold text-yellow-600">{stats.lowStock}</div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-red-200 p-3 sm:p-4">
-          <div className="text-xs sm:text-sm text-gray-600 mb-1">Out of Stock</div>
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-red-200 p-3 sm:p-4">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-xs sm:text-sm text-gray-600">Out of Stock</div>
+            <span className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="inventory" className="w-4 h-4" />
+            </span>
+          </div>
           <div className="text-xl sm:text-2xl font-bold text-red-600">{stats.outOfStock}</div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-blue-200 p-3 sm:p-4">
-          <div className="text-xs sm:text-sm text-gray-600 mb-1">Total Value</div>
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-blue-200 p-3 sm:p-4">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-xs sm:text-sm text-gray-600">Total Value</div>
+            <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="profit" className="w-4 h-4" />
+            </span>
+          </div>
           <div className="text-lg sm:text-xl font-bold text-blue-600">৳{stats.totalValue.toLocaleString()}</div>
         </div>
       </div>
@@ -281,7 +303,7 @@ export default function InventoryPage() {
               <button
                 key={option.value}
                 onClick={() => setFilter(option.value as typeof filter)}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
                   filter === option.value
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -328,13 +350,13 @@ export default function InventoryPage() {
                 <div className="flex gap-2 mt-3">
                   <Link
                     href={`/admin/products/${item.id}/edit`}
-                    className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded text-xs text-center hover:bg-blue-700"
+                    className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded text-xs text-center hover:bg-blue-700 cursor-pointer transition-colors"
                   >
                     Edit
                   </Link>
                   <button
                     onClick={() => openStockModal(item)}
-                    className="flex-1 px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300"
+                    className="flex-1 px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-xs hover:bg-gray-300 cursor-pointer transition-colors"
                   >
                     Update Stock
                   </button>
@@ -382,13 +404,13 @@ export default function InventoryPage() {
                       <div className="flex gap-2">
                         <Link
                           href={`/admin/products/${item.id}/edit`}
-                          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                          className="text-blue-600 hover:text-blue-700 text-sm font-medium cursor-pointer transition-colors"
                         >
                           Edit
                         </Link>
                         <button
                           onClick={() => openStockModal(item)}
-                          className="text-gray-600 hover:text-gray-700 text-sm font-medium"
+                          className="text-gray-600 hover:text-gray-700 text-sm font-medium cursor-pointer transition-colors"
                         >
                           Update
                         </button>
@@ -425,7 +447,7 @@ export default function InventoryPage() {
                       key={type}
                       type="button"
                       onClick={() => setStockModal({ ...stockModal, type })}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                      className={`px-3 py-2 rounded-lg text-sm font-medium border cursor-pointer transition-colors ${
                         stockModal.type === type
                           ? 'bg-blue-600 text-white border-blue-600'
                           : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
@@ -488,7 +510,7 @@ export default function InventoryPage() {
                 type="button"
                 onClick={() => setStockModal({ ...stockModal, isOpen: false })}
                 disabled={isAdjustingStock}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
               >
                 Cancel
               </button>
@@ -496,7 +518,7 @@ export default function InventoryPage() {
                 type="button"
                 onClick={handleAdjustStock}
                 disabled={isAdjustingStock || !stockModal.quantity || (stockModal.type === 'add' && !stockModal.costPerUnit)}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
               >
                 {isAdjustingStock ? 'Saving...' : 'Confirm Adjustment'}
               </button>

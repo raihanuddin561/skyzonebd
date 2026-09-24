@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
+import AdminIcon from '@/app/admin/components/AdminIcons';
 
 interface DeletionRequest {
   id: string;
@@ -121,7 +122,7 @@ export default function DataDeletionRequestsPage() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
@@ -136,7 +137,7 @@ export default function DataDeletionRequestsPage() {
             </div>
             <button
               onClick={fetchRequests}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 cursor-pointer"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -148,7 +149,7 @@ export default function DataDeletionRequestsPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Total Requests</p>
@@ -162,7 +163,7 @@ export default function DataDeletionRequestsPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-yellow-600 text-sm font-medium">Pending</p>
@@ -176,7 +177,7 @@ export default function DataDeletionRequestsPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-600 text-sm font-medium">Processing</p>
@@ -190,7 +191,7 @@ export default function DataDeletionRequestsPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-green-600 text-sm font-medium">Completed</p>
@@ -204,7 +205,7 @@ export default function DataDeletionRequestsPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-red-600 text-sm font-medium">Rejected</p>
@@ -220,14 +221,14 @@ export default function DataDeletionRequestsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <div className="flex items-center gap-2">
             <span className="text-gray-700 font-medium">Filter by Status:</span>
             {['ALL', 'PENDING', 'PROCESSING', 'COMPLETED', 'REJECTED', 'CANCELLED'].map((status) => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer ${
                   statusFilter === status
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -240,7 +241,7 @@ export default function DataDeletionRequestsPage() {
         </div>
 
         {/* Requests Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -258,7 +259,7 @@ export default function DataDeletionRequestsPage() {
                 {filteredRequests.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center">
-                      <div className="text-gray-400 text-xl mb-2">📭</div>
+                      <AdminIcon name="dataDeletion" className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                       <p className="text-gray-600">No deletion requests found</p>
                     </td>
                   </tr>
@@ -300,7 +301,7 @@ export default function DataDeletionRequestsPage() {
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={() => router.push(`/admin/data-deletion-requests/${request.id}`)}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium cursor-pointer"
                         >
                           View Details
                         </button>

@@ -248,14 +248,14 @@ export default function DeletionRequestDetailPage() {
         <div className="mb-6">
           <button
             onClick={() => router.push('/admin/data-deletion-requests')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 cursor-pointer transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Back to Requests
           </button>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Data Deletion Request</h1>
@@ -267,7 +267,7 @@ export default function DeletionRequestDetailPage() {
         </div>
 
         {/* User Information */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
             <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -309,7 +309,7 @@ export default function DeletionRequestDetailPage() {
         </div>
 
         {/* Request Details */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
             <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -378,13 +378,13 @@ export default function DeletionRequestDetailPage() {
 
         {/* Action Buttons */}
         {request.status === 'PENDING' && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Actions</h2>
             <div className="flex gap-4">
               <button
                 onClick={handleApprove}
                 disabled={actionLoading}
-                className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold flex items-center justify-center gap-2"
+                className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors font-semibold flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -394,7 +394,7 @@ export default function DeletionRequestDetailPage() {
               <button
                 onClick={() => setShowRejectModal(true)}
                 disabled={actionLoading}
-                className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold flex items-center justify-center gap-2"
+                className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors font-semibold flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -406,7 +406,7 @@ export default function DeletionRequestDetailPage() {
         )}
 
         {request.status === 'PROCESSING' && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Execute Deletion</h2>
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
               <div className="flex items-start gap-3">
@@ -414,7 +414,7 @@ export default function DeletionRequestDetailPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <div className="text-sm text-red-800">
-                  <p className="font-semibold mb-1">⚠️ Warning: Irreversible Action</p>
+                  <p className="font-semibold mb-1">Warning: Irreversible Action</p>
                   <p>This will permanently delete/anonymize the user's personal data. Order history will be retained but anonymized for business purposes.</p>
                 </div>
               </div>
@@ -422,7 +422,7 @@ export default function DeletionRequestDetailPage() {
             <button
               onClick={handleExecute}
               disabled={actionLoading}
-              className="w-full px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold flex items-center justify-center gap-2"
+              className="w-full px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors font-semibold flex items-center justify-center gap-2"
             >
               {actionLoading ? (
                 <>
@@ -445,7 +445,7 @@ export default function DeletionRequestDetailPage() {
         )}
 
         {/* Audit Log */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
             <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -492,7 +492,7 @@ export default function DeletionRequestDetailPage() {
       {/* Reject Modal */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Reject Deletion Request</h3>
             <p className="text-gray-600 mb-4">
               Please provide a reason for rejecting this data deletion request. This will be visible to the user.
@@ -511,14 +511,14 @@ export default function DeletionRequestDetailPage() {
                   setRejectNotes('');
                 }}
                 disabled={actionLoading}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 transition-colors"
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleReject}
                 disabled={actionLoading || !rejectNotes.trim()}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
               >
                 {actionLoading ? 'Rejecting...' : 'Confirm Rejection'}
               </button>

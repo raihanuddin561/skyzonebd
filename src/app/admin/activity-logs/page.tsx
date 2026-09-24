@@ -31,18 +31,28 @@ interface ActivityStats {
   topAdmins: Array<{ userId: string; userName: string; activityCount: number }>;
 }
 
-const actionIcons: Record<string, string> = {
-  CREATE: '➕',
-  UPDATE: '✏️',
-  DELETE: '🗑️',
-  STATUS_CHANGE: '🔄',
-  CANCEL: '❌',
-  RESTORE: '♻️',
-  EXPORT: '📤',
-  IMPORT: '📥',
-  LOGIN: '🔐',
-  LOGOUT: '🚪'
+const actionIconPaths: Record<string, string> = {
+  CREATE: 'M12 4v16m8-8H4',
+  UPDATE: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
+  DELETE: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
+  STATUS_CHANGE: 'M4 4v5h5M20 20v-5h-5M4 9a8 8 0 0113.657-4.657M20 15a8 8 0 01-13.657 4.657',
+  CANCEL: 'M9 9l6 6m0-6l-6 6m15-3a9 9 0 11-18 0 9 9 0 0118 0z',
+  RESTORE: 'M9 15L4 10m0 0l5-5m-5 5h11a4 4 0 010 8h-1',
+  EXPORT: 'M12 4v9m0 0l-3-3m3 3l3-3M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3',
+  IMPORT: 'M12 13V4m0 9l-3-3m3 3l3-3M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3',
+  LOGIN: 'M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h6a3 3 0 013 3v1',
+  LOGOUT: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'
 };
+
+function ActionIcon({ action, className = 'w-4 h-4' }: { action: string; className?: string }) {
+  const d = actionIconPaths[action];
+  if (!d) return null;
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />
+    </svg>
+  );
+}
 
 const actionColors: Record<string, string> = {
   CREATE: 'text-green-600 bg-green-50',
@@ -190,9 +200,12 @@ export default function ActivityLogsPage() {
         </div>
         <button
           onClick={() => router.push('/admin')}
-          className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          className="inline-flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:shadow-sm transition-all cursor-pointer"
         >
-          ← Back to Dashboard
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to Dashboard
         </button>
       </div>
 
@@ -200,13 +213,15 @@ export default function ActivityLogsPage() {
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Actions Summary */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <h3 className="text-lg font-semibold mb-4">Actions by Type</h3>
             <div className="space-y-2">
               {stats.actionCounts.map(item => (
                 <div key={item.action} className="flex items-center justify-between">
                   <span className="flex items-center gap-2">
-                    <span>{actionIcons[item.action]}</span>
+                    <span className={`w-7 h-7 rounded-lg flex items-center justify-center ${actionColors[item.action] || 'text-gray-600 bg-gray-50'}`}>
+                      <ActionIcon action={item.action} className="w-4 h-4" />
+                    </span>
                     <span className="text-sm">{item.action}</span>
                   </span>
                   <span className="font-semibold">{item.count}</span>
@@ -216,7 +231,7 @@ export default function ActivityLogsPage() {
           </div>
 
           {/* Entities Summary */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <h3 className="text-lg font-semibold mb-4">Entities Modified</h3>
             <div className="space-y-2">
               {stats.entityCounts.map(item => (
@@ -229,7 +244,7 @@ export default function ActivityLogsPage() {
           </div>
 
           {/* Top Admins */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
             <h3 className="text-lg font-semibold mb-4">Most Active Admins</h3>
             <div className="space-y-2">
               {stats.topAdmins.slice(0, 5).map((admin, index) => (
@@ -247,7 +262,7 @@ export default function ActivityLogsPage() {
       )}
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -312,7 +327,7 @@ export default function ActivityLogsPage() {
         <div className="mt-4">
           <button
             onClick={clearFilters}
-            className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+            className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 cursor-pointer transition-colors"
           >
             Clear Filters
           </button>
@@ -320,7 +335,7 @@ export default function ActivityLogsPage() {
       </div>
 
       {/* Activity Logs Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -366,7 +381,7 @@ export default function ActivityLogsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${actionColors[log.action] || 'text-gray-600 bg-gray-50'}`}>
-                          <span>{actionIcons[log.action]}</span>
+                          <ActionIcon action={log.action} className="w-3.5 h-3.5" />
                           <span>{log.action}</span>
                         </span>
                       </td>
@@ -406,14 +421,14 @@ export default function ActivityLogsPage() {
                   <button
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
                   >
                     Previous
                   </button>
                   <button
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
-                    className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
                   >
                     Next
                   </button>

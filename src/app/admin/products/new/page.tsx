@@ -368,7 +368,7 @@ export default function NewProduct() {
         </div>
         <button
           onClick={() => router.back()}
-          className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+          className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
         >
           Cancel
         </button>
@@ -579,13 +579,16 @@ export default function NewProduct() {
                       ...formData,
                       wholesaleTiers: [...formData.wholesaleTiers, { minQuantity: '', maxQuantity: '', price: '', discount: '' }]
                     })}
-                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer transition-colors"
                   >
                     + Add Tier
                   </button>
                 </div>
-                <div className="text-sm text-gray-600 mb-3 p-3 bg-blue-50 rounded">
-                  <strong>💡 Tip:</strong> Like Alibaba, create multiple price tiers. Example: "1-5 pcs: ৳20/pc", "6-10 pcs: ৳18/pc", "11+ pcs: ৳15/pc"
+                <div className="flex items-start gap-2 text-sm text-gray-600 mb-3 p-3 bg-blue-50 rounded">
+                  <svg className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <span><strong>Tip:</strong> Like Alibaba, create multiple price tiers. Example: "1-5 pcs: ৳20/pc", "6-10 pcs: ৳18/pc", "11+ pcs: ৳15/pc"</span>
                 </div>
                 {formData.wholesaleTiers.map((tier, index) => (
                   <div key={index} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
@@ -646,7 +649,7 @@ export default function NewProduct() {
                           const newTiers = formData.wholesaleTiers.filter((_, i) => i !== index);
                           setFormData({ ...formData, wholesaleTiers: newTiers });
                         }}
-                        className="w-full px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                        className="w-full px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 cursor-pointer transition-colors"
                       >
                         Remove
                       </button>
@@ -662,7 +665,7 @@ export default function NewProduct() {
                         ...formData,
                         wholesaleTiers: [{ minQuantity: '1', maxQuantity: '5', price: '', discount: '' }]
                       })}
-                      className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                      className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer transition-colors"
                     >
                       Add First Tier
                     </button>
@@ -735,9 +738,11 @@ export default function NewProduct() {
                       setMainImageFile(null);
                       setMainImagePreview('');
                     }}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 cursor-pointer transition-colors"
                   >
-                    ✕
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
               ) : (
@@ -781,9 +786,11 @@ export default function NewProduct() {
                   <button
                     type="button"
                     onClick={() => removeAdditionalImage(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600 text-xs"
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600 text-xs cursor-pointer transition-colors"
                   >
-                    ✕
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
               ))}
@@ -815,7 +822,7 @@ export default function NewProduct() {
             <button
               type="button"
               onClick={addSpecification}
-              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium cursor-pointer transition-colors"
             >
               + Add Specification
             </button>
@@ -842,9 +849,11 @@ export default function NewProduct() {
                   <button
                     type="button"
                     onClick={() => removeSpecification(index)}
-                    className="px-3 py-2 text-red-600 hover:text-red-700"
+                    className="px-3 py-2 text-red-600 hover:text-red-700 cursor-pointer transition-colors"
                   >
-                    ✕
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -958,8 +967,11 @@ export default function NewProduct() {
                   </div>
                 </div>
 
-                <p className="text-sm text-blue-700">
-                  💡 This product will be featured in the homepage hero slider with its image and details.
+                <p className="flex items-start gap-2 text-sm text-blue-700">
+                  <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <span>This product will be featured in the homepage hero slider with its image and details.</span>
                 </p>
               </div>
             )}
@@ -971,14 +983,14 @@ export default function NewProduct() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium cursor-pointer transition-colors"
           >
             {isSubmitting ? 'Creating Product...' : 'Create Product'}
           </button>
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+            className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium cursor-pointer transition-colors"
           >
             Cancel
           </button>

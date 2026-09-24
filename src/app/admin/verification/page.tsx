@@ -3,6 +3,31 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
+import AdminIcon from '../components/AdminIcons';
+
+const SearchIcon = ({ className = 'w-3 h-3' }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+);
+
+const XCircleIcon = ({ className = 'w-3 h-3' }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 105.636 5.636a9 9 0 0012.728 12.728zM9 9l6 6m0-6l-6 6" />
+  </svg>
+);
+
+const MailIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+  </svg>
+);
+
+const PhoneIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+  </svg>
+);
 
 interface VerificationApplication {
   id: string;
@@ -48,11 +73,11 @@ export default function B2BVerification() {
 
 
   const getStatusBadge = (status: string) => {
-    const badges: { [key: string]: { class: string; text: string; icon: string } } = {
-      pending: { class: 'bg-yellow-100 text-yellow-800', text: 'Pending', icon: '⏳' },
-      under_review: { class: 'bg-blue-100 text-blue-800', text: 'Under Review', icon: '🔍' },
-      approved: { class: 'bg-green-100 text-green-800', text: 'Approved', icon: '✓' },
-      rejected: { class: 'bg-red-100 text-red-800', text: 'Rejected', icon: '✕' },
+    const badges: { [key: string]: { class: string; text: string; icon: React.ReactNode } } = {
+      pending: { class: 'bg-yellow-100 text-yellow-800', text: 'Pending', icon: <AdminIcon name="accountsReceivable" className="w-3 h-3" /> },
+      under_review: { class: 'bg-blue-100 text-blue-800', text: 'Under Review', icon: <SearchIcon /> },
+      approved: { class: 'bg-green-100 text-green-800', text: 'Approved', icon: <AdminIcon name="verification" className="w-3 h-3" /> },
+      rejected: { class: 'bg-red-100 text-red-800', text: 'Rejected', icon: <XCircleIcon /> },
     };
     return badges[status] || badges.pending;
   };
@@ -180,7 +205,7 @@ export default function B2BVerification() {
         <p className="text-red-500 text-sm mt-1">{error}</p>
         <button
           onClick={fetchApplications}
-          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer transition-colors"
         >
           Try Again
         </button>
@@ -200,40 +225,48 @@ export default function B2BVerification() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Pending Review</p>
               <p className="text-xl sm:text-2xl font-bold text-yellow-600">{stats.pending}</p>
             </div>
-            <span className="text-2xl sm:text-3xl">⏳</span>
+            <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-yellow-50 text-yellow-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="accountsReceivable" className="w-4 h-4 sm:w-5 sm:h-5" />
+            </span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Total Applications</p>
               <p className="text-xl sm:text-2xl font-bold text-blue-600">{stats.pending + stats.approved + stats.rejected}</p>
             </div>
-            <span className="text-2xl sm:text-3xl">📋</span>
+            <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="rfq" className="w-4 h-4 sm:w-5 sm:h-5" />
+            </span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Approved</p>
               <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.approved}</p>
             </div>
-            <span className="text-2xl sm:text-3xl">✅</span>
+            <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="verification" className="w-4 h-4 sm:w-5 sm:h-5" />
+            </span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Rejected</p>
               <p className="text-xl sm:text-2xl font-bold text-red-600">{stats.rejected}</p>
             </div>
-            <span className="text-2xl sm:text-3xl">❌</span>
+            <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0">
+              <XCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+            </span>
           </div>
         </div>
       </div>
@@ -289,29 +322,29 @@ export default function B2BVerification() {
                   <p className="text-xs sm:text-sm text-gray-600 truncate">{app.user.name}</p>
                 </div>
                 <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium flex-shrink-0 ${getStatusBadge(app.status).class}`}>
-                  <span>{getStatusBadge(app.status).icon}</span>
+                  {getStatusBadge(app.status).icon}
                   <span className="hidden sm:inline">{getStatusBadge(app.status).text}</span>
                 </span>
               </div>
               <div className="space-y-1 text-xs sm:text-sm text-gray-600">
                 <div className="flex items-center gap-2 truncate">
-                  <span className="flex-shrink-0">📧</span>
+                  <MailIcon className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" />
                   <span className="truncate">{app.user.email}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="flex-shrink-0">📱</span>
+                  <PhoneIcon className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" />
                   <span>{app.user.phone}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="flex-shrink-0">🏢</span>
+                  <AdminIcon name="suppliers" className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" />
                   <span className="truncate">{app.businessInfo.businessType}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="flex-shrink-0">📄</span>
+                  <AdminIcon name="invoices" className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" />
                   <span>{app.documents.length} documents</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="flex-shrink-0">🕒</span>
+                  <AdminIcon name="accountsReceivable" className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" />
                   <span>{new Date(app.submittedAt).toLocaleDateString('en-GB')}</span>
                 </div>
               </div>
@@ -330,7 +363,7 @@ export default function B2BVerification() {
                   <p className="text-sm sm:text-base text-gray-600 mt-1">{selectedApp.businessInfo.businessType}</p>
                 </div>
                 <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium flex-shrink-0 ${getStatusBadge(selectedApp.status).class}`}>
-                  <span>{getStatusBadge(selectedApp.status).icon}</span>
+                  {getStatusBadge(selectedApp.status).icon}
                   <span>{getStatusBadge(selectedApp.status).text}</span>
                 </span>
               </div>
@@ -393,7 +426,9 @@ export default function B2BVerification() {
                   {selectedApp.documents.map((doc, idx) => (
                     <div key={idx} className="flex flex-wrap items-center justify-between gap-3 bg-gray-50 rounded-lg p-4">
                       <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-3xl flex-shrink-0">📄</span>
+                        <span className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                          <AdminIcon name="invoices" className="w-5 h-5" />
+                        </span>
                         <div className="min-w-0">
                           <p className="font-medium text-gray-900">{doc.type}</p>
                           <p className="text-sm text-gray-600 truncate">{doc.name}</p>
@@ -427,15 +462,17 @@ export default function B2BVerification() {
                 <div className="flex gap-3 pt-4 border-t border-gray-200">
                   <button
                     onClick={() => handleApprove(selectedApp.id)}
-                    className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium cursor-pointer transition-colors"
                   >
-                    ✓ Approve Application
+                    <AdminIcon name="verification" className="w-4 h-4" />
+                    Approve Application
                   </button>
                   <button
                     onClick={() => setShowRejectModal(true)}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium cursor-pointer transition-colors"
                   >
-                    ✕ Reject Application
+                    <XCircleIcon className="w-4 h-4" />
+                    Reject Application
                   </button>
                 </div>
               )}
@@ -449,7 +486,9 @@ export default function B2BVerification() {
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-              <span className="text-6xl mb-4 block">📋</span>
+              <div className="w-20 h-20 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-4">
+                <AdminIcon name="rfq" className="w-10 h-10" />
+              </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">No Application Selected</h3>
               <p className="text-gray-600">Select an application from the list to view details</p>
             </div>
@@ -491,14 +530,14 @@ export default function B2BVerification() {
                   setShowRejectModal(false);
                   setRejectionReason('');
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRejectSubmit}
                 disabled={!rejectionReason.trim()}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
               >
                 Confirm Rejection
               </button>

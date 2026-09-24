@@ -81,18 +81,18 @@ export default function CostBreakdownPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Cost Breakdown</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">COGS and operational cost analysis</p>
         </div>
-        <button onClick={handleExport} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm">
+        <button onClick={handleExport} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm cursor-pointer transition-colors">
           Export CSV
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
         <div className="flex gap-2 flex-wrap">
           {['today', 'week', 'month', 'quarter', 'year'].map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium capitalize transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium capitalize transition-colors cursor-pointer ${
                 period === p ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -104,19 +104,19 @@ export default function CostBreakdownPage() {
 
       {summary && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Total Costs</div>
             <div className="text-xl sm:text-2xl font-bold text-gray-900">৳{summary.totalCosts.toLocaleString()}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">COGS</div>
             <div className="text-xl sm:text-2xl font-bold text-blue-600">৳{summary.totalCOGS.toLocaleString()}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Operational</div>
             <div className="text-xl sm:text-2xl font-bold text-purple-600">৳{summary.totalOperationalCosts.toLocaleString()}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Cost Trend</div>
             <div className="text-xl sm:text-2xl font-bold text-gray-900 capitalize">{insights?.costTrend || '—'}</div>
           </div>
@@ -124,7 +124,7 @@ export default function CostBreakdownPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200"><h2 className="font-semibold text-gray-900">COGS by Category</h2></div>
           <div className="divide-y divide-gray-100">
             {cogsByCategory.length === 0 ? (
@@ -139,7 +139,7 @@ export default function CostBreakdownPage() {
             )}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200"><h2 className="font-semibold text-gray-900">Operational Costs by Category</h2></div>
           <div className="divide-y divide-gray-100">
             {operationalByCategory.length === 0 ? (

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
 import { api } from '@/utils/apiClient';
+import AdminIcon from '../components/AdminIcons';
 
 interface Supplier {
   id: string;
@@ -167,9 +168,10 @@ export default function PurchaseOrdersPage() {
         </div>
         <button
           onClick={openCreateModal}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm sm:text-base whitespace-nowrap"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm sm:text-base whitespace-nowrap cursor-pointer transition-colors"
         >
-          + New Purchase Order
+          <AdminIcon name="plus" className="w-4 h-4" />
+          <span>New Purchase Order</span>
         </button>
       </div>
 
@@ -179,7 +181,7 @@ export default function PurchaseOrdersPage() {
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
                 statusFilter === s ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -224,7 +226,7 @@ export default function PurchaseOrdersPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/admin/purchase-orders/${po.id}`} className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                      <Link href={`/admin/purchase-orders/${po.id}`} className="text-blue-600 hover:text-blue-700 text-sm font-medium cursor-pointer transition-colors">
                         View
                       </Link>
                     </td>
@@ -279,7 +281,7 @@ export default function PurchaseOrdersPage() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-sm font-medium text-gray-700">Line Items *</label>
-                    <button onClick={addLine} className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                    <button onClick={addLine} className="text-blue-600 hover:text-blue-700 text-sm font-medium cursor-pointer transition-colors">
                       + Add line
                     </button>
                   </div>
@@ -318,9 +320,11 @@ export default function PurchaseOrdersPage() {
                         {lines.length > 1 && (
                           <button
                             onClick={() => removeLine(idx)}
-                            className="px-2 py-2 text-red-600 hover:text-red-700 text-sm"
+                            className="px-2 py-2 text-red-600 hover:text-red-700 text-sm cursor-pointer transition-colors"
                           >
-                            ✕
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                           </button>
                         )}
                       </div>
@@ -331,14 +335,14 @@ export default function PurchaseOrdersPage() {
               <div className="flex gap-2 mt-6">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCreate}
                   disabled={saving}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
                 >
                   {saving ? 'Creating...' : 'Create Purchase Order'}
                 </button>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getOrderStatusColor } from '@/utils/orderStatus';
+import AdminIcon, { AdminIconName } from './components/AdminIcons';
 
 interface StatCard {
   title: string;
@@ -11,6 +12,23 @@ interface StatCard {
   icon: string;
   color: string;
 }
+
+// The /api/admin/stats route returns raw emoji strings + a color name per
+// stat for historical reasons; map both to the SVG icon set + real Tailwind
+// classes here rather than rendering the emoji or the color string directly.
+const STAT_ICON_BY_TITLE: Record<string, AdminIconName> = {
+  'Total Revenue': 'profit',
+  'Total Orders': 'orders',
+  'Total Users': 'users',
+  'Products': 'products',
+};
+
+const STAT_COLOR_CLASSES: Record<string, { bg: string; text: string }> = {
+  blue: { bg: 'bg-blue-50', text: 'text-blue-600' },
+  green: { bg: 'bg-green-50', text: 'text-green-600' },
+  purple: { bg: 'bg-purple-50', text: 'text-purple-600' },
+  orange: { bg: 'bg-orange-50', text: 'text-orange-600' },
+};
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<StatCard[]>([]);
@@ -63,16 +81,16 @@ export default function AdminDashboard() {
         <div className="flex gap-2 sm:gap-3">
           <Link
             href="/admin/hero-slides"
-            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
           >
-            <span>🎯</span>
+            <AdminIcon name="heroSlides" className="w-4 h-4 sm:w-5 sm:h-5" />
             <span className="sm:inline">Hero Slides</span>
           </Link>
           <Link
             href="/admin/products/new"
-            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
           >
-            <span>+</span>
+            <AdminIcon name="plus" className="w-4 h-4 sm:w-5 sm:h-5" />
             <span className="sm:inline">Add Product</span>
           </Link>
         </div>
@@ -83,7 +101,7 @@ export default function AdminDashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex items-start sm:items-center gap-2 sm:gap-3 lg:gap-4">
             <div className="bg-white/20 backdrop-blur-sm p-2 sm:p-3 lg:p-4 rounded-lg flex-shrink-0">
-              <span className="text-xl sm:text-3xl lg:text-4xl">🎯</span>
+              <AdminIcon name="heroSlides" className="w-6 h-6 sm:w-8 sm:h-8 lg:w-9 lg:h-9" />
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-sm sm:text-lg lg:text-2xl font-bold mb-0.5 sm:mb-1">Manage Homepage Carousel</h2>
@@ -116,7 +134,7 @@ export default function AdminDashboard() {
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">⚠️</span>
+            <AdminIcon name="warning" className="w-6 h-6 text-red-500 flex-shrink-0" />
             <div>
               <h3 className="font-semibold text-red-800">Error Loading Dashboard</h3>
               <p className="text-red-600 text-sm mt-1">{error}</p>
@@ -128,20 +146,26 @@ export default function AdminDashboard() {
       {/* Stats Cards */}
       {!loading && !error && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-          {stats.map((stat, index) => (
-            <div key={index} className="bg-white rounded-lg shadow-sm p-4 sm:p-5 lg:p-6 border border-gray-200">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <span className="text-2xl sm:text-3xl">{stat.icon}</span>
-                <span className={`text-xs sm:text-sm font-medium ${
-                  stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {stat.change}
-                </span>
+          {stats.map((stat, index) => {
+            const colorClasses = STAT_COLOR_CLASSES[stat.color] || STAT_COLOR_CLASSES.blue;
+            const iconName = STAT_ICON_BY_TITLE[stat.title] || 'analytics';
+            return (
+              <div key={index} className="card-hover bg-white rounded-xl shadow-sm p-4 sm:p-5 lg:p-6 border border-gray-200">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <span className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${colorClasses.bg} ${colorClasses.text} flex items-center justify-center flex-shrink-0`}>
+                    <AdminIcon name={iconName} className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </span>
+                  <span className={`text-xs sm:text-sm font-semibold ${
+                    stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {stat.change}
+                  </span>
+                </div>
+                <h3 className="text-gray-600 text-xs sm:text-sm font-medium">{stat.title}</h3>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
               </div>
-              <h3 className="text-gray-600 text-xs sm:text-sm font-medium">{stat.title}</h3>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -279,7 +303,7 @@ export default function AdminDashboard() {
             href="/admin/hero-slides"
             className="p-2 sm:p-3 lg:p-4 border-2 border-solid border-purple-300 bg-purple-50 rounded-lg hover:border-purple-500 hover:bg-purple-100 transition-all text-center group"
           >
-            <div className="text-xl sm:text-2xl lg:text-3xl mb-1 sm:mb-2">🎯</div>
+            <AdminIcon name="heroSlides" className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 mx-auto mb-1 sm:mb-2 text-purple-600" />
             <div className="text-xs font-bold text-purple-700 leading-tight">Hero Carousel</div>
             <div className="text-xs text-purple-600 mt-1 hidden lg:block">Feature Products</div>
           </Link>
@@ -287,28 +311,28 @@ export default function AdminDashboard() {
             href="/admin/products/new"
             className="p-2 sm:p-3 lg:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-xl sm:text-2xl lg:text-3xl mb-1 sm:mb-2">📦</div>
+            <AdminIcon name="products" className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 mx-auto mb-1 sm:mb-2 text-gray-500" />
             <div className="text-xs font-medium text-gray-700 leading-tight">Add Product</div>
           </Link>
           <Link
             href="/admin/products"
             className="p-2 sm:p-3 lg:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-xl sm:text-2xl lg:text-3xl mb-1 sm:mb-2">📋</div>
+            <AdminIcon name="inventory" className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 mx-auto mb-1 sm:mb-2 text-gray-500" />
             <div className="text-xs font-medium text-gray-700 leading-tight">All Products</div>
           </Link>
           <Link
             href="/admin/orders"
             className="p-2 sm:p-3 lg:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-xl sm:text-2xl lg:text-3xl mb-1 sm:mb-2">🛒</div>
+            <AdminIcon name="orders" className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 mx-auto mb-1 sm:mb-2 text-gray-500" />
             <div className="text-xs font-medium text-gray-700 leading-tight">Manage Orders</div>
           </Link>
           <Link
             href="/admin/users"
             className="p-2 sm:p-3 lg:p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-center"
           >
-            <div className="text-xl sm:text-2xl lg:text-3xl mb-1 sm:mb-2">👥</div>
+            <AdminIcon name="users" className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 mx-auto mb-1 sm:mb-2 text-gray-500" />
             <div className="text-xs font-medium text-gray-700 leading-tight">Manage Users</div>
           </Link>
         </div>

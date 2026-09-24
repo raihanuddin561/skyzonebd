@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import AdminIcon, { AdminIconName } from './components/AdminIcons';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -85,69 +86,69 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     return null;
   }
 
-  const menuItems = [
+  const menuItems: { category: string; items: { name: string; icon: AdminIconName; path: string }[] }[] = [
     {
       category: 'Overview',
       items: [
-        { name: 'Dashboard', icon: '📊', path: '/admin' },
-        { name: 'Analytics', icon: '📈', path: '/admin/analytics' },
+        { name: 'Dashboard', icon: 'dashboard', path: '/admin' },
+        { name: 'Analytics', icon: 'analytics', path: '/admin/analytics' },
       ]
     },
     {
       category: 'E-Commerce',
       items: [
-        { name: 'Products', icon: '📦', path: '/admin/products' },
-        { name: 'Categories', icon: '🏷️', path: '/admin/categories' },
-        { name: 'Units', icon: '⚖️', path: '/admin/units' },
-        { name: 'Orders', icon: '🛒', path: '/admin/orders' },
-        { name: 'Returns', icon: '↩️', path: '/admin/returns' },
-        { name: 'Inventory', icon: '📋', path: '/admin/inventory' },
-        { name: 'Purchase Orders', icon: '📥', path: '/admin/purchase-orders' },
-        { name: 'Suppliers', icon: '🚛', path: '/admin/suppliers' },
+        { name: 'Products', icon: 'products', path: '/admin/products' },
+        { name: 'Categories', icon: 'categories', path: '/admin/categories' },
+        { name: 'Units', icon: 'units', path: '/admin/units' },
+        { name: 'Orders', icon: 'orders', path: '/admin/orders' },
+        { name: 'Returns', icon: 'returns', path: '/admin/returns' },
+        { name: 'Inventory', icon: 'inventory', path: '/admin/inventory' },
+        { name: 'Purchase Orders', icon: 'purchaseOrders', path: '/admin/purchase-orders' },
+        { name: 'Suppliers', icon: 'suppliers', path: '/admin/suppliers' },
       ]
     },
     {
       category: 'Customer Management',
       items: [
-        { name: 'Users', icon: '👥', path: '/admin/users' },
-        { name: 'B2B Verification', icon: '✓', path: '/admin/verification' },
-        { name: 'RFQ Requests', icon: '📝', path: '/admin/rfq' },
-        { name: 'Data Deletion', icon: '🗑️', path: '/admin/data-deletion-requests' },
+        { name: 'Users', icon: 'users', path: '/admin/users' },
+        { name: 'B2B Verification', icon: 'verification', path: '/admin/verification' },
+        { name: 'RFQ Requests', icon: 'rfq', path: '/admin/rfq' },
+        { name: 'Data Deletion', icon: 'dataDeletion', path: '/admin/data-deletion-requests' },
       ]
     },
     {
       category: 'Financial',
       items: [
-        { name: 'Profit Dashboard', icon: '💰', path: '/admin/profit-dashboard' },
-        { name: 'Profit Reports', icon: '📊', path: '/admin/profit-reports' },
-        { name: 'Profit & Loss', icon: '📈', path: '/admin/profit-loss' },
-        { name: 'Invoices', icon: '🧾', path: '/admin/invoices' },
-        { name: 'Accounts Receivable', icon: '⏳', path: '/admin/accounts-receivable' },
-        { name: 'Payouts', icon: '💸', path: '/admin/payouts' },
-        { name: 'Financial Ledger', icon: '📒', path: '/admin/financial/ledger' },
-        { name: 'Cost Breakdown', icon: '🧮', path: '/admin/financial/cost-breakdown' },
-        { name: 'Revenue Analytics', icon: '📉', path: '/admin/financial/revenue-analytics' },
-        { name: 'Partner Comparison', icon: '⚖️', path: '/admin/financial/partner-comparison' },
+        { name: 'Profit Dashboard', icon: 'profit', path: '/admin/profit-dashboard' },
+        { name: 'Profit Reports', icon: 'profitReports', path: '/admin/profit-reports' },
+        { name: 'Profit & Loss', icon: 'profitLoss', path: '/admin/profit-loss' },
+        { name: 'Invoices', icon: 'invoices', path: '/admin/invoices' },
+        { name: 'Accounts Receivable', icon: 'accountsReceivable', path: '/admin/accounts-receivable' },
+        { name: 'Payouts', icon: 'payouts', path: '/admin/payouts' },
+        { name: 'Financial Ledger', icon: 'ledger', path: '/admin/financial/ledger' },
+        { name: 'Cost Breakdown', icon: 'costBreakdown', path: '/admin/financial/cost-breakdown' },
+        { name: 'Revenue Analytics', icon: 'revenueAnalytics', path: '/admin/financial/revenue-analytics' },
+        { name: 'Partner Comparison', icon: 'partnerComparison', path: '/admin/financial/partner-comparison' },
       ]
     },
     {
       category: 'Content',
       items: [
-        { name: 'Hero Slides', icon: '🎯', path: '/admin/hero-slides' },
-        { name: 'Banners', icon: '🖼️', path: '/admin/banners' },
-        { name: 'Reviews', icon: '⭐', path: '/admin/reviews' },
-        { name: 'Notifications', icon: '🔔', path: '/admin/notifications' },
+        { name: 'Hero Slides', icon: 'heroSlides', path: '/admin/hero-slides' },
+        { name: 'Banners', icon: 'banners', path: '/admin/banners' },
+        { name: 'Reviews', icon: 'reviews', path: '/admin/reviews' },
+        { name: 'Notifications', icon: 'notifications', path: '/admin/notifications' },
       ]
     },
     {
       category: 'Settings',
       items: [
-        { name: 'Activity Logs', icon: '📜', path: '/admin/activity-logs' },
-        { name: 'Site Settings', icon: '⚙️', path: '/admin/settings' },
-        { name: 'Database Management', icon: '🗄️', path: '/admin/database' },
-        { name: 'Payment Methods', icon: '💳', path: '/admin/payments' },
-        { name: 'Shipping', icon: '🚚', path: '/admin/shipping' },
-        { name: 'Reports', icon: '📊', path: '/admin/reports' },
+        { name: 'Activity Logs', icon: 'activityLogs', path: '/admin/activity-logs' },
+        { name: 'Site Settings', icon: 'settings', path: '/admin/settings' },
+        { name: 'Database Management', icon: 'database', path: '/admin/database' },
+        { name: 'Payment Methods', icon: 'paymentMethods', path: '/admin/payments' },
+        { name: 'Shipping', icon: 'shipping', path: '/admin/shipping' },
+        { name: 'Reports', icon: 'reports', path: '/admin/reports' },
       ]
     }
   ];
@@ -241,7 +242,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                           pathname === item.path ? 'bg-blue-50 text-blue-600 font-semibold' : ''
                         }`}
                       >
-                        <span className="text-xl flex-shrink-0">{item.icon}</span>
+                        <AdminIcon name={item.icon} className="w-5 h-5 flex-shrink-0" />
                         <span className="font-medium text-sm sm:text-base">{item.name}</span>
                       </Link>
                     </li>
@@ -257,7 +258,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   href="/"
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors touch-manipulation"
                 >
-                  <span className="text-xl">🏠</span>
+                  <AdminIcon name="home" className="w-5 h-5" />
                   <span className="font-medium">Back to Store</span>
                 </Link>
               </div>

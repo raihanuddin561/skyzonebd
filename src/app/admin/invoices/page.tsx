@@ -75,13 +75,13 @@ export default function AdminInvoicesPage() {
         </Link>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
         <div className="flex gap-2 flex-wrap">
           {['', 'UNPAID', 'PARTIALLY_PAID', 'OVERDUE', 'PAID', 'CANCELLED'].map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
                 statusFilter === s ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -91,7 +91,7 @@ export default function AdminInvoicesPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -129,7 +129,7 @@ export default function AdminInvoicesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/admin/invoices/${inv.orderId}`} className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                      <Link href={`/admin/invoices/${inv.orderId}`} className="text-blue-600 hover:text-blue-700 text-sm font-medium cursor-pointer">
                         View
                       </Link>
                     </td>

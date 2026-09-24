@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { UserRole, isAdmin, isSuperAdmin } from '@/types/roles';
+import { logActivity } from '@/lib/activityLogger';
+
+// The admin "Create New User" form (src/app/admin/users/new/page.tsx) posts a
+// simplified role/businessType pair rather than the raw Prisma enums.
+const FORM_ROLE_TO_USER_ROLE: Record<string, UserRole> = {
+  customer: 'BUYER' as UserRole,
+  vendor: 'SELLER' as UserRole,
+  admin: 'ADMIN' as UserRole,
+};
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -157,6 +167,116 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching users:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch users' },
+      { status: 500 }
+    );
+  }
+}
+
+// Create a new user (admin-initiated — the "Create New User" form)
+export async function POST(request: NextRequest) {
+  try {
+    const authUser = await requireAuth(request);
+    if (!isAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { name, email, password, role, phone, businessType, companyName, isActive } = body;
+
+    if (!name || !email || !password || !role) {
+      return NextResponse.json(
+        { success: false, error: 'Name, email, password, and role are required' },
+        { status: 400 }
+      );
+    }
+
+    if (typeof password !== 'string' || password.length < 6) {
+      return NextResponse.json(
+        { success: false, error: 'Password must be at least 6 characters' },
+        { status: 400 }
+      );
+    }
+
+    const mappedRole = FORM_ROLE_TO_USER_ROLE[role];
+    if (!mappedRole) {
+      return NextResponse.json(
+        { success: false, error: `Invalid role: ${role}` },
+        { status: 400 }
+      );
+    }
+
+    // Only a super admin may create another admin account — same hierarchy
+    // rule already enforced for suspend/activate/verify above and in
+    // [id]/status/route.ts and [id]/role/route.ts.
+    if (mappedRole === 'ADMIN' && !isSuperAdmin(authUser.role as UserRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Only super admin can create admin accounts' },
+        { status: 403 }
+      );
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return NextResponse.json(
+        { success: false, error: 'A user with this email already exists' },
+        { status: 409 }
+      );
+    }
+
+    const userType =
+      mappedRole === 'SELLER' ? 'SELLER' : businessType === 'B2B' ? 'WHOLESALE' : 'RETAIL';
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        role: mappedRole,
+        userType,
+        phone: phone || null,
+        companyName: businessType === 'B2B' ? (companyName || null) : null,
+        isActive: isActive !== false,
+        isVerified: mappedRole !== 'BUYER', // wholesale/retail buyers still go through normal B2B verification
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        userType: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    await logActivity({
+      userId: authUser.id,
+      userName: authUser.name,
+      action: 'CREATE',
+      entityType: 'User',
+      entityId: newUser.id,
+      entityName: newUser.name,
+      description: `Created user ${newUser.email} (${newUser.role})`,
+      request,
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: newUser,
+      message: 'User created successfully',
+    });
+  } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
+    console.error('Error creating user:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to create user' },
       { status: 500 }
     );
   }

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
+import AdminIcon from '@/app/admin/components/AdminIcons';
 
 interface ReturnDetail {
   id: string;
@@ -147,7 +148,12 @@ export default function AdminReturnDetailPage({ params }: { params: Promise<{ id
     return (
       <div className="text-center py-16">
         <p className="text-gray-600">Return not found.</p>
-        <Link href="/admin/returns" className="text-blue-600 hover:text-blue-700">← Back to Returns</Link>
+        <Link href="/admin/returns" className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to Returns
+        </Link>
       </div>
     );
   }
@@ -156,8 +162,11 @@ export default function AdminReturnDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="space-y-6">
-      <Link href="/admin/returns" className="text-blue-600 hover:text-blue-700 inline-flex items-center text-sm">
-        ← Back to Returns
+      <Link href="/admin/returns" className="text-blue-600 hover:text-blue-700 inline-flex items-center gap-1 text-sm">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Back to Returns
       </Link>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -173,7 +182,7 @@ export default function AdminReturnDetailPage({ params }: { params: Promise<{ id
         </span>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-3">Items</h2>
         <div className="space-y-2 mb-4">
           {item.items.map((i) => (
@@ -203,23 +212,31 @@ export default function AdminReturnDetailPage({ params }: { params: Promise<{ id
       </div>
 
       {item.status === 'REQUESTED' && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-3">Decision</h2>
           {!showRejectForm ? (
             <div className="flex gap-2">
               <button
                 onClick={handleApprove}
                 disabled={updating}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
               >
-                {updating ? 'Processing...' : '✓ Approve (restocks items)'}
+                {updating ? 'Processing...' : (
+                  <>
+                    <AdminIcon name="verification" className="w-4 h-4" />
+                    Approve (restocks items)
+                  </>
+                )}
               </button>
               <button
                 onClick={() => setShowRejectForm(true)}
                 disabled={updating}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
               >
-                ✗ Reject
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Reject
               </button>
             </div>
           ) : (
@@ -234,14 +251,14 @@ export default function AdminReturnDetailPage({ params }: { params: Promise<{ id
                 <button
                   onClick={handleReject}
                   disabled={updating}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
                 >
                   {updating ? 'Processing...' : 'Confirm Rejection'}
                 </button>
                 <button
                   onClick={() => setShowRejectForm(false)}
                   disabled={updating}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 cursor-pointer disabled:cursor-not-allowed transition-colors"
                 >
                   Cancel
                 </button>
@@ -252,7 +269,7 @@ export default function AdminReturnDetailPage({ params }: { params: Promise<{ id
       )}
 
       {item.status === 'APPROVED' && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-3">Process Refund</h2>
           <p className="text-sm text-gray-600 mb-3">
             This is a separate step from approval — it moves money and posts the ledger reversal.
@@ -260,9 +277,14 @@ export default function AdminReturnDetailPage({ params }: { params: Promise<{ id
           <button
             onClick={handleProcessRefund}
             disabled={updating}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
           >
-            {updating ? 'Processing...' : `💳 Process Refund (৳${(item.refundAmount ?? totalRefund).toLocaleString()})`}
+            {updating ? 'Processing...' : (
+              <>
+                <AdminIcon name="paymentMethods" className="w-4 h-4" />
+                {`Process Refund (৳${(item.refundAmount ?? totalRefund).toLocaleString()})`}
+              </>
+            )}
           </button>
         </div>
       )}

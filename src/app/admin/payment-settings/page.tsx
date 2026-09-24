@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-toastify';
 import Link from 'next/link';
+import AdminIcon from '@/app/admin/components/AdminIcons';
 
 interface PaymentConfig {
   id: string;
@@ -165,15 +166,15 @@ export default function PaymentConfigPage() {
     });
   };
 
-  const getTypeIcon = (type: string) => {
-    const icons: { [key: string]: string } = {
-      'BKASH': '📱',
-      'NAGAD': '📱',
-      'ROCKET': '🚀',
-      'BANK_TRANSFER': '🏦',
-      'CREDIT_CARD': '💳'
+  const getTypeBadgeColor = (type: string) => {
+    const colors: { [key: string]: string } = {
+      'BKASH': 'bg-pink-50 text-pink-600',
+      'NAGAD': 'bg-orange-50 text-orange-600',
+      'ROCKET': 'bg-purple-50 text-purple-600',
+      'BANK_TRANSFER': 'bg-blue-50 text-blue-600',
+      'CREDIT_CARD': 'bg-indigo-50 text-indigo-600'
     };
-    return icons[type] || '💰';
+    return colors[type] || 'bg-gray-50 text-gray-600';
   };
 
   if (loading) {
@@ -198,9 +199,9 @@ export default function PaymentConfigPage() {
             setEditingConfig(null);
             setShowModal(true);
           }}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 cursor-pointer transition-colors"
         >
-          <span>➕</span>
+          <AdminIcon name="plus" className="w-4 h-4" />
           <span>Add Payment Method</span>
         </button>
       </div>
@@ -210,13 +211,15 @@ export default function PaymentConfigPage() {
         {configs.map((config) => (
           <div
             key={config.id}
-            className={`bg-white rounded-lg shadow-sm border-2 ${
+            className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border-2 ${
               config.isActive ? 'border-green-200' : 'border-gray-200'
             } p-6`}
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <span className="text-3xl">{getTypeIcon(config.type)}</span>
+                <span className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${getTypeBadgeColor(config.type)}`}>
+                  <AdminIcon name="paymentMethods" className="w-6 h-6" />
+                </span>
                 <div>
                   <h3 className="font-bold text-lg text-gray-900">{config.name}</h3>
                   <span className="text-xs text-gray-500">{config.type}</span>
@@ -265,26 +268,30 @@ export default function PaymentConfigPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => handleEdit(config)}
-                className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-sm font-medium"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-sm font-medium cursor-pointer transition-colors"
               >
-                ✏️ Edit
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit
               </button>
               <button
                 onClick={() => handleDelete(config.id, config.name)}
-                className="flex-1 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 text-sm font-medium"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 text-sm font-medium cursor-pointer transition-colors"
               >
-                🗑️ Delete
+                <AdminIcon name="dataDeletion" className="w-4 h-4" />
+                Delete
               </button>
             </div>
           </div>
         ))}
 
         {configs.length === 0 && (
-          <div className="col-span-full text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+          <div className="col-span-full text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
             <p className="text-gray-500 text-lg mb-4">No payment methods configured</p>
             <button
               onClick={() => setShowModal(true)}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
             >
               Add Your First Payment Method
             </button>
@@ -295,7 +302,7 @@ export default function PaymentConfigPage() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">
@@ -306,9 +313,12 @@ export default function PaymentConfigPage() {
                     setShowModal(false);
                     setEditingConfig(null);
                   }}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                  className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
+                  aria-label="Close"
                 >
-                  ×
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
 
@@ -517,13 +527,13 @@ export default function PaymentConfigPage() {
                       setShowModal(false);
                       setEditingConfig(null);
                     }}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
                   >
                     {editingConfig ? 'Update' : 'Create'}
                   </button>

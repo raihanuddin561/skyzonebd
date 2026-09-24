@@ -102,13 +102,13 @@ export default function FinancialLedgerPage() {
           <p className="text-sm sm:text-base text-gray-600 mt-1">Double-entry audit log of every financial transaction</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={handleExport} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm">
+          <button onClick={handleExport} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm cursor-pointer">
             Export CSV
           </button>
           <button
             onClick={handleReconcile}
             disabled={selectedIds.length === 0}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm disabled:opacity-50"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             Reconcile Selected ({selectedIds.length})
           </button>
@@ -117,28 +117,28 @@ export default function FinancialLedgerPage() {
 
       {summary && (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Page Credits</div>
             <div className="text-xl sm:text-2xl font-bold text-green-600">৳{summary.pageCredits.toLocaleString()}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Page Debits</div>
             <div className="text-xl sm:text-2xl font-bold text-red-600">৳{summary.pageDebits.toLocaleString()}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Page Balance</div>
             <div className="text-xl sm:text-2xl font-bold text-gray-900">৳{summary.pageBalance.toLocaleString()}</div>
           </div>
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
         <div className="flex gap-2 flex-wrap items-center">
-          <select value={sourceType} onChange={(e) => setSourceType(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+          <select value={sourceType} onChange={(e) => setSourceType(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm cursor-pointer">
             <option value="">All Source Types</option>
             {SOURCE_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select value={reconciled} onChange={(e) => setReconciled(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+          <select value={reconciled} onChange={(e) => setReconciled(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm cursor-pointer">
             <option value="">All</option>
             <option value="false">Unreconciled</option>
             <option value="true">Reconciled</option>
@@ -146,7 +146,7 @@ export default function FinancialLedgerPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -170,7 +170,7 @@ export default function FinancialLedgerPage() {
                 entries.map((e) => (
                   <tr key={e.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <input type="checkbox" checked={selectedIds.includes(e.id)} onChange={() => toggleSelect(e.id)} disabled={e.isReconciled} />
+                      <input type="checkbox" checked={selectedIds.includes(e.id)} onChange={() => toggleSelect(e.id)} disabled={e.isReconciled} className="cursor-pointer disabled:cursor-not-allowed" />
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{new Date(e.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{e.sourceType}{e.sourceName ? ` — ${e.sourceName}` : ''}</td>
@@ -182,7 +182,15 @@ export default function FinancialLedgerPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900 font-semibold">৳{e.amount.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-sm">{e.isReconciled ? '✓' : '—'}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {e.isReconciled ? (
+                        <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))
               )}

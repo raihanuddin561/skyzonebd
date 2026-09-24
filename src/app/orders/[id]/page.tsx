@@ -464,23 +464,29 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Order Items */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
               <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">Order Items</h2>
                 {!(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && order.status === 'DELIVERED' && (
                   <button
                     onClick={handleOpenReturnModal}
-                    className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
                   >
-                    ↩️ Request Return
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v3m-15-8l4-4m-4 4l4 4" />
+                    </svg>
+                    Request Return
                   </button>
                 )}
                 {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && order.status === 'PENDING' && !editMode && (
                   <button
                     onClick={handleEditToggle}
-                    className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
                   >
-                    ✏️ Edit Items
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Edit Items
                   </button>
                 )}
                 {editMode && (
@@ -488,16 +494,24 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     <button
                       onClick={handleSaveItems}
                       disabled={updating}
-                      className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
+                      className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                     >
-                      {updating ? 'Saving...' : '✓ Save Changes'}
+                      {!updating && (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                      {updating ? 'Saving...' : 'Save Changes'}
                     </button>
                     <button
                       onClick={handleEditToggle}
                       disabled={updating}
-                      className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
                     >
-                      ✕ Cancel
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      Cancel
                     </button>
                   </div>
                 )}
@@ -601,7 +615,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </div>
 
             {/* Shipping Information */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
               <div className="p-4 sm:p-6 border-b border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-900">Delivery Status</h2>
               </div>
@@ -667,7 +681,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                       </div>
                       <div className="flex-1 pt-2">
                         <h3 className="text-sm font-semibold text-gray-900">
-                          {order.status === 'SHIPPED' ? '🚚 Shipped' : '🚚 In Transit'}
+                          {order.status === 'SHIPPED' ? 'Shipped' : 'In Transit'}
                         </h3>
                         <p className="text-xs text-gray-500 mt-1">
                           {order.status === 'SHIPPED' ? 'Package has been shipped' : 'On the way to you'}
@@ -693,7 +707,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                         <h3 className={`text-sm font-semibold ${
                           order.status === 'DELIVERED' ? 'text-green-600' : 'text-gray-900'
                         }`}>
-                          {order.status === 'DELIVERED' ? '✓ Delivered' : 'Delivery Pending'}
+                          {order.status === 'DELIVERED' ? 'Delivered' : 'Delivery Pending'}
                         </h3>
                         <p className="text-xs text-gray-500 mt-1">
                           {order.status === 'DELIVERED' 
@@ -748,7 +762,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           <div className="space-y-6">
             {/* Payment Status Card - For All Users */}
             {order.paymentStatus !== 'PAID' && (
-              <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border-l-4 border-yellow-500 rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border-l-4 border-yellow-500 rounded-xl shadow-sm overflow-hidden">
                 <div className="p-4 sm:p-6">
                   <div className="flex items-start gap-3 mb-4">
                     <div className="flex-shrink-0">
@@ -803,14 +817,22 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   <div className="space-y-2">
                     <button
                       onClick={() => toast.info('Payment gateway integration coming soon! Please contact admin to process payment.')}
-                      className="w-full px-4 py-3 text-sm font-bold rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 transition-all transform hover:scale-[1.02] shadow-md"
+                      className="w-full px-4 py-3 text-sm font-bold rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 transition-all transform hover:scale-[1.02] shadow-md cursor-pointer flex items-center justify-center gap-2"
                     >
-                      💳 Make Payment
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h5M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      Make Payment
                     </button>
-                    
+
                     <p className="text-xs text-center text-gray-600 mt-2">
                       Or contact us to arrange payment: <br/>
-                      <span className="font-semibold text-gray-800">📞 +880-XXX-XXXXXX</span>
+                      <span className="font-semibold text-gray-800 inline-flex items-center gap-1.5 mt-1">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                        +880-XXX-XXXXXX
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -819,7 +841,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
             {/* Payment Confirmed Card */}
             {order.paymentStatus === 'PAID' && (
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-l-4 border-green-500 rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-l-4 border-green-500 rounded-xl shadow-sm overflow-hidden">
                 <div className="p-4 sm:p-6">
                   <div className="flex items-start gap-3">
                     <div className="flex-shrink-0">
@@ -828,7 +850,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                       </svg>
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-bold text-green-900 mb-1">✓ Payment Confirmed</h3>
+                      <h3 className="text-lg font-bold text-green-900 mb-1">Payment Confirmed</h3>
                       <p className="text-sm text-green-800 mb-3">Full payment received</p>
                       <div className="p-3 bg-white rounded-lg">
                         <div className="flex justify-between items-center">
@@ -845,7 +867,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             {/* Payment Verification Section - For Manual Payments (Admin Only) */}
             {order.paymentStatus === 'PENDING_VERIFICATION' && 
              (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
-              <div className="bg-gradient-to-br from-orange-50 to-yellow-50 border-l-4 border-orange-500 rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-gradient-to-br from-orange-50 to-yellow-50 border-l-4 border-orange-500 rounded-xl shadow-sm overflow-hidden">
                 <div className="p-4 sm:p-6">
                   <div className="flex items-start gap-3 mb-4">
                     <div className="flex-shrink-0">
@@ -855,7 +877,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-orange-900 mb-1">
-                        ⚠️ Payment Verification Required
+                        Payment Verification Required
                       </h3>
                       <p className="text-sm text-orange-800 mb-3">
                         Customer has submitted payment details. Please verify before processing the order.
@@ -897,17 +919,27 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     <button
                       onClick={() => handleVerifyPayment('PAID')}
                       disabled={updating}
-                      className="w-full px-4 py-3 text-sm font-bold rounded-lg bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 transition-all transform hover:scale-[1.02] shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-4 py-3 text-sm font-bold rounded-lg bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 transition-all transform hover:scale-[1.02] shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                     >
-                      {updating ? 'Processing...' : '✓ Verify & Mark as PAID'}
+                      {!updating && (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                      {updating ? 'Processing...' : 'Verify & Mark as PAID'}
                     </button>
-                    
+
                     <button
                       onClick={() => handleVerifyPayment('FAILED')}
                       disabled={updating}
-                      className="w-full px-4 py-3 text-sm font-bold rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 transition-all transform hover:scale-[1.02] shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-4 py-3 text-sm font-bold rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 transition-all transform hover:scale-[1.02] shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                     >
-                      {updating ? 'Processing...' : '✗ Reject Payment'}
+                      {!updating && (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      )}
+                      {updating ? 'Processing...' : 'Reject Payment'}
                     </button>
                   </div>
 
@@ -919,7 +951,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             )}
 
             {/* Customer Information */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
               <div className="p-4 sm:p-6 border-b border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-900">Customer</h2>
               </div>
@@ -961,7 +993,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </div>
 
             {/* Order Summary */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
               <div className="p-4 sm:p-6 border-b border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-900">Order Summary</h2>
               </div>
@@ -1000,11 +1032,19 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                       {order.paymentReference}
                     </p>
                     {order.paymentStatus === 'PENDING_VERIFICATION' && (
-                      <p className="text-xs text-orange-600 mt-1">⏳ Awaiting admin verification</p>
+                      <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Awaiting admin verification
+                      </p>
                     )}
                     {order.paymentVerifiedAt && (
-                      <p className="text-xs text-green-600 mt-1">
-                        ✓ Verified on {new Date(order.paymentVerifiedAt).toLocaleString()}
+                      <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Verified on {new Date(order.paymentVerifiedAt).toLocaleString()}
                       </p>
                     )}
                   </div>
@@ -1023,16 +1063,19 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
             {/* Admin Actions */}
             {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
                 <div className="p-4 sm:p-6 border-b border-gray-200">
                   <h2 className="text-lg font-semibold text-gray-900">Admin Actions</h2>
                 </div>
                 
                 <div className="p-4 sm:p-6 space-y-3">
                   {order.status === 'PENDING' && (
-                    <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-1.5">
+                      <svg className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
                       <p className="text-xs text-yellow-800">
-                        💡 <strong>Tip:</strong> You can edit order items (quantity & price) before confirming this order.
+                        <strong>Tip:</strong> You can edit order items (quantity & price) before confirming this order.
                       </p>
                     </div>
                   )}
@@ -1049,7 +1092,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                             : editMode
                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                            : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
                         }`}
                       >
                         {updating ? 'Updating...' : `Mark as ${status}`}
@@ -1063,9 +1106,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                       <button
                         onClick={handleCancelOrder}
                         disabled={updating || editMode}
-                        className="w-full px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="w-full px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                       >
-                        {updating ? 'Cancelling...' : '❌ Cancel Order'}
+                        {!updating && (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        )}
+                        {updating ? 'Cancelling...' : 'Cancel Order'}
                       </button>
                     </div>
                   )}
@@ -1081,7 +1129,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setShowReturnModal(false); }}
         >
-          <div className="bg-white rounded-lg max-w-2xl w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-2xl w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
               Request Return — Order #{order.orderNumber}
             </h3>
@@ -1121,14 +1169,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <button
                 onClick={handleSubmitReturn}
                 disabled={submittingReturn}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer transition-colors"
               >
                 {submittingReturn ? 'Submitting...' : 'Submit Return Request'}
               </button>
               <button
                 onClick={() => setShowReturnModal(false)}
                 disabled={submittingReturn}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 cursor-pointer transition-colors"
               >
                 Cancel
               </button>

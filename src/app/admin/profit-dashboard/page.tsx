@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/utils/apiClient';
+import AdminIcon from '../components/AdminIcons';
 
 interface Partner {
   id: string;
@@ -368,7 +369,7 @@ export default function ProfitDashboardPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Revenue</p>
@@ -376,15 +377,13 @@ export default function ProfitDashboardPage() {
                   {formatCurrency(stats?.totalRevenue || 0)}
                 </p>
               </div>
-              <div className="p-3 bg-green-100 rounded-full">
-                <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+              <div className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
+                <AdminIcon name="profit" className="w-5 h-5" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Costs</p>
@@ -392,15 +391,13 @@ export default function ProfitDashboardPage() {
                   {formatCurrency(stats?.totalCosts || 0)}
                 </p>
               </div>
-              <div className="p-3 bg-red-100 rounded-full">
-                <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-                </svg>
+              <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0">
+                <AdminIcon name="costBreakdown" className="w-5 h-5" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Net Profit</p>
@@ -411,15 +408,13 @@ export default function ProfitDashboardPage() {
                   Margin: {stats?.profitMargin?.toFixed(1) || 0}%
                 </p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                <AdminIcon name="profitReports" className="w-5 h-5" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Active Partners</p>
@@ -430,10 +425,8 @@ export default function ProfitDashboardPage() {
                   Total Share: {stats?.totalPartnerShare?.toFixed(1) || 0}%
                 </p>
               </div>
-              <div className="p-3 bg-purple-100 rounded-full">
-                <svg className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
+                <AdminIcon name="users" className="w-5 h-5" />
               </div>
             </div>
           </div>
@@ -442,7 +435,7 @@ export default function ProfitDashboardPage() {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* 30-Day Trend Chart */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Revenue & Profit Trend (6 Months)</h2>
             <div className="h-[300px] flex items-center justify-center">
               {trends.length > 0 ? (
@@ -464,7 +457,7 @@ export default function ProfitDashboardPage() {
           </div>
 
           {/* Top Products by Profit */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Top 10 Products by Net Profit</h2>
             <div className="space-y-3 max-h-[300px] overflow-y-auto">
               {topProducts.length === 0 ? (
@@ -495,7 +488,7 @@ export default function ProfitDashboardPage() {
         </div>
 
         {/* Partners Section */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Partnership Management</h2>
@@ -505,9 +498,10 @@ export default function ProfitDashboardPage() {
             </div>
             <button
               onClick={() => setShowPartnerModal(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer flex items-center gap-1.5"
             >
-              + Add Partner
+              <AdminIcon name="plus" className="w-4 h-4" />
+              Add Partner
             </button>
           </div>
 
@@ -568,19 +562,19 @@ export default function ProfitDashboardPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                         <button
                           onClick={() => handleEditPartner(partner)}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-blue-600 hover:text-blue-900 cursor-pointer"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleTogglePartnerStatus(partner.id, partner.isActive)}
-                          className="text-gray-600 hover:text-gray-900"
+                          className="text-gray-600 hover:text-gray-900 cursor-pointer"
                         >
                           {partner.isActive ? 'Deactivate' : 'Activate'}
                         </button>
                         <button
                           onClick={() => openCapitalModal(partner)}
-                          className="text-purple-600 hover:text-purple-900"
+                          className="text-purple-600 hover:text-purple-900 cursor-pointer"
                         >
                           Capital
                         </button>
@@ -594,7 +588,7 @@ export default function ProfitDashboardPage() {
         </div>
 
         {/* Profit Distribution Summary */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Profit Distribution Summary</h2>
           <div className="space-y-4">
             <div className="flex justify-between items-center pb-3 border-b">
@@ -634,7 +628,7 @@ export default function ProfitDashboardPage() {
                   setShowPartnerModal(false);
                   resetForm();
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 cursor-pointer"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -782,7 +776,7 @@ export default function ProfitDashboardPage() {
               <div className="flex gap-3 mt-6">
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
                 >
                   {editingPartner ? 'Update Partner' : 'Create Partner'}
                 </button>
@@ -792,7 +786,7 @@ export default function ProfitDashboardPage() {
                     setShowPartnerModal(false);
                     resetForm();
                   }}
-                  className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                  className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -841,7 +835,7 @@ export default function ProfitDashboardPage() {
                 />
                 <button
                   onClick={handleRecordCapital}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm cursor-pointer"
                 >
                   Record
                 </button>
@@ -872,7 +866,7 @@ export default function ProfitDashboardPage() {
               <div className="mt-6">
                 <button
                   onClick={() => setCapitalPartner(null)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
                 >
                   Close
                 </button>

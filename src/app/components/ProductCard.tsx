@@ -133,26 +133,41 @@ export default function ProductCard({ product }: ProductCardProps) {
       
       {/* Availability Badge */}
       <div className="mb-2 sm:mb-3">
-        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-          product.availability === 'in_stock' 
-            ? 'bg-green-100 text-green-800' 
+        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+          product.availability === 'in_stock'
+            ? 'bg-green-100 text-green-800'
             : product.availability === 'limited'
             ? 'bg-yellow-100 text-yellow-800'
             : 'bg-red-100 text-red-800'
         }`}>
-          {product.availability === 'in_stock' ? '✓ In Stock' : 
-           product.availability === 'limited' ? '⚠ Limited' : '✗ Out of Stock'}
+          {product.availability === 'in_stock' ? (
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : product.availability === 'limited' ? (
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+          ) : (
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )}
+          {product.availability === 'in_stock' ? 'In Stock' :
+           product.availability === 'limited' ? 'Limited' : 'Out of Stock'}
         </span>
       </div>
-      
+
       <div className="flex items-center justify-between mb-1 sm:mb-2">
         <p className="text-base sm:text-lg lg:text-xl text-blue-700 font-bold">
           ৳{product.price.toLocaleString()}
           {product.unit && <span className="text-sm text-gray-600 font-normal">/{product.unit}</span>}
         </p>
         {product.rating && (
-          <div className="flex items-center">
-            <span className="text-yellow-400 mr-1">★</span>
+          <div className="flex items-center gap-1">
+            <svg className="w-3.5 h-3.5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.958a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.368 2.447a1 1 0 00-.363 1.118l1.287 3.957c.3.922-.755 1.688-1.538 1.118l-3.367-2.446a1 1 0 00-1.176 0l-3.367 2.446c-.783.57-1.838-.196-1.538-1.118l1.287-3.957a1 1 0 00-.363-1.118L2.062 9.385c-.783-.57-.38-1.81.588-1.81h4.163a1 1 0 00.95-.69l1.286-3.958z" />
+            </svg>
             <span className="text-xs sm:text-sm text-gray-600">{product.rating}</span>
           </div>
         )}

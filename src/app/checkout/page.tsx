@@ -318,9 +318,18 @@ export default function CheckoutPage() {
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">Checkout</h1>
         
         {items.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-gray-500 text-lg">Your cart is empty</p>
-            <a href="/" className="text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
+          <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
+            <div className="w-24 h-24 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-6">
+              <svg className="h-12 w-12 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">Your cart is empty</h2>
+            <p className="text-gray-500 mb-8">Add some products before proceeding to checkout.</p>
+            <a
+              href="/"
+              className="inline-block bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-8 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer"
+            >
               Continue Shopping
             </a>
           </div>
@@ -336,35 +345,47 @@ export default function CheckoutPage() {
                   {/* Guest Welcome Message */}
                   <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                     <div className="flex items-start gap-2">
-                      <span className="text-green-600 text-lg">✓</span>
+                      <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                       <div className="text-sm text-green-800">
                         <strong>Welcome Guest Customer!</strong>
                         <p className="mt-1">You can place orders as a guest without creating an account. Simply provide your contact information below.</p>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex gap-4 mb-4">
                     <button
                       onClick={() => setCheckoutType('guest')}
-                      className={`flex-1 p-4 border-2 rounded-lg text-center cursor-pointer transition-colors ${
+                      className={`flex-1 p-4 border-2 rounded-xl text-center cursor-pointer transition-colors ${
                         checkoutType === 'guest'
                           ? 'border-blue-500 bg-blue-50 text-blue-700'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <div className="font-medium">🛍️ Guest Checkout</div>
+                      <div className="font-medium flex items-center justify-center gap-1.5">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                        Guest Checkout
+                      </div>
                       <div className="text-sm text-gray-600 mt-1">
                         Quick checkout without account
                       </div>
                     </button>
                     <button
                       onClick={() => router.push('/auth/login?redirect=/checkout')}
-                      className="flex-1 p-4 border-2 border-gray-200 rounded-lg text-center hover:border-gray-300 cursor-pointer transition-colors"
+                      className="flex-1 p-4 border-2 border-gray-200 rounded-xl text-center hover:border-gray-300 cursor-pointer transition-colors"
                     >
-                      <div className="font-medium">👤 Login & Checkout</div>
+                      <div className="font-medium flex items-center justify-center gap-1.5">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        Login &amp; Checkout
+                      </div>
                       <div className="text-sm text-gray-600 mt-1">
-                        Save order history & track orders
+                        Save order history &amp; track orders
                       </div>
                     </button>
                   </div>
@@ -524,16 +545,28 @@ export default function CheckoutPage() {
                   <h2 className="text-xl font-semibold mb-4 text-gray-900">Payment Method</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {[
-                      { value: 'bank_transfer', label: 'Bank Transfer', icon: '🏦', desc: 'Direct bank transfer' },
-                      { value: 'cash_on_delivery', label: 'Cash on Delivery', icon: '💵', desc: 'Pay when you receive' },
-                      { value: 'bkash', label: 'bKash', icon: '📱', desc: 'Mobile banking' },
-                      { value: 'nagad', label: 'Nagad', icon: '📱', desc: 'Digital wallet' },
-                      { value: 'credit_card', label: 'Credit Card', icon: '💳', desc: 'Visa, MasterCard' },
-                      { value: 'rocket', label: 'Rocket', icon: '🚀', desc: 'Mobile banking' }
+                      { value: 'bank_transfer', label: 'Bank Transfer', desc: 'Direct bank transfer', icon: (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M4 10h16M12 3L3 8h18l-9-5zm-6 7v7m4-7v7m4-7v7m4-7v7" />
+                      ) },
+                      { value: 'cash_on_delivery', label: 'Cash on Delivery', desc: 'Pay when you receive', icon: (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 10v2m9-8a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      ) },
+                      { value: 'bkash', label: 'bKash', desc: 'Mobile banking', icon: (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      ) },
+                      { value: 'nagad', label: 'Nagad', desc: 'Digital wallet', icon: (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      ) },
+                      { value: 'credit_card', label: 'Credit Card', desc: 'Visa, MasterCard', icon: (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h5M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      ) },
+                      { value: 'rocket', label: 'Rocket', desc: 'Mobile banking', icon: (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2l3 7h-6l3-7zM9 9v9a3 3 0 006 0V9M9 9H5.5L4 13m5-4h6m0 0h3.5L20 13M9 18l-2 3m8-3l2 3" />
+                      ) },
                     ].map((method) => (
                       <label
                         key={method.value}
-                        className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                        className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-colors ${
                           orderData.paymentMethod === method.value
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:border-gray-300'
@@ -548,7 +581,11 @@ export default function CheckoutPage() {
                           className="mr-3 cursor-pointer"
                         />
                         <div className="flex items-center">
-                          <span className="text-2xl mr-3">{method.icon}</span>
+                          <span className="w-9 h-9 mr-3 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              {method.icon}
+                            </svg>
+                          </span>
                           <div>
                             <div className="font-medium">{method.label}</div>
                             <div className="text-sm text-gray-600">{method.desc}</div>
@@ -566,7 +603,10 @@ export default function CheckoutPage() {
                         <div className="space-y-3">
                           <div className="text-sm text-gray-700">
                             <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                              🏦 Bank Transfer Instructions
+                              <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M4 10h16M12 3L3 8h18l-9-5zm-6 7v7m4-7v7m4-7v7m4-7v7" />
+                              </svg>
+                              Bank Transfer Instructions
                             </h4>
                             {bankConfig ? (
                               <>
@@ -598,9 +638,12 @@ export default function CheckoutPage() {
                                 <p className="text-gray-500">Bank transfer details not configured. Please contact support.</p>
                               </div>
                             )}
-                            <div className="bg-amber-50 border border-amber-200 rounded-md p-2 mb-3">
+                            <div className="bg-amber-50 border border-amber-200 rounded-md p-2 mb-3 flex items-start gap-1.5">
+                              <svg className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
                               <p className="text-xs text-amber-800">
-                                ⚠️ <strong>Important:</strong> After transferring, please enter your bank transaction reference below.
+                                <strong>Important:</strong> After transferring, please enter your bank transaction reference below.
                               </p>
                             </div>
                           </div>
@@ -640,7 +683,10 @@ export default function CheckoutPage() {
                         <div className="space-y-3">
                           <div className="text-sm text-gray-700">
                             <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                              📱 bKash Payment Instructions
+                              <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                              </svg>
+                              bKash Payment Instructions
                             </h4>
                             {bkashConfig ? (
                               <>
@@ -662,7 +708,12 @@ export default function CheckoutPage() {
                                   </div>
                                 ) : (
                                   <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
-                                    <p className="text-xs text-blue-900 font-medium mb-2">📋 How to Pay:</p>
+                                    <p className="text-xs text-blue-900 font-medium mb-2 flex items-center gap-1.5">
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                      </svg>
+                                      How to Pay:
+                                    </p>
                                     <ol className="text-xs text-blue-800 space-y-1 ml-4 list-decimal">
                                       <li>Go to bKash menu on your phone</li>
                                       <li>Select "Send Money" or "Payment"</li>
@@ -679,9 +730,12 @@ export default function CheckoutPage() {
                                 <p className="text-gray-500">bKash payment details not configured. Please contact support.</p>
                               </div>
                             )}
-                            <div className="bg-amber-50 border border-amber-200 rounded-md p-2 mb-3">
+                            <div className="bg-amber-50 border border-amber-200 rounded-md p-2 mb-3 flex items-start gap-1.5">
+                              <svg className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
                               <p className="text-xs text-amber-800">
-                                ⚠️ <strong>Important:</strong> Please enter the exact Transaction ID you received from bKash.
+                                <strong>Important:</strong> Please enter the exact Transaction ID you received from bKash.
                               </p>
                             </div>
                           </div>
@@ -720,20 +774,36 @@ export default function CheckoutPage() {
                     {orderData.paymentMethod === 'cash_on_delivery' && (
                       <div className="text-sm text-gray-700">
                         <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                          💵 Cash on Delivery
+                          <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 10v2m9-8a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Cash on Delivery
                         </h4>
-                        <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                          <p className="mb-1">✓ Pay in cash when your order is delivered</p>
-                          <p className="mb-1">✓ Available in Dhaka metropolitan area only</p>
+                        <div className="bg-green-50 border border-green-200 rounded-md p-3 space-y-1">
+                          <p className="flex items-center gap-1.5">
+                            <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Pay in cash when your order is delivered
+                          </p>
+                          <p className="flex items-center gap-1.5">
+                            <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Available in Dhaka metropolitan area only
+                          </p>
                           <p className="text-xs text-green-700 mt-2">Please keep exact change ready for smooth delivery.</p>
                         </div>
                       </div>
                     )}
-                    
+
                     {(orderData.paymentMethod === 'nagad' || orderData.paymentMethod === 'rocket') && (
                       <div className="text-sm text-gray-700">
                         <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                          📱 {orderData.paymentMethod === 'nagad' ? 'Nagad' : 'Rocket'} Payment
+                          <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                          {orderData.paymentMethod === 'nagad' ? 'Nagad' : 'Rocket'} Payment
                         </h4>
                         <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                           <p className="mb-1">• You will receive detailed payment instructions after placing the order</p>
@@ -742,15 +812,28 @@ export default function CheckoutPage() {
                         </div>
                       </div>
                     )}
-                    
+
                     {orderData.paymentMethod === 'credit_card' && (
                       <div className="text-sm text-gray-700">
                         <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                          💳 Credit Card Payment
+                          <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h5M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          Credit Card Payment
                         </h4>
-                        <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
-                          <p className="mb-1">✓ Secure payment through SSL encryption</p>
-                          <p className="mb-1">✓ Accepts Visa, MasterCard, American Express</p>
+                        <div className="bg-purple-50 border border-purple-200 rounded-md p-3 space-y-1">
+                          <p className="flex items-center gap-1.5">
+                            <svg className="w-4 h-4 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Secure payment through SSL encryption
+                          </p>
+                          <p className="flex items-center gap-1.5">
+                            <svg className="w-4 h-4 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Accepts Visa, MasterCard, American Express
+                          </p>
                           <p className="text-xs text-purple-700 mt-2">No additional charges for card payments.</p>
                         </div>
                       </div>

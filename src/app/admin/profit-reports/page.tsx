@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/utils/apiClient';
+import AdminIcon from '../components/AdminIcons';
 
 interface ProfitReport {
   id: string;
@@ -170,7 +171,7 @@ export default function ProfitReportsPage() {
         {/* Manual Report Generation — reports are normally created
             automatically when an order is marked DELIVERED; this is a
             backfill tool for orders that are missing one. */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Generate Report for an Order</h2>
           <p className="text-sm text-gray-600 mb-4">
             Reports generate automatically when an order is delivered. Use this to backfill a report for a specific order.
@@ -186,7 +187,7 @@ export default function ProfitReportsPage() {
             <button
               onClick={() => manualOrderId.trim() && handleGenerateReport(manualOrderId.trim())}
               disabled={!manualOrderId.trim() || generating === manualOrderId.trim()}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium whitespace-nowrap"
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-medium whitespace-nowrap"
             >
               {generating === manualOrderId.trim() ? 'Generating...' : 'Generate Report'}
             </button>
@@ -208,34 +209,62 @@ export default function ProfitReportsPage() {
         {/* Summary Cards */}
         {summary && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <p className="text-sm text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(summary.revenue)}</p>
+            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Total Revenue</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(summary.revenue)}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
+                  <AdminIcon name="revenueAnalytics" className="w-5 h-5" />
+                </div>
+              </div>
             </div>
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <p className="text-sm text-gray-600">Total Cost</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(summary.costOfGoods)}</p>
+            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Total Cost</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(summary.costOfGoods)}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0">
+                  <AdminIcon name="costBreakdown" className="w-5 h-5" />
+                </div>
+              </div>
             </div>
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <p className="text-sm text-gray-600">Net Profit</p>
-              <p className="text-2xl font-bold text-green-600 mt-1">{formatCurrency(summary.netProfit)}</p>
-              <p className="text-sm text-gray-500 mt-1">Margin: {summary.averageProfitMargin.toFixed(2)}%</p>
+            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Net Profit</p>
+                  <p className="text-2xl font-bold text-green-600 mt-1">{formatCurrency(summary.netProfit)}</p>
+                  <p className="text-sm text-gray-500 mt-1">Margin: {summary.averageProfitMargin.toFixed(2)}%</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                  <AdminIcon name="profitReports" className="w-5 h-5" />
+                </div>
+              </div>
             </div>
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <p className="text-sm text-gray-600">Platform Profit</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(summary.platformProfit)}</p>
-              <p className="text-sm text-gray-500 mt-1">Seller: {formatCurrency(summary.sellerProfit)}</p>
+            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Platform Profit</p>
+                  <p className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(summary.platformProfit)}</p>
+                  <p className="text-sm text-gray-500 mt-1">Seller: {formatCurrency(summary.sellerProfit)}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
+                  <AdminIcon name="partnerComparison" className="w-5 h-5" />
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
             <button
               onClick={handleClearFilters}
-              className="text-sm text-blue-600 hover:text-blue-800"
+              className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
             >
               Clear All
             </button>
@@ -301,7 +330,7 @@ export default function ProfitReportsPage() {
         </div>
 
         {/* Reports Table */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">
               Reports ({reports.length} total)
@@ -406,7 +435,7 @@ export default function ProfitReportsPage() {
                     <button
                       onClick={() => setPage(Math.max(1, page - 1))}
                       disabled={page === 1}
-                      className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                      className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
                     >
                       Previous
                     </button>
@@ -417,7 +446,7 @@ export default function ProfitReportsPage() {
                           {i > 0 && arr[i - 1] !== p - 1 && <span className="px-2 text-gray-500">...</span>}
                           <button
                             onClick={() => setPage(p)}
-                            className={`px-3 py-1 border rounded-lg text-sm ${
+                            className={`px-3 py-1 border rounded-lg text-sm cursor-pointer ${
                               p === page
                                 ? 'bg-blue-600 text-white border-blue-600'
                                 : 'border-gray-300 hover:bg-gray-50'
@@ -430,7 +459,7 @@ export default function ProfitReportsPage() {
                     <button
                       onClick={() => setPage(Math.min(totalPages, page + 1))}
                       disabled={page === totalPages}
-                      className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                      className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
                     >
                       Next
                     </button>

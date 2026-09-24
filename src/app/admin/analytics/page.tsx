@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import AdminIcon from '@/app/admin/components/AdminIcons';
 
 interface AnalyticsData {
   revenue: {
@@ -144,7 +145,7 @@ export default function AnalyticsPage() {
         <p className="text-red-500 text-sm mt-1">{error}</p>
         <button
           onClick={fetchAnalytics}
-          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer transition-colors"
         >
           Try Again
         </button>
@@ -167,7 +168,7 @@ export default function AnalyticsPage() {
             <button
               key={range}
               onClick={() => setTimeRange(range)}
-              className={`px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+              className={`px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
                 timeRange === range
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-600 hover:bg-gray-100'
@@ -183,7 +184,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-2xl sm:text-3xl">💰</span>
+            <AdminIcon name="profit" className="w-7 h-7 sm:w-8 sm:h-8" />
             <span className="text-xs sm:text-sm bg-white/20 px-2 py-1 rounded-full">
               {(analytics?.revenue.growth ?? 0) >= 0 ? '+' : ''}{(analytics?.revenue.growth ?? 0).toFixed(1)}%
             </span>
@@ -196,7 +197,7 @@ export default function AnalyticsPage() {
 
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-2xl sm:text-3xl">🛒</span>
+            <AdminIcon name="orders" className="w-7 h-7 sm:w-8 sm:h-8" />
             <span className="text-xs sm:text-sm bg-white/20 px-2 py-1 rounded-full">
               {analytics?.orders.completed || 0}
             </span>
@@ -209,7 +210,7 @@ export default function AnalyticsPage() {
 
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-2xl sm:text-3xl">👥</span>
+            <AdminIcon name="users" className="w-7 h-7 sm:w-8 sm:h-8" />
             <span className="text-xs sm:text-sm bg-white/20 px-2 py-1 rounded-full">
               +{analytics?.customers.new || 0}
             </span>
@@ -222,7 +223,10 @@ export default function AnalyticsPage() {
 
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-2xl sm:text-3xl">👁️</span>
+            <svg className="w-7 h-7 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
             <span className="text-xs sm:text-sm bg-white/20 px-2 py-1 rounded-full">
               Not tracked
             </span>
@@ -241,7 +245,7 @@ export default function AnalyticsPage() {
           className="flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 hover:border-red-300 transition-colors"
         >
           <div className="flex items-center gap-2 sm:gap-3">
-            <span className="text-xl sm:text-2xl">⚠️</span>
+            <AdminIcon name="warning" className="w-6 h-6 text-red-500" />
             <span className="text-sm sm:text-base font-medium text-gray-700">Products Needing Reorder</span>
           </div>
           <span className="text-lg sm:text-xl font-bold text-red-600">{analytics.products.lowStock}</span>
@@ -317,7 +321,7 @@ export default function AnalyticsPage() {
             <tbody className="divide-y divide-gray-200">
               {!analytics?.products.topSelling.length ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">
+                  <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-500">
                     No sales in this period yet
                   </td>
                 </tr>
@@ -340,7 +344,7 @@ export default function AnalyticsPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <span className="text-xl">👤</span>
+              <AdminIcon name="users" className="w-5 h-5 text-blue-600" />
             </div>
             <div>
               <div className="text-xs text-gray-600">New Customers</div>
@@ -352,7 +356,7 @@ export default function AnalyticsPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-              <span className="text-xl">✓</span>
+              <AdminIcon name="verification" className="w-5 h-5 text-green-600" />
             </div>
             <div>
               <div className="text-xs text-gray-600">Active Customers</div>
@@ -364,7 +368,7 @@ export default function AnalyticsPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-              <span className="text-xl">🏢</span>
+              <AdminIcon name="suppliers" className="w-5 h-5 text-purple-600" />
             </div>
             <div>
               <div className="text-xs text-gray-600">B2B Customers</div>

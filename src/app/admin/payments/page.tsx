@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
+import AdminIcon from '@/app/admin/components/AdminIcons';
 
 interface PaymentMethod {
   id: string;
@@ -12,13 +13,13 @@ interface PaymentMethod {
   icon?: string;
 }
 
-const ICONS: Record<string, string> = {
-  bkash: '📱',
-  nagad: '💸',
-  rocket: '🚀',
-  bank: '🏦',
-  cod: '💵',
-  cards: '💳',
+const BADGE_COLORS: Record<string, string> = {
+  bkash: 'bg-pink-50 text-pink-600',
+  nagad: 'bg-orange-50 text-orange-600',
+  rocket: 'bg-purple-50 text-purple-600',
+  bank: 'bg-blue-50 text-blue-600',
+  cod: 'bg-green-50 text-green-600',
+  cards: 'bg-indigo-50 text-indigo-600',
 };
 
 export default function PaymentsPage() {
@@ -101,17 +102,17 @@ export default function PaymentsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
           <div className="text-xs sm:text-sm text-gray-600 mb-1">Total Methods</div>
           <div className="text-xl sm:text-2xl font-bold text-gray-900">{methods.length}</div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-green-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-green-200 p-3 sm:p-4">
           <div className="text-xs sm:text-sm text-gray-600 mb-1">Active</div>
           <div className="text-xl sm:text-2xl font-bold text-green-600">
             {methods.filter(m => m.enabled).length}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 col-span-2 lg:col-span-1">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 col-span-2 lg:col-span-1">
           <div className="text-xs sm:text-sm text-gray-600 mb-1">Inactive</div>
           <div className="text-xl sm:text-2xl font-bold text-gray-900">
             {methods.filter(m => !m.enabled).length}
@@ -124,13 +125,15 @@ export default function PaymentsPage() {
         {methods.map((method) => (
           <div
             key={method.id}
-            className={`bg-white rounded-lg shadow-sm border-2 p-4 sm:p-6 transition-all ${
+            className={`bg-white rounded-xl shadow-sm hover:shadow-md border-2 p-4 sm:p-6 transition-all ${
               method.enabled ? 'border-green-500' : 'border-gray-200'
             }`}
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="text-3xl sm:text-4xl">{ICONS[method.id] || '💰'}</div>
+                <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${BADGE_COLORS[method.id] || 'bg-gray-50 text-gray-600'}`}>
+                  <AdminIcon name="paymentMethods" className="w-6 h-6" />
+                </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">{method.name}</h3>
                   <span className="text-xs text-gray-600 capitalize">{method.type.replace('_', ' ')}</span>
@@ -148,8 +151,15 @@ export default function PaymentsPage() {
               </label>
             </div>
 
-            <div className={`text-xs sm:text-sm font-medium mb-2 ${method.enabled ? 'text-green-600' : 'text-gray-500'}`}>
-              {method.enabled ? '✓ Active' : '○ Inactive'}
+            <div className={`inline-flex items-center gap-1 text-xs sm:text-sm font-medium mb-2 ${method.enabled ? 'text-green-600' : 'text-gray-500'}`}>
+              {method.enabled ? (
+                <AdminIcon name="verification" className="w-4 h-4" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="9" strokeWidth={2} />
+                </svg>
+              )}
+              {method.enabled ? 'Active' : 'Inactive'}
             </div>
 
             <Link
@@ -163,10 +173,15 @@ export default function PaymentsPage() {
       </div>
 
       {/* Information */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6">
-        <h3 className="font-semibold text-blue-900 mb-2">💡 Payment Gateway Integration</h3>
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6">
+        <h3 className="flex items-center gap-2 font-semibold text-blue-900 mb-2">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Payment Gateway Integration
+        </h3>
         <p className="text-sm text-blue-700">
-          To fully enable online payments (bKash, Nagad, Cards), you'll need to integrate with payment gateway APIs.
+          To fully enable online payments (bKash, Nagad, Cards), you&apos;ll need to integrate with payment gateway APIs.
           Contact your payment provider for API credentials and setup instructions.
         </p>
       </div>

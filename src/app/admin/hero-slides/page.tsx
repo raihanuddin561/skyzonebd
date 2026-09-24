@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import Link from 'next/link';
+import AdminIcon from '../components/AdminIcons';
 
 interface Product {
   id: string;
@@ -293,7 +294,7 @@ export default function HeroSlidesAdmin() {
           <div className="flex gap-2 sm:gap-3">
             <Link
               href="/admin"
-              className="flex-1 sm:flex-none bg-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-gray-700 transition text-center text-sm sm:text-base"
+              className="flex-1 sm:flex-none bg-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-center text-sm sm:text-base cursor-pointer"
             >
               Back to Admin
             </Link>
@@ -314,22 +315,32 @@ export default function HeroSlidesAdmin() {
                 }
                 setShowForm(!showForm);
               }}
-              className="flex-1 sm:flex-none bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-blue-700 transition text-sm sm:text-base"
+              className="flex-1 sm:flex-none bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base cursor-pointer flex items-center justify-center gap-1.5"
             >
-              {showForm ? 'Cancel' : '+ Add New Slide'}
+              {showForm ? 'Cancel' : (
+                <>
+                  <AdminIcon name="plus" className="w-4 h-4" />
+                  Add New Slide
+                </>
+              )}
             </button>
           </div>
         </div>
 
         {showForm && (
-          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
             <h2 className="text-lg sm:text-xl font-bold mb-4">
               {editingId ? 'Edit Hero Slide' : 'Create New Hero Slide'}
             </h2>
             
             {/* Info Banner */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
-              <h3 className="font-semibold text-sm sm:text-base text-blue-900 mb-2">💡 How Hero Slides Work:</h3>
+              <h3 className="font-semibold text-sm sm:text-base text-blue-900 mb-2 flex items-center gap-1.5">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                How Hero Slides Work:
+              </h3>
               <ul className="text-xs sm:text-sm text-blue-800 space-y-1">
                 <li>• <strong>With Product:</strong> Product image & details shown automatically on the right side</li>
                 <li>• <strong>Product Image:</strong> Automatically uses product's image (no upload needed)</li>
@@ -384,8 +395,8 @@ export default function HeroSlidesAdmin() {
                       {formData.productId ? (
                         (() => {
                           const selectedProduct = products.find(p => p.id === formData.productId);
-                          return formData.imageUrl === selectedProduct?.imageUrl 
-                            ? '✓ Using product image' 
+                          return formData.imageUrl === selectedProduct?.imageUrl
+                            ? 'Using product image'
                             : 'Custom image (overrides product image)';
                         })()
                       ) : (
@@ -395,13 +406,15 @@ export default function HeroSlidesAdmin() {
                   </div>
                 )}
                 {!formData.productId && !formData.imageUrl && (
-                  <p className="text-sm text-red-500 mt-1">
-                    ⚠ Image required (upload file or enter URL below)
+                  <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                    <AdminIcon name="warning" className="w-3.5 h-3.5 flex-shrink-0" />
+                    Image required (upload file or enter URL below)
                   </p>
                 )}
                 {formData.productId && !formData.imageUrl && (
-                  <p className="text-sm text-yellow-600 mt-1">
-                    ⚠ No product image found - please upload an image
+                  <p className="text-sm text-yellow-600 mt-1 flex items-center gap-1">
+                    <AdminIcon name="warning" className="w-3.5 h-3.5 flex-shrink-0" />
+                    No product image found - please upload an image
                   </p>
                 )}
               </div>
@@ -409,7 +422,7 @@ export default function HeroSlidesAdmin() {
                 <label className="block text-sm font-medium mb-2">
                   Or Image URL {!formData.productId && <span className="text-red-500">*</span>}
                   {formData.productId && formData.imageUrl && (
-                    <span className="text-green-600 text-xs ml-2">✓ Auto-filled from product</span>
+                    <span className="text-green-600 text-xs ml-2">Auto-filled from product</span>
                   )}
                 </label>
                 <input
@@ -421,7 +434,7 @@ export default function HeroSlidesAdmin() {
                 />
                 {formData.productId && formData.imageUrl ? (
                   <p className="text-xs text-green-600 mt-1">
-                    ✓ Product image loaded automatically (you can change it by entering a different URL)
+                    Product image loaded automatically (you can change it by entering a different URL)
                   </p>
                 ) : (
                   <p className="text-xs text-gray-500 mt-1">
@@ -483,10 +496,10 @@ export default function HeroSlidesAdmin() {
                 {formData.productId && (
                   <div className="mt-2 space-y-1">
                     <p className="text-sm text-green-600">
-                      ✓ Product will be displayed on the right side of the hero slide
+                      Product will be displayed on the right side of the hero slide
                     </p>
                     <p className="text-sm text-blue-600">
-                      ✓ Product image will be used automatically (unless you upload a custom image)
+                      Product image will be used automatically (unless you upload a custom image)
                     </p>
                     {(() => {
                       const selectedProduct = products.find(p => p.id === formData.productId);
@@ -545,7 +558,7 @@ export default function HeroSlidesAdmin() {
                 <button
                   type="submit"
                   disabled={uploading || !formData.imageUrl}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {editingId ? 'Update Slide' : 'Create Slide'}
                 </button>
@@ -556,12 +569,12 @@ export default function HeroSlidesAdmin() {
 
         <div className="grid grid-cols-1 gap-3 sm:gap-4">
           {slides.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-6 sm:p-8 text-center">
+            <div className="bg-white rounded-xl shadow p-6 sm:p-8 text-center">
               <p className="text-sm sm:text-base text-gray-500">No hero slides yet. Create your first slide!</p>
             </div>
           ) : (
             slides.map((slide) => (
-              <div key={slide.id} className="bg-white rounded-lg shadow-md p-4 sm:p-6 flex flex-col sm:flex-row gap-4 sm:gap-6">
+              <div key={slide.id} className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-4 sm:p-6 flex flex-col sm:flex-row gap-4 sm:gap-6">
                 <img
                   src={slide.imageUrl}
                   alt={slide.title}
@@ -586,7 +599,7 @@ export default function HeroSlidesAdmin() {
                 <div className="flex sm:flex-col gap-2 sm:w-auto">
                   <button
                     onClick={() => toggleActive(slide.id, slide.isActive)}
-                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg transition text-xs sm:text-sm whitespace-nowrap ${
+                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap cursor-pointer ${
                       slide.isActive
                         ? 'bg-green-100 text-green-700 hover:bg-green-200'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -596,13 +609,13 @@ export default function HeroSlidesAdmin() {
                   </button>
                   <button
                     onClick={() => handleEdit(slide)}
-                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition text-xs sm:text-sm"
+                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-xs sm:text-sm cursor-pointer"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDelete(slide.id)}
-                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition text-xs sm:text-sm"
+                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-xs sm:text-sm cursor-pointer"
                   >
                     Delete
                   </button>

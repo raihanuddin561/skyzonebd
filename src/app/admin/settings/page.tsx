@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
+import AdminIcon from '@/app/admin/components/AdminIcons';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
@@ -147,7 +148,7 @@ export default function SettingsPage() {
       </div>
 
       {/* General Settings */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">General Information</h3>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -207,7 +208,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Order Settings */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Order Settings</h3>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -244,7 +245,7 @@ export default function SettingsPage() {
       </div>
 
       {/* System Settings */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">System Settings</h3>
         
         <div className="space-y-4">
@@ -283,7 +284,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Carousel Settings */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1">Homepage Carousel</h3>
         <p className="text-sm text-gray-500 mb-4">Control how the hero carousel behaves and looks. Slide content itself is managed under Hero Slides.</p>
 
@@ -345,14 +346,17 @@ export default function SettingsPage() {
       </div>
 
       {/* Database Migrations */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="text-base sm:text-lg font-semibold text-gray-900">Database Migrations</h3>
             <p className="text-sm text-gray-500 mt-1">One-time data migrations that fix legacy data. Each migration runs exactly once and cannot be repeated.</p>
           </div>
-          <button type="button" onClick={fetchMigrationStatus} className="text-xs text-blue-600 hover:text-blue-700 font-medium px-2 py-1 border border-blue-200 rounded">
-            &#8635; Refresh
+          <button type="button" onClick={fetchMigrationStatus} className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium px-2 py-1 border border-blue-200 rounded hover:bg-blue-50 cursor-pointer transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M4 9a8 8 0 0113.657-4.657M20 15a8 8 0 01-13.657 4.657" />
+            </svg>
+            Refresh
           </button>
         </div>
         <div className="border border-gray-200 rounded-lg p-4">
@@ -364,10 +368,16 @@ export default function SettingsPage() {
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">Checking...</span>
                 )}
                 {migrationStatus.status === 'already_applied' && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">&#10003; Already Applied</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                    <AdminIcon name="verification" className="w-3.5 h-3.5" />
+                    Already Applied
+                  </span>
                 )}
                 {migrationStatus.status === 'pending' && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">&#9888; Pending</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                    <AdminIcon name="warning" className="w-3.5 h-3.5" />
+                    Pending
+                  </span>
                 )}
               </div>
               <p className="text-xs text-gray-500 mb-1">Copies the primary <code className="bg-gray-100 px-1 rounded">imageUrl</code> into the <code className="bg-gray-100 px-1 rounded">imageUrls</code> gallery array for legacy products that have an empty gallery.</p>
@@ -385,7 +395,7 @@ export default function SettingsPage() {
               disabled={runningMigration || migrationStatus.status === 'already_applied' || migrationStatus.status === 'loading'}
               className={migrationStatus.status === 'already_applied'
                 ? 'shrink-0 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'shrink-0 px-4 py-2 rounded-lg text-sm font-medium bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed'}
+                : 'shrink-0 px-4 py-2 rounded-lg text-sm font-medium bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors'}
             >
               {runningMigration ? 'Running...' : migrationStatus.status === 'already_applied' ? 'Already Applied' : 'Run Migration'}
             </button>
@@ -398,7 +408,7 @@ export default function SettingsPage() {
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium cursor-pointer transition-colors"
         >
           Save Settings
         </button>

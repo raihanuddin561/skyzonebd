@@ -150,7 +150,7 @@ export default function CategoryPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
             >
               <option value="name">Sort by Name</option>
               <option value="price-low">Price: Low to High</option>
@@ -203,20 +203,20 @@ export default function CategoryPage() {
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className={`px-4 py-2 rounded ${
-                  currentPage === 1 
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  currentPage === 1
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 cursor-pointer'
                 }`}
               >
                 Previous
               </button>
-              
+
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
-                  className={`px-4 py-2 rounded ${
+                  className={`px-4 py-2 rounded-lg cursor-pointer transition-colors ${
                     currentPage === page
                       ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-sm'
                       : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
@@ -225,14 +225,14 @@ export default function CategoryPage() {
                   {page}
                 </button>
               ))}
-              
+
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded ${
-                  currentPage === totalPages 
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  currentPage === totalPages
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 cursor-pointer'
                   }`}
               >
                 Next

@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { toast } from 'react-toastify';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useCategories } from '@/hooks/useCategories';
+import AdminIcon from '../components/AdminIcons';
+import { exportToCsv } from '@/utils/csvExport';
 
 interface Product {
   id: string;
@@ -150,12 +152,46 @@ export default function ProductsManagement() {
     return badges[availability] || badges.in_stock;
   };
 
+  // Filter products based on active status and stock status. Stock status
+  // isn't a server-supported filter param (unlike search/category, which are
+  // sent to /api/products), so it's applied client-side here. Memoized at
+  // component scope (rather than recomputed inline in JSX) so handleSelectAll
+  // and the "select all" checkbox agree on the same visible set — previously
+  // the desktop checkbox compared against the unfiltered `products` list
+  // while the mobile view compared against a locally-scoped filtered list,
+  // so "select all" could show as unchecked even when every visible row was
+  // selected (or vice versa) whenever a filter was active.
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      if (filterActiveStatus === 'active' && !product.isActive) return false;
+      if (filterActiveStatus === 'inactive' && product.isActive) return false;
+      if (filterStatus !== 'all' && product.availability !== filterStatus) return false;
+      return true;
+    });
+  }, [products, filterActiveStatus, filterStatus]);
+
   const handleSelectAll = () => {
-    if (selectedProducts.length === products.length) {
+    if (selectedProducts.length === filteredProducts.length) {
       setSelectedProducts([]);
     } else {
-      setSelectedProducts(products.map(p => p.id));
+      setSelectedProducts(filteredProducts.map(p => p.id));
     }
+  };
+
+  const handleExportSelected = () => {
+    const rows = products.filter(p => selectedProducts.includes(p.id));
+    if (rows.length === 0) {
+      toast.info('No products selected to export');
+      return;
+    }
+    exportToCsv('products-export', rows.map(p => ({
+      name: p.name,
+      sku: p.sku,
+      category: p.category,
+      price: p.price,
+      stock: p.stock,
+      status: p.isActive ? 'Active' : 'Inactive',
+    })));
   };
 
   const handleSelectProduct = (id: string) => {
@@ -354,15 +390,15 @@ export default function ProductsManagement() {
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={() => setMoqModal({ isOpen: true, mode: 'all', value: '' })}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm sm:text-base whitespace-nowrap touch-manipulation"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm sm:text-base whitespace-nowrap touch-manipulation cursor-pointer"
           >
             Set MOQ for All Products
           </button>
           <Link
             href="/admin/products/new"
-            className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:text-base whitespace-nowrap touch-manipulation"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:text-base whitespace-nowrap touch-manipulation cursor-pointer"
           >
-            <span>+</span>
+            <AdminIcon name="plus" className="w-4 h-4" />
             <span>Add Product</span>
           </Link>
         </div>
@@ -414,8 +450,8 @@ export default function ProductsManagement() {
               className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base bg-white"
             >
               <option value="all">All Products ({products.length})</option>
-              <option value="active">✅ Active ({products.filter(p => p.isActive).length})</option>
-              <option value="inactive">❌ Inactive ({products.filter(p => !p.isActive).length})</option>
+              <option value="active">Active ({products.filter(p => p.isActive).length})</option>
+              <option value="inactive">Inactive ({products.filter(p => !p.isActive).length})</option>
             </select>
           </div>
         </div>
@@ -429,18 +465,21 @@ export default function ProductsManagement() {
               {selectedProducts.length} product(s) selected
             </span>
             <div className="flex gap-2">
-              <button className="flex-1 sm:flex-none px-3 py-2 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-sm font-medium touch-manipulation">
+              <button
+                onClick={handleExportSelected}
+                className="flex-1 sm:flex-none px-3 py-2 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-sm font-medium touch-manipulation cursor-pointer transition-colors"
+              >
                 Export
               </button>
               <button
                 onClick={() => setMoqModal({ isOpen: true, mode: 'selected', value: '' })}
-                className="flex-1 sm:flex-none px-3 py-2 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-sm font-medium touch-manipulation"
+                className="flex-1 sm:flex-none px-3 py-2 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-sm font-medium touch-manipulation cursor-pointer transition-colors"
               >
                 Set Min Qty
               </button>
               <button
                 onClick={handleBulkDelete}
-                className="flex-1 sm:flex-none px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-medium touch-manipulation"
+                className="flex-1 sm:flex-none px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-medium touch-manipulation cursor-pointer transition-colors"
               >
                 Delete
               </button>
@@ -460,43 +499,34 @@ export default function ProductsManagement() {
           </div>
         ) : fetchError ? (
           <div className="text-center py-12 sm:py-16 px-4">
-            <div className="text-gray-300 text-5xl sm:text-6xl mb-4">⚠️</div>
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-4">
+              <AdminIcon name="warning" className="w-8 h-8 sm:w-10 sm:h-10" />
+            </div>
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Couldn&apos;t load products</h3>
             <p className="text-sm sm:text-base text-gray-600 mb-4">
               Something went wrong while loading the catalog. Please try again.
             </p>
             <button
               onClick={fetchProducts}
-              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base font-medium cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base font-medium cursor-pointer transition-colors"
             >
               Retry
             </button>
           </div>
-        ) : (() => {
-          // Filter products based on active status and stock status. Stock
-          // status isn't a server-supported filter param (unlike
-          // search/category, which are sent to /api/products), so it's
-          // applied client-side here alongside the existing active-status
-          // filter.
-          const filteredProducts = products.filter(product => {
-            if (filterActiveStatus === 'active' && !product.isActive) return false;
-            if (filterActiveStatus === 'inactive' && product.isActive) return false;
-            if (filterStatus !== 'all' && product.availability !== filterStatus) return false;
-            return true;
-          });
-
-          return filteredProducts.length === 0 ? (
+        ) : filteredProducts.length === 0 ? (
           <div className="text-center py-12 sm:py-16 px-4">
-            <div className="text-gray-300 text-5xl sm:text-6xl mb-4">📦</div>
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-4">
+              <AdminIcon name="products" className="w-8 h-8 sm:w-10 sm:h-10" />
+            </div>
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No products found</h3>
             <p className="text-sm sm:text-base text-gray-600 mb-4">
               {filterActiveStatus === 'inactive' ? 'No inactive products found.' : 'Start by adding your first product to the catalog.'}
             </p>
             <Link
               href="/admin/products/new"
-              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base font-medium"
+              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base font-medium cursor-pointer transition-colors"
             >
-              <span>+</span>
+              <AdminIcon name="plus" className="w-4 h-4" />
               <span>Add Product</span>
             </Link>
           </div>
@@ -546,13 +576,17 @@ export default function ProductsManagement() {
                           </h3>
                           <div className="flex items-center gap-2 flex-wrap">
                             {product.featured && (
-                              <span className="inline-block text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-medium">
-                                ⭐ Featured
+                              <span className="inline-flex items-center gap-1 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-medium">
+                                <AdminIcon name="reviews" className="w-3 h-3" />
+                                Featured
                               </span>
                             )}
                             {!product.isActive && (
-                              <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
-                                👁️‍🗨️ Hidden
+                              <span className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                                </svg>
+                                Hidden
                               </span>
                             )}
                           </div>
@@ -643,9 +677,9 @@ export default function ProductsManagement() {
                     <th className="px-6 py-3 text-left">
                       <input
                         type="checkbox"
-                        checked={selectedProducts.length === products.length}
+                        checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
                         onChange={handleSelectAll}
-                        className="rounded border-gray-300"
+                        className="rounded border-gray-300 cursor-pointer"
                       />
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
@@ -681,13 +715,17 @@ export default function ProductsManagement() {
                             <div className="font-medium text-gray-900">{product.name}</div>
                             <div className="flex items-center gap-2 mt-1">
                               {product.featured && (
-                                <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-medium">
-                                  ⭐ Featured
+                                <span className="inline-flex items-center gap-1 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-medium">
+                                  <AdminIcon name="reviews" className="w-3 h-3" />
+                                  Featured
                                 </span>
                               )}
                               {!product.isActive && (
-                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
-                                  👁️‍🗨️ Hidden
+                                <span className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                                  </svg>
+                                  Hidden
                                 </span>
                               )}
                             </div>
@@ -760,8 +798,7 @@ export default function ProductsManagement() {
               </table>
             </div>
           </>
-        ); // End of filter function
-        })()}
+        )}
 
         {/* Pagination */}
         {!loading && products.length > 0 && (
@@ -787,9 +824,9 @@ export default function ProductsManagement() {
                   <button 
                     key={page}
                     onClick={() => setCurrentPage(page)}
-                    className={`px-3 py-1.5 rounded text-xs sm:text-sm font-medium ${
-                      currentPage === page 
-                        ? 'bg-blue-600 text-white' 
+                    className={`px-3 py-1.5 rounded text-xs sm:text-sm font-medium cursor-pointer transition-colors ${
+                      currentPage === page
+                        ? 'bg-blue-600 text-white'
                         : 'border border-gray-300 hover:bg-gray-50'
                     }`}
                   >

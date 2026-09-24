@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
 import { api } from '@/utils/apiClient';
+import { exportToCsv } from '@/utils/csvExport';
+import AdminIcon, { AdminIconName } from '../components/AdminIcons';
 
 interface User {
   id: string;
@@ -96,10 +98,10 @@ export default function UsersManagement() {
 
 
   const getRoleBadge = (role: string) => {
-    const badges: { [key: string]: { class: string; text: string; icon: string } } = {
-      admin: { class: 'bg-red-100 text-red-800', text: 'Admin', icon: '👑' },
-      seller: { class: 'bg-green-100 text-green-800', text: 'Seller', icon: '🏪' },
-      buyer: { class: 'bg-blue-100 text-blue-800', text: 'Buyer', icon: '🛒' },
+    const badges: { [key: string]: { class: string; text: string; icon: AdminIconName } } = {
+      admin: { class: 'bg-red-100 text-red-800', text: 'Admin', icon: 'verification' },
+      seller: { class: 'bg-green-100 text-green-800', text: 'Seller', icon: 'suppliers' },
+      buyer: { class: 'bg-blue-100 text-blue-800', text: 'Buyer', icon: 'orders' },
     };
     return badges[role] || badges.buyer;
   };
@@ -265,6 +267,54 @@ export default function UsersManagement() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedUsers.length === 0) return;
+
+    if (!confirm(`Are you sure you want to permanently delete ${selectedUsers.length} user(s)? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await api.delete('/api/admin/users', {
+        body: JSON.stringify({ userIds: selectedUsers }),
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        setUsers(users.filter(u => !selectedUsers.includes(u.id)));
+        setSelectedUsers([]);
+        toast.success(result.message || 'User(s) deleted successfully!');
+      } else {
+        throw new Error(result.error || 'Failed to delete users');
+      }
+    } catch (error) {
+      console.error('Error deleting users:', error);
+      toast.error(`Failed to delete users: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const exportUsers = (list: User[]) => {
+    if (list.length === 0) {
+      toast.info('No users to export');
+      return;
+    }
+    exportToCsv('users-export', list.map((u) => ({
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      role: u.role,
+      userType: u.userType,
+      status: u.status,
+      businessName: u.businessName || '',
+      businessVerified: u.businessVerified,
+      totalOrders: u.totalOrders,
+      totalSpent: u.totalSpent,
+      discountPercent: u.discountPercent || '',
+      createdAt: u.createdAt,
+      lastLogin: u.lastLogin,
+    })));
+  };
+
   const handleOpenDiscountModal = (user: User) => {
     setSelectedUser(user);
     setDiscountPercent(user.discountPercent?.toString() || '');
@@ -376,16 +426,19 @@ export default function UsersManagement() {
           <p className="text-sm sm:text-base text-gray-600 mt-1">Manage customers, sellers, and admins</p>
         </div>
         <div className="flex gap-2 sm:gap-3">
-          <button className="flex-1 sm:flex-none px-3 sm:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2 text-sm sm:text-base">
-            <span>📊</span>
+          <button
+            onClick={() => exportUsers(users)}
+            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2 text-sm sm:text-base cursor-pointer transition-colors"
+          >
+            <AdminIcon name="reports" className="w-4 h-4" />
             <span className="hidden sm:inline">Export Users</span>
             <span className="sm:hidden">Export</span>
           </button>
           <Link
             href="/admin/users/new"
-            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm sm:text-base cursor-pointer transition-colors"
           >
-            <span>+</span>
+            <AdminIcon name="plus" className="w-4 h-4" />
             <span>Add User</span>
           </Link>
         </div>
@@ -393,49 +446,59 @@ export default function UsersManagement() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Total Users</p>
               <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total.toLocaleString()}</p>
             </div>
-            <span className="text-2xl sm:text-3xl">👥</span>
+            <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="users" className="w-4 h-4 sm:w-5 sm:h-5" />
+            </span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Retail Buyers</p>
               <p className="text-xl sm:text-2xl font-bold text-blue-600">{stats.retail.toLocaleString()}</p>
             </div>
-            <span className="text-2xl sm:text-3xl">🛍️</span>
+            <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="paymentMethods" className="w-4 h-4 sm:w-5 sm:h-5" />
+            </span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Wholesale</p>
               <p className="text-xl sm:text-2xl font-bold text-purple-600">{stats.wholesale.toLocaleString()}</p>
             </div>
-            <span className="text-2xl sm:text-3xl">🏢</span>
+            <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="suppliers" className="w-4 h-4 sm:w-5 sm:h-5" />
+            </span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Sellers</p>
               <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.sellers.toLocaleString()}</p>
             </div>
-            <span className="text-2xl sm:text-3xl">🏪</span>
+            <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="suppliers" className="w-4 h-4 sm:w-5 sm:h-5" />
+            </span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 col-span-2 sm:col-span-1">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4 col-span-2 sm:col-span-1">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <p className="text-xs sm:text-sm text-gray-600">Pending</p>
               <p className="text-xl sm:text-2xl font-bold text-yellow-600">{stats.pending.toLocaleString()}</p>
             </div>
-            <span className="text-2xl sm:text-3xl">⏳</span>
+            <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-yellow-50 text-yellow-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="accountsReceivable" className="w-4 h-4 sm:w-5 sm:h-5" />
+            </span>
           </div>
         </div>
       </div>
@@ -454,7 +517,7 @@ export default function UsersManagement() {
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">⚠️</span>
+            <AdminIcon name="warning" className="w-6 h-6 text-red-500 flex-shrink-0" />
             <div>
               <h3 className="font-semibold text-red-800">Error Loading Users</h3>
               <p className="text-red-600 text-sm mt-1">{error}</p>
@@ -523,22 +586,28 @@ export default function UsersManagement() {
               {selectedUsers.length} user(s) selected
             </span>
             <div className="grid grid-cols-2 sm:flex gap-2">
-              <button 
+              <button
                 onClick={handleBulkActivate}
-                className="px-3 py-1.5 sm:py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-xs sm:text-sm"
+                className="px-3 py-1.5 sm:py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-xs sm:text-sm cursor-pointer transition-colors"
               >
                 Activate
               </button>
-              <button 
+              <button
                 onClick={handleBulkSuspend}
-                className="px-3 py-1.5 sm:py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-xs sm:text-sm"
+                className="px-3 py-1.5 sm:py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-xs sm:text-sm cursor-pointer transition-colors"
               >
                 Suspend
               </button>
-              <button className="px-3 py-1.5 sm:py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-xs sm:text-sm hidden sm:block">
+              <button
+                onClick={() => exportUsers(users.filter(u => selectedUsers.includes(u.id)))}
+                className="px-3 py-1.5 sm:py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-xs sm:text-sm hidden sm:block cursor-pointer transition-colors"
+              >
                 Export Selected
               </button>
-              <button className="px-3 py-1.5 sm:py-1 bg-white border border-red-300 text-red-700 rounded hover:bg-red-50 text-xs sm:text-sm col-span-2 sm:col-span-1">
+              <button
+                onClick={handleBulkDelete}
+                className="px-3 py-1.5 sm:py-1 bg-white border border-red-300 text-red-700 rounded hover:bg-red-50 text-xs sm:text-sm col-span-2 sm:col-span-1 cursor-pointer transition-colors"
+              >
                 Delete
               </button>
             </div>
@@ -575,7 +644,7 @@ export default function UsersManagement() {
                 </div>
                 <div className="flex flex-wrap gap-2 mb-3">
                   <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${getRoleBadge(user.role).class}`}>
-                    <span>{getRoleBadge(user.role).icon}</span>
+                    <AdminIcon name={getRoleBadge(user.role).icon} className="w-3 h-3" />
                     <span>{getRoleBadge(user.role).text}</span>
                   </span>
                   <span className={`px-2 py-1 rounded text-xs font-medium ${getUserTypeBadge(user.userType).class}`}>
@@ -591,12 +660,12 @@ export default function UsersManagement() {
                     <div className="text-gray-600 flex items-center gap-1 mt-1">
                       {user.businessVerified ? (
                         <>
-                          <span className="text-green-600">✓</span>
+                          <AdminIcon name="verification" className="w-3.5 h-3.5 text-green-600" />
                           <span>Verified</span>
                         </>
                       ) : (
                         <>
-                          <span className="text-yellow-600">⚠</span>
+                          <AdminIcon name="warning" className="w-3.5 h-3.5 text-yellow-600" />
                           <span>Pending</span>
                         </>
                       )}
@@ -631,19 +700,19 @@ export default function UsersManagement() {
                 <div className="flex gap-2">
                   <Link
                     href={`/admin/users/${user.id}`}
-                    className="flex-1 text-center px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                    className="flex-1 text-center px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 cursor-pointer transition-colors"
                   >
                     Edit
                   </Link>
                   <Link
                     href={`/admin/orders?user=${user.id}`}
-                    className="flex-1 text-center px-3 py-1.5 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                    className="flex-1 text-center px-3 py-1.5 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300 cursor-pointer transition-colors"
                   >
                     Orders
                   </Link>
                   <button
                     onClick={() => handleOpenDiscountModal(user)}
-                    className="flex-1 text-center px-3 py-1.5 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200"
+                    className="flex-1 text-center px-3 py-1.5 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200 cursor-pointer transition-colors"
                   >
                     Discount
                   </button>
@@ -710,7 +779,7 @@ export default function UsersManagement() {
                   </td>
                   <td className="px-4 xl:px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${getRoleBadge(user.role).class}`}>
-                      <span>{getRoleBadge(user.role).icon}</span>
+                      <AdminIcon name={getRoleBadge(user.role).icon} className="w-3 h-3" />
                       <span>{getRoleBadge(user.role).text}</span>
                     </span>
                   </td>
@@ -726,12 +795,12 @@ export default function UsersManagement() {
                         <div className="text-xs text-gray-600 flex items-center gap-1 mt-1">
                           {user.businessVerified ? (
                             <>
-                              <span className="text-green-600">✓</span>
+                              <AdminIcon name="verification" className="w-3.5 h-3.5 text-green-600" />
                               <span>Verified</span>
                             </>
                           ) : (
                             <>
-                              <span className="text-yellow-600">⚠</span>
+                              <AdminIcon name="warning" className="w-3.5 h-3.5 text-yellow-600" />
                               <span>Pending</span>
                             </>
                           )}
@@ -766,7 +835,7 @@ export default function UsersManagement() {
                     ) : (
                       <button
                         onClick={() => handleOpenDiscountModal(user)}
-                        className="text-xs text-blue-600 hover:text-blue-700"
+                        className="text-xs text-blue-600 hover:text-blue-700 cursor-pointer transition-colors"
                       >
                         Set Discount
                       </button>
@@ -780,7 +849,7 @@ export default function UsersManagement() {
                     <select
                       value={user.status}
                       onChange={(e) => handleStatusChange(user.id, e.target.value)}
-                      className={`px-2 py-1 rounded text-xs font-medium border-0 ${getStatusBadge(user.status).class}`}
+                      className={`px-2 py-1 rounded text-xs font-medium border-0 cursor-pointer ${getStatusBadge(user.status).class}`}
                     >
                       <option value="active">Active</option>
                       <option value="pending">Pending</option>
@@ -794,19 +863,19 @@ export default function UsersManagement() {
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/admin/users/${user.id}`}
-                        className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                        className="text-blue-600 hover:text-blue-700 text-sm font-medium cursor-pointer transition-colors"
                       >
                         Edit
                       </Link>
                       <Link
                         href={`/admin/orders?user=${user.id}`}
-                        className="text-gray-600 hover:text-gray-700 text-sm font-medium"
+                        className="text-gray-600 hover:text-gray-700 text-sm font-medium cursor-pointer transition-colors"
                       >
                         Orders
                       </Link>
                       <button
                         onClick={() => handleOpenDiscountModal(user)}
-                        className="text-green-600 hover:text-green-700 text-sm font-medium"
+                        className="text-green-600 hover:text-green-700 text-sm font-medium cursor-pointer transition-colors"
                       >
                         {user.discountPercent && user.discountPercent > 0 ? 'Edit Discount' : 'Discount'}
                       </button>
@@ -819,21 +888,14 @@ export default function UsersManagement() {
           </table>
         </div>
 
-        {/* Pagination */}
-        <div className="px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-xs sm:text-sm text-gray-600">
-            Showing 1 to {users.length} of {users.length} users
-          </div>
-          <div className="flex gap-1 sm:gap-2">
-            <button className="px-2 sm:px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 text-xs sm:text-sm">
-              Previous
-            </button>
-            <button className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded text-xs sm:text-sm">1</button>
-            <button className="px-2 sm:px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 text-xs sm:text-sm">2</button>
-            <button className="px-2 sm:px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 text-xs sm:text-sm">
-              Next
-            </button>
-          </div>
+        {/* Result count. The API returns every matching user in one response
+            (no page/limit params, no pagination metadata) — the Previous /
+            1 / 2 / Next controls that used to render here were inert
+            (no onClick, no page state) and "2" was hardcoded regardless of
+            how many users actually existed, so they've been removed rather
+            than left as non-functional decoration. */}
+        <div className="px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-200 text-xs sm:text-sm text-gray-600">
+          Showing {users.length} user{users.length === 1 ? '' : 's'}
         </div>
       </div>
 
@@ -926,7 +988,7 @@ export default function UsersManagement() {
               <button
                 onClick={() => setShowDiscountModal(false)}
                 disabled={discountSaving}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
               >
                 Cancel
               </button>
@@ -934,7 +996,7 @@ export default function UsersManagement() {
                 <button
                   onClick={handleRemoveDiscount}
                   disabled={discountSaving}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
                 >
                   {discountSaving ? 'Removing...' : 'Remove'}
                 </button>
@@ -942,7 +1004,7 @@ export default function UsersManagement() {
               <button
                 onClick={handleSaveDiscount}
                 disabled={discountSaving || !discountPercent || parseFloat(discountPercent) < 0 || parseFloat(discountPercent) > 100}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
               >
                 {discountSaving ? 'Saving...' : 'Save Discount'}
               </button>

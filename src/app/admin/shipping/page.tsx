@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import AdminIcon from '@/app/admin/components/AdminIcons';
 
 interface ShippingZone {
   id: string;
@@ -135,23 +136,23 @@ export default function ShippingPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
           <div className="text-xs sm:text-sm text-gray-600 mb-1">Total Zones</div>
           <div className="text-xl sm:text-2xl font-bold text-gray-900">{zones.length}</div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-green-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-green-200 p-3 sm:p-4">
           <div className="text-xs sm:text-sm text-gray-600 mb-1">Active Zones</div>
           <div className="text-xl sm:text-2xl font-bold text-green-600">
             {zones.filter(z => z.enabled).length}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
           <div className="text-xs sm:text-sm text-gray-600 mb-1">Lowest Rate</div>
           <div className="text-xl sm:text-2xl font-bold text-gray-900">
             {zones.length > 0 ? `৳${Math.min(...zones.map(z => z.rate))}` : '—'}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
           <div className="text-xs sm:text-sm text-gray-600 mb-1">Highest Rate</div>
           <div className="text-xl sm:text-2xl font-bold text-gray-900">
             {zones.length > 0 ? `৳${Math.max(...zones.map(z => z.rate))}` : '—'}
@@ -164,7 +165,7 @@ export default function ShippingPage() {
         {zones.map((zone) => (
           <div
             key={zone.id}
-            className={`bg-white rounded-lg shadow-sm border-2 p-4 sm:p-6 transition-all ${
+            className={`bg-white rounded-xl shadow-sm hover:shadow-md border-2 p-4 sm:p-6 transition-all ${
               zone.enabled ? 'border-green-500' : 'border-gray-200'
             }`}
           >
@@ -227,7 +228,7 @@ export default function ShippingPage() {
       </div>
 
       {/* Partners Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Delivery Partners</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {partners.map((partner) => (
@@ -235,13 +236,15 @@ export default function ShippingPage() {
               key={partner.id}
               onClick={() => togglePartner(partner.id)}
               disabled={savingId === partner.id}
-              className={`border rounded-lg p-3 text-center transition-colors cursor-pointer disabled:opacity-50 ${
+              className={`border rounded-xl p-3 text-center transition-colors cursor-pointer disabled:opacity-50 ${
                 partner.enabled
                   ? 'border-green-500 bg-green-50 hover:border-green-600'
                   : 'border-gray-200 hover:border-blue-500'
               }`}
             >
-              <div className="text-2xl mb-1">🚚</div>
+              <div className={`w-9 h-9 mx-auto mb-1 rounded-lg flex items-center justify-center ${partner.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                <AdminIcon name="shipping" className="w-5 h-5" />
+              </div>
               <div className="text-sm font-medium text-gray-900">{partner.name}</div>
               <div className={`text-xs mt-1 ${partner.enabled ? 'text-green-700' : 'text-gray-400'}`}>
                 {partner.enabled ? 'Active' : 'Inactive'}

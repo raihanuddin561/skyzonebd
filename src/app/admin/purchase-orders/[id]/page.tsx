@@ -165,8 +165,11 @@ export default function PurchaseOrderDetailPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center gap-3">
-        <button onClick={() => router.push('/admin/purchase-orders')} className="text-gray-500 hover:text-gray-700">
-          ← Back
+        <button onClick={() => router.push('/admin/purchase-orders')} className="inline-flex items-center gap-1.5 text-gray-500 hover:text-gray-700 cursor-pointer transition-colors">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back
         </button>
       </div>
 
@@ -183,7 +186,7 @@ export default function PurchaseOrderDetailPage() {
             <button
               key={next}
               onClick={() => handleTransition(next)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
                 next === 'CANCELLED' ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
             >
@@ -281,7 +284,7 @@ export default function PurchaseOrderDetailPage() {
             <button
               onClick={handleReceive}
               disabled={saving || hasExceededRemaining}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
             >
               {saving ? 'Receiving...' : 'Receive Stock'}
             </button>

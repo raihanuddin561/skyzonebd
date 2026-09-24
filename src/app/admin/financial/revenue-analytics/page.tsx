@@ -87,18 +87,18 @@ export default function RevenueAnalyticsPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Revenue Analytics</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Revenue trends, growth, and payment-method breakdown</p>
         </div>
-        <button onClick={handleExport} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm">
+        <button onClick={handleExport} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm cursor-pointer transition-colors">
           Export CSV
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
         <div className="flex gap-2 flex-wrap">
           {['today', 'week', 'month', 'quarter', 'year'].map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium capitalize transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium capitalize transition-colors cursor-pointer ${
                 period === p ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -110,19 +110,19 @@ export default function RevenueAnalyticsPage() {
 
       {summary && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Total Revenue</div>
             <div className="text-xl sm:text-2xl font-bold text-gray-900">৳{summary.totalRevenue.toLocaleString()}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Total Profit</div>
             <div className="text-xl sm:text-2xl font-bold text-green-600">৳{summary.totalProfit.toLocaleString()}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Avg Order Value</div>
             <div className="text-xl sm:text-2xl font-bold text-gray-900">৳{summary.averageOrderValue.toLocaleString()}</div>
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">Profit Margin</div>
             <div className="text-xl sm:text-2xl font-bold text-gray-900">{summary.profitMargin.toFixed(1)}%</div>
           </div>
@@ -130,7 +130,7 @@ export default function RevenueAnalyticsPage() {
       )}
 
       {trends && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <h2 className="font-semibold text-gray-900 mb-2">Trend</h2>
           <p className="text-sm text-gray-600">
             Revenue is <span className={trends.isGrowing ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>{trends.isGrowing ? 'growing' : 'declining'}</span>
@@ -140,7 +140,7 @@ export default function RevenueAnalyticsPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200"><h2 className="font-semibold text-gray-900">By Payment Method</h2></div>
           <div className="divide-y divide-gray-100">
             {byPaymentMethod.length === 0 ? (
@@ -155,7 +155,7 @@ export default function RevenueAnalyticsPage() {
             )}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200"><h2 className="font-semibold text-gray-900">Revenue Trend</h2></div>
           <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
             {timeSeries.length === 0 ? (

@@ -253,7 +253,7 @@ function CreateOrderPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {/* Header */}
           <div className="mb-6">
-            <Link href="/admin/orders" className="text-blue-600 hover:text-blue-700 inline-flex items-center mb-4">
+            <Link href="/admin/orders" className="text-blue-600 hover:text-blue-700 inline-flex items-center mb-4 cursor-pointer transition-colors">
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
@@ -302,7 +302,7 @@ function CreateOrderPage() {
                             setCustomerSearch(customer.name);
                             setCustomers([]);
                           }}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b last:border-b-0"
+                          className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b last:border-b-0 cursor-pointer transition-colors"
                         >
                           <div className="font-medium text-gray-900">{customer.name}</div>
                           <div className="text-sm text-gray-600">{customer.email}</div>
@@ -328,15 +328,18 @@ function CreateOrderPage() {
                         setCustomerId('');
                         setCustomerSearch('');
                       }}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 hover:text-red-700 cursor-pointer transition-colors"
                     >
                       Remove
                     </button>
                   </div>
                 )}
 
-                <p className="text-xs text-gray-500 mt-2">
-                  💡 Leave empty to create order without customer (manual/guest order)
+                <p className="flex items-center gap-1.5 text-xs text-gray-500 mt-2">
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  Leave empty to create order without customer (manual/guest order)
                 </p>
               </div>
 
@@ -365,7 +368,7 @@ function CreateOrderPage() {
                           key={product.id}
                           type="button"
                           onClick={() => addProduct(product)}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b last:border-b-0 flex items-center gap-3"
+                          className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b last:border-b-0 flex items-center gap-3 cursor-pointer transition-colors"
                         >
                           <img 
                             src={product.imageUrl || '/images/placeholder.jpg'} 
@@ -447,7 +450,7 @@ function CreateOrderPage() {
                         <button
                           type="button"
                           onClick={() => removeItem(index)}
-                          className="text-red-600 hover:text-red-700 self-start"
+                          className="text-red-600 hover:text-red-700 self-start cursor-pointer transition-colors"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -486,7 +489,7 @@ function CreateOrderPage() {
                       <button
                         type="button"
                         onClick={copyShippingToBilling}
-                        className="text-xs text-blue-600 hover:text-blue-700"
+                        className="text-xs text-blue-600 hover:text-blue-700 cursor-pointer transition-colors"
                       >
                         Same as shipping
                       </button>
@@ -577,7 +580,7 @@ function CreateOrderPage() {
                   <button
                     type="submit"
                     disabled={loading || items.length === 0}
-                    className="w-full px-4 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="w-full px-4 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
                   >
                     {loading ? 'Creating Order...' : 'Create Order'}
                   </button>

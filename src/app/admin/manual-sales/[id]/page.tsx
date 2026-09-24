@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import AdminIcon from '@/app/admin/components/AdminIcons';
 
 interface ManualSaleItem {
   id: string;
@@ -197,7 +198,7 @@ export default function ManualSaleDetailPage() {
             
             <button
               onClick={handleDelete}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+              className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors cursor-pointer"
             >
               Delete Sale
             </button>
@@ -208,7 +209,7 @@ export default function ManualSaleDetailPage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Sale Information */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Sale Information</h2>
               
               <div className="grid grid-cols-2 gap-4">
@@ -236,7 +237,10 @@ export default function ManualSaleDetailPage() {
                   <p className="text-sm text-gray-600">Inventory Status</p>
                   <p className="font-medium text-gray-900">
                     {sale.inventoryAdjusted ? (
-                      <span className="text-green-600">✓ Adjusted</span>
+                      <span className="inline-flex items-center gap-1 text-green-600">
+                        <AdminIcon name="verification" className="w-4 h-4" />
+                        Adjusted
+                      </span>
                     ) : (
                       <span className="text-gray-500">Not Adjusted</span>
                     )}
@@ -246,7 +250,7 @@ export default function ManualSaleDetailPage() {
             </div>
 
             {/* Customer Information */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Customer Information</h2>
               
               <div className="grid grid-cols-2 gap-4">
@@ -279,7 +283,7 @@ export default function ManualSaleDetailPage() {
             </div>
 
             {/* Items */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Items Sold</h2>
               
               <div className="space-y-4">
@@ -347,7 +351,7 @@ export default function ManualSaleDetailPage() {
 
             {/* Notes */}
             {sale.notes && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Notes</h2>
                 <p className="text-gray-700 whitespace-pre-wrap">{sale.notes}</p>
               </div>
@@ -357,7 +361,7 @@ export default function ManualSaleDetailPage() {
           {/* Sidebar */}
           <div className="lg:col-span-1 space-y-6">
             {/* Payment Details */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment Details</h2>
               
               <div className="space-y-3">
@@ -392,7 +396,7 @@ export default function ManualSaleDetailPage() {
             </div>
 
             {/* Financial Summary */}
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow-sm border border-blue-200 p-6">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-sm border border-blue-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Financial Summary</h2>
               
               <div className="space-y-2">
@@ -449,7 +453,7 @@ export default function ManualSaleDetailPage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h2>
               
               <div className="space-y-3">

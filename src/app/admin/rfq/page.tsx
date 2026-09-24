@@ -2,6 +2,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import AdminIcon from '../components/AdminIcons';
+
+const MailIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+  </svg>
+);
+
+const PhoneIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+  </svg>
+);
+
+const CalendarIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+);
 
 // Matches the actual shape returned by GET /api/rfq (see src/app/api/rfq/route.ts) —
 // the previous local type was flat (customerName/customerEmail/company/phone/
@@ -145,24 +164,44 @@ export default function RFQPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
-          <div className="text-xs sm:text-sm text-gray-600 mb-1">Total Requests</div>
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-3 sm:p-4">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-xs sm:text-sm text-gray-600">Total Requests</div>
+            <span className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="rfq" className="w-4 h-4" />
+            </span>
+          </div>
           <div className="text-xl sm:text-2xl font-bold text-gray-900">{rfqs.length}</div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-yellow-200 p-3 sm:p-4">
-          <div className="text-xs sm:text-sm text-gray-600 mb-1">Pending</div>
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-yellow-200 p-3 sm:p-4">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-xs sm:text-sm text-gray-600">Pending</div>
+            <span className="w-8 h-8 rounded-lg bg-yellow-50 text-yellow-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="accountsReceivable" className="w-4 h-4" />
+            </span>
+          </div>
           <div className="text-xl sm:text-2xl font-bold text-yellow-600">
             {rfqs.filter(r => r.status === 'PENDING').length}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-blue-200 p-3 sm:p-4">
-          <div className="text-xs sm:text-sm text-gray-600 mb-1">Quoted</div>
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-blue-200 p-3 sm:p-4">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-xs sm:text-sm text-gray-600">Quoted</div>
+            <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="invoices" className="w-4 h-4" />
+            </span>
+          </div>
           <div className="text-xl sm:text-2xl font-bold text-blue-600">
             {rfqs.filter(r => r.status === 'QUOTED').length}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-green-200 p-3 sm:p-4">
-          <div className="text-xs sm:text-sm text-gray-600 mb-1">Accepted</div>
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-green-200 p-3 sm:p-4">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-xs sm:text-sm text-gray-600">Accepted</div>
+            <span className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="verification" className="w-4 h-4" />
+            </span>
+          </div>
           <div className="text-xl sm:text-2xl font-bold text-green-600">
             {rfqs.filter(r => r.status === 'ACCEPTED').length}
           </div>
@@ -183,7 +222,7 @@ export default function RFQPage() {
             <button
               key={option.value}
               onClick={() => setFilter(option.value as typeof filter)}
-              className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+              className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
                 filter === option.value
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -210,6 +249,9 @@ export default function RFQPage() {
             </div>
           ) : filteredRFQs.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
+              <div className="w-16 h-16 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-3">
+                <AdminIcon name="rfq" className="w-8 h-8" />
+              </div>
               <p>No RFQ requests found</p>
             </div>
           ) : (
@@ -229,10 +271,10 @@ export default function RFQPage() {
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm text-gray-600 mb-2">
-                      <div>📧 {rfq.customer.email}</div>
-                      <div>📞 {rfq.customer.phone}</div>
-                      <div>📦 {rfq.totalQuantity} units ({rfq.totalItems} items)</div>
-                      <div>📅 {new Date(rfq.createdAt).toLocaleDateString()}</div>
+                      <div className="flex items-center gap-1.5"><MailIcon className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" /> {rfq.customer.email}</div>
+                      <div className="flex items-center gap-1.5"><PhoneIcon className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" /> {rfq.customer.phone}</div>
+                      <div className="flex items-center gap-1.5"><AdminIcon name="products" className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" /> {rfq.totalQuantity} units ({rfq.totalItems} items)</div>
+                      <div className="flex items-center gap-1.5"><CalendarIcon className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" /> {new Date(rfq.createdAt).toLocaleDateString()}</div>
                     </div>
                     <div className="bg-gray-50 rounded p-2 text-xs sm:text-sm text-gray-700 mb-2">
                       {rfq.items.map(item => (
@@ -257,20 +299,20 @@ export default function RFQPage() {
                         setResponseText('');
                         setQuotedPriceText(rfq.targetPrice != null ? String(rfq.targetPrice) : '');
                       }}
-                      className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs sm:text-sm hover:bg-blue-700"
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs sm:text-sm hover:bg-blue-700 cursor-pointer transition-colors"
                     >
                       Respond
                     </button>
                   )}
                   <a
                     href={`mailto:${rfq.customer.email}`}
-                    className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-xs sm:text-sm hover:bg-gray-300"
+                    className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-xs sm:text-sm hover:bg-gray-300 cursor-pointer transition-colors"
                   >
                     Email
                   </a>
                   <a
                     href={`tel:${rfq.customer.phone}`}
-                    className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-xs sm:text-sm hover:bg-gray-300"
+                    className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-xs sm:text-sm hover:bg-gray-300 cursor-pointer transition-colors"
                   >
                     Call
                   </a>
@@ -334,7 +376,7 @@ export default function RFQPage() {
             <div className="flex gap-2 mt-4">
               <button
                 onClick={() => handleRespond(selectedRFQ.id)}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
               >
                 Send Quote
               </button>
@@ -344,7 +386,7 @@ export default function RFQPage() {
                   setResponseText('');
                   setQuotedPriceText('');
                 }}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 cursor-pointer transition-colors"
               >
                 Cancel
               </button>

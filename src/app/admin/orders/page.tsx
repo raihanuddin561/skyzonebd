@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import { exportToCsv } from '@/utils/csvExport';
 import Pagination from '@/components/common/Pagination';
 import { getOrderStatusColor, getOrderStatusLabel } from '@/utils/orderStatus';
+import AdminIcon, { AdminIconName } from '../components/AdminIcons';
 
 interface Order {
   id: string;
@@ -131,10 +132,10 @@ export default function OrdersManagement() {
   };
 
   const getCustomerTypeBadge = (type: string) => {
-    const badges: { [key: string]: { class: string; text: string; icon: string } } = {
-      guest: { class: 'bg-gray-100 text-gray-800', text: 'Guest', icon: '👤' },
-      retail: { class: 'bg-blue-100 text-blue-800', text: 'Retail', icon: '🛍️' },
-      wholesale: { class: 'bg-purple-100 text-purple-800', text: 'Wholesale', icon: '🏢' },
+    const badges: { [key: string]: { class: string; text: string; icon: AdminIconName } } = {
+      guest: { class: 'bg-gray-100 text-gray-800', text: 'Guest', icon: 'users' },
+      retail: { class: 'bg-blue-100 text-blue-800', text: 'Retail', icon: 'paymentMethods' },
+      wholesale: { class: 'bg-purple-100 text-purple-800', text: 'Wholesale', icon: 'suppliers' },
     };
     return badges[type] || badges.guest;
   };
@@ -368,23 +369,25 @@ export default function OrdersManagement() {
         <div className="flex flex-wrap gap-3">
           <Link
             href="/admin/orders/create"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium cursor-pointer transition-colors"
           >
-            <span>➕</span>
+            <AdminIcon name="plus" className="w-4 h-4" />
             <span>Create Order</span>
           </Link>
           <button
             onClick={handleRefresh}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 cursor-pointer transition-colors"
           >
-            <span>🔄</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
             <span>Refresh</span>
           </button>
           <button
             onClick={() => exportOrders(filteredOrders)}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 cursor-pointer transition-colors"
           >
-            <span>📊</span>
+            <AdminIcon name="reports" className="w-4 h-4" />
             <span>Export Orders</span>
           </button>
         </div>
@@ -392,49 +395,59 @@ export default function OrdersManagement() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Pending Orders</p>
               <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
             </div>
-            <span className="text-3xl">⏳</span>
+            <span className="w-10 h-10 rounded-xl bg-yellow-50 text-yellow-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="accountsReceivable" className="w-5 h-5" />
+            </span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-orange-300 p-4 bg-orange-50">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-orange-300 p-4 bg-orange-50">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-orange-700 font-medium">Payment Verification</p>
               <p className="text-2xl font-bold text-orange-600">{stats.pendingVerification}</p>
             </div>
-            <span className="text-3xl">⚠️</span>
+            <span className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="warning" className="w-5 h-5" />
+            </span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Processing</p>
               <p className="text-2xl font-bold text-blue-600">{stats.processing}</p>
             </div>
-            <span className="text-3xl">⚙️</span>
+            <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="settings" className="w-5 h-5" />
+            </span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Shipped</p>
               <p className="text-2xl font-bold text-purple-600">{stats.shipped}</p>
             </div>
-            <span className="text-3xl">🚚</span>
+            <span className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="shipping" className="w-5 h-5" />
+            </span>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Delivered</p>
               <p className="text-2xl font-bold text-green-600">{stats.delivered}</p>
             </div>
-            <span className="text-3xl">✅</span>
+            <span className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="verification" className="w-5 h-5" />
+            </span>
           </div>
         </div>
       </div>
@@ -473,7 +486,7 @@ export default function OrdersManagement() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Payments</option>
-              <option value="pending_verification">⚠️ Pending Verification</option>
+              <option value="pending_verification">Pending Verification</option>
               <option value="paid">Paid</option>
               <option value="pending">Pending</option>
               <option value="failed">Failed</option>
@@ -521,30 +534,38 @@ export default function OrdersManagement() {
           </div>
         ) : fetchError ? (
           <div className="text-center py-16">
-            <div className="text-gray-300 text-6xl mb-4">⚠️</div>
+            <div className="w-20 h-20 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-4">
+              <AdminIcon name="warning" className="w-10 h-10" />
+            </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Couldn&apos;t load orders</h3>
             <p className="text-gray-600 mb-4">Something went wrong while loading orders. Please try again.</p>
             <button
               onClick={fetchOrders}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium cursor-pointer"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium cursor-pointer transition-colors"
             >
               Retry
             </button>
           </div>
         ) : orders.length === 0 ? (
           <div className="text-center py-16">
-            <div className="text-gray-300 text-6xl mb-4">📦</div>
+            <div className="w-20 h-20 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-4">
+              <AdminIcon name="orders" className="w-10 h-10" />
+            </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No orders found</h3>
             <p className="text-gray-600">Orders will appear here once customers start placing them.</p>
           </div>
         ) : filteredOrders.length === 0 ? (
           <div className="text-center py-16">
-            <div className="text-gray-300 text-6xl mb-4">🔍</div>
+            <div className="w-20 h-20 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No orders match your filters</h3>
             <p className="text-gray-600 mb-4">Try adjusting your search or filter selections.</p>
             <button
               onClick={() => { setSearchTerm(''); setFilterStatus('all'); setFilterPayment('all'); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium cursor-pointer"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium cursor-pointer transition-colors"
             >
               Clear Filters
             </button>
@@ -596,7 +617,7 @@ export default function OrdersManagement() {
                     <div className="font-medium text-gray-900">{order.customer.name}</div>
                     <div className="text-sm text-gray-600">{order.customer.phone}</div>
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium mt-1 ${getCustomerTypeBadge(order.customer.type).class}`}>
-                      <span>{getCustomerTypeBadge(order.customer.type).icon}</span>
+                      <AdminIcon name={getCustomerTypeBadge(order.customer.type).icon} className="w-3 h-3" />
                       <span>{getCustomerTypeBadge(order.customer.type).text}</span>
                     </span>
                   </td>
@@ -608,7 +629,7 @@ export default function OrdersManagement() {
                     <select
                       value={order.status}
                       onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                      className={`px-2 py-1 rounded text-xs font-medium border-0 ${getStatusBadge(order.status).class}`}
+                      className={`px-2 py-1 rounded text-xs font-medium border-0 cursor-pointer ${getStatusBadge(order.status).class}`}
                     >
                       <option value="pending">Pending</option>
                       <option value="confirmed">Confirmed</option>
@@ -630,14 +651,14 @@ export default function OrdersManagement() {
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/admin/orders/${order.id}`}
-                        className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                        className="text-blue-600 hover:text-blue-700 text-sm font-medium cursor-pointer transition-colors"
                       >
                         View
                       </Link>
                       {order.status !== 'cancelled' && order.status !== 'delivered' && (
-                        <button 
+                        <button
                           onClick={() => handleCancelOrder(order.id, order.orderNumber)}
-                          className="text-red-600 hover:text-red-700 text-sm font-medium"
+                          className="text-red-600 hover:text-red-700 text-sm font-medium cursor-pointer transition-colors"
                           title="Cancel Order"
                         >
                           Cancel

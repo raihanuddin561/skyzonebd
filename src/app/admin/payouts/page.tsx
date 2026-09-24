@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import PayoutTable from '@/components/payouts/PayoutTable';
 import GeneratePayoutModal, { PayoutFormData } from '@/components/payouts/GeneratePayoutModal';
 import { api } from '@/utils/apiClient';
+import AdminIcon from '../components/AdminIcons';
 
 interface Payout {
   id: string;
@@ -185,34 +186,55 @@ export default function AdminPayoutsPage() {
       
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-          <h3 className="text-sm font-medium text-yellow-800">Pending Approval</h3>
-          <p className="mt-2 text-3xl font-bold text-yellow-900">
-            {formatCurrency(summary.totalPending)}
-          </p>
-          <p className="mt-1 text-sm text-yellow-600">
-            {payouts.filter(p => p.status === 'PENDING').length} payout(s)
-          </p>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-yellow-800">Pending Approval</h3>
+              <p className="mt-2 text-3xl font-bold text-yellow-900">
+                {formatCurrency(summary.totalPending)}
+              </p>
+              <p className="mt-1 text-sm text-yellow-600">
+                {payouts.filter(p => p.status === 'PENDING').length} payout(s)
+              </p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-yellow-100 text-yellow-700 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="payouts" className="w-5 h-5" />
+            </div>
+          </div>
         </div>
-        
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-sm font-medium text-blue-800">Outstanding (Approved)</h3>
-          <p className="mt-2 text-3xl font-bold text-blue-900">
-            {formatCurrency(summary.totalOutstanding)}
-          </p>
-          <p className="mt-1 text-sm text-blue-600">
-            {payouts.filter(p => p.status === 'APPROVED').length} payout(s)
-          </p>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-blue-800">Outstanding (Approved)</h3>
+              <p className="mt-2 text-3xl font-bold text-blue-900">
+                {formatCurrency(summary.totalOutstanding)}
+              </p>
+              <p className="mt-1 text-sm text-blue-600">
+                {payouts.filter(p => p.status === 'APPROVED').length} payout(s)
+              </p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="verification" className="w-5 h-5" />
+            </div>
+          </div>
         </div>
-        
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-          <h3 className="text-sm font-medium text-green-800">Total Paid</h3>
-          <p className="mt-2 text-3xl font-bold text-green-900">
-            {formatCurrency(summary.totalPaid)}
-          </p>
-          <p className="mt-1 text-sm text-green-600">
-            {payouts.filter(p => p.status === 'PAID').length} payout(s)
-          </p>
+
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-green-800">Total Paid</h3>
+              <p className="mt-2 text-3xl font-bold text-green-900">
+                {formatCurrency(summary.totalPaid)}
+              </p>
+              <p className="mt-1 text-sm text-green-600">
+                {payouts.filter(p => p.status === 'PAID').length} payout(s)
+              </p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-green-100 text-green-700 flex items-center justify-center flex-shrink-0">
+              <AdminIcon name="profit" className="w-5 h-5" />
+            </div>
+          </div>
         </div>
       </div>
       
@@ -221,7 +243,7 @@ export default function AdminPayoutsPage() {
         <div className="flex space-x-2">
           <button
             onClick={() => setStatusFilter('all')}
-            className={`px-4 py-2 text-sm font-medium rounded-md ${
+            className={`px-4 py-2 text-sm font-medium rounded-md cursor-pointer transition-colors ${
               statusFilter === 'all'
                 ? 'bg-blue-600 text-white'
                 : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -231,7 +253,7 @@ export default function AdminPayoutsPage() {
           </button>
           <button
             onClick={() => setStatusFilter('PENDING')}
-            className={`px-4 py-2 text-sm font-medium rounded-md ${
+            className={`px-4 py-2 text-sm font-medium rounded-md cursor-pointer transition-colors ${
               statusFilter === 'PENDING'
                 ? 'bg-blue-600 text-white'
                 : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -241,7 +263,7 @@ export default function AdminPayoutsPage() {
           </button>
           <button
             onClick={() => setStatusFilter('APPROVED')}
-            className={`px-4 py-2 text-sm font-medium rounded-md ${
+            className={`px-4 py-2 text-sm font-medium rounded-md cursor-pointer transition-colors ${
               statusFilter === 'APPROVED'
                 ? 'bg-blue-600 text-white'
                 : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -251,7 +273,7 @@ export default function AdminPayoutsPage() {
           </button>
           <button
             onClick={() => setStatusFilter('PAID')}
-            className={`px-4 py-2 text-sm font-medium rounded-md ${
+            className={`px-4 py-2 text-sm font-medium rounded-md cursor-pointer transition-colors ${
               statusFilter === 'PAID'
                 ? 'bg-blue-600 text-white'
                 : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -260,20 +282,18 @@ export default function AdminPayoutsPage() {
             Paid
           </button>
         </div>
-        
+
         <button
           onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center cursor-pointer"
         >
-          <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+          <AdminIcon name="plus" className="w-5 h-5 mr-2" />
           Generate Payout
         </button>
       </div>
       
       {/* Payouts Table */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+      <div className="bg-white shadow rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>

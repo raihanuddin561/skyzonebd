@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
 import { api } from '@/utils/apiClient';
+import AdminIcon from '@/app/admin/components/AdminIcons';
 
 interface Sale {
   id: string;
@@ -181,26 +182,27 @@ export default function SalesManagement() {
         </div>
         <Link
           href="/admin/manual-sales/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          + Add Direct Sale
+          <AdminIcon name="plus" className="w-4 h-4" />
+          Add Direct Sale
         </Link>
       </div>
 
       {/* Statistics */}
       {stats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200">
             <div className="text-sm font-medium text-gray-600">Total Sales</div>
             <div className="text-2xl font-bold text-gray-900 mt-2">{stats.totalSales}</div>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200">
             <div className="text-sm font-medium text-gray-600">Total Revenue</div>
             <div className="text-2xl font-bold text-blue-600 mt-2">
               ৳{stats.totalRevenue.toLocaleString()}
             </div>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200">
             <div className="text-sm font-medium text-gray-600">Total Profit (this log only)</div>
             <div className="text-2xl font-bold text-green-600 mt-2">
               ৳{stats.totalProfit.toLocaleString()}
@@ -209,7 +211,7 @@ export default function SalesManagement() {
               Only sales recorded here (Direct Sales + orders backfilled via &quot;Generate Sales&quot;) — not platform-wide profit. See Profit &amp; Loss for that.
             </div>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200">
             <div className="text-sm font-medium text-gray-600">Units Sold</div>
             <div className="text-2xl font-bold text-purple-600 mt-2">{stats.totalQuantity}</div>
           </div>
@@ -218,9 +220,10 @@ export default function SalesManagement() {
 
       {/* Delivered Orders Without Sales */}
       {deliveredOrders.length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-yellow-900 mb-2">
-            ⚠️ {deliveredOrders.length} Delivered Orders Without Sales
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-yellow-900 mb-2">
+            <AdminIcon name="warning" className="w-5 h-5" />
+            {deliveredOrders.length} Delivered Orders Without Sales
           </h3>
           <p className="text-sm text-yellow-700 mb-4">
             These orders are marked as delivered but don't have sales records yet.
@@ -243,7 +246,7 @@ export default function SalesManagement() {
                 <button
                   onClick={() => handleGenerateSalesFromOrder(order.id)}
                   disabled={generating}
-                  className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+                  className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
                 >
                   Generate Sales
                 </button>
@@ -254,13 +257,13 @@ export default function SalesManagement() {
       )}
 
       {/* Tabs and Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           {/* Tabs */}
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab('all')}
-              className={`px-4 py-2 rounded-lg font-medium ${
+              className={`px-4 py-2 rounded-lg font-medium cursor-pointer transition-colors ${
                 activeTab === 'all'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -270,7 +273,7 @@ export default function SalesManagement() {
             </button>
             <button
               onClick={() => setActiveTab('direct')}
-              className={`px-4 py-2 rounded-lg font-medium ${
+              className={`px-4 py-2 rounded-lg font-medium cursor-pointer transition-colors ${
                 activeTab === 'direct'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -280,7 +283,7 @@ export default function SalesManagement() {
             </button>
             <button
               onClick={() => setActiveTab('order-based')}
-              className={`px-4 py-2 rounded-lg font-medium ${
+              className={`px-4 py-2 rounded-lg font-medium cursor-pointer transition-colors ${
                 activeTab === 'order-based'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -306,7 +309,7 @@ export default function SalesManagement() {
             />
             <button
               onClick={() => setDateRange({ startDate: '', endDate: '' })}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors"
             >
               Clear
             </button>
@@ -315,7 +318,7 @@ export default function SalesManagement() {
       </div>
 
       {/* Sales Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
