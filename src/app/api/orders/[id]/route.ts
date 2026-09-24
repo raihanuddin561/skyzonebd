@@ -6,7 +6,7 @@ import { UserRole, isAdmin } from '@/types/roles';
 import { logInfo, logError } from '@/lib/logger';
 import { restoreStockForCancelledOrder } from '@/services/inventoryService';
 import { emailService } from '@/lib/email';
-import { ALLOWED_ORDER_STATUS_TRANSITIONS, isAllowedOrderStatusTransition, resolveDeliveryPaymentGate } from '@/lib/orderStatusTransitions';
+import { isAllowedOrderStatusTransition, resolveOrderStatusUpdate } from '@/lib/orderStatusTransitions';
 
 // Full PaymentStatus enum (prisma/schema.prisma) — the bulk PATCH
 // /api/orders endpoint's whitelist is intentionally narrower (a known,
@@ -180,69 +180,28 @@ export async function PATCH(
       );
     }
 
-    // Update order
-    const updateData: any = {};
+    // Update order — the transition/payment-gate decision logic is shared
+    // with PATCH /api/orders (see resolveOrderStatusUpdate's doc comment)
+    // so the two endpoints can't silently drift apart again.
+    const resolved = resolveOrderStatusUpdate({
+      requestedStatus: body.status,
+      requestedPaymentStatus: body.paymentStatus,
+      currentStatus: existingOrder.status,
+      paymentMethod: existingOrder.paymentMethod,
+      currentPaymentStatus: existingOrder.paymentStatus,
+      validPaymentStatuses: VALID_PAYMENT_STATUSES,
+    });
 
-    if (body.status) {
-      updateData.status = body.status.toUpperCase();
-
-      // A status change with no actual transition (re-submitting the same
-      // status) is a no-op, not an error — only validate real transitions.
-      if (updateData.status !== existingOrder.status) {
-        const allowedNext = ALLOWED_ORDER_STATUS_TRANSITIONS[existingOrder.status] ?? [];
-        if (!allowedNext.includes(updateData.status)) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Cannot change order status from ${existingOrder.status} to ${updateData.status}`
-            },
-            { status: 400 }
-          );
-        }
-      }
+    if (!resolved.ok) {
+      return NextResponse.json({ success: false, error: resolved.error }, { status: resolved.statusCode });
     }
 
-    // Payment-status gate on the transition INTO DELIVERED — rejected here,
-    // before the transaction, so an order can never reach DELIVERED (and
-    // trigger the autoGenerateProfitReport call below, which recognizes
-    // revenue in the ledger) without payment actually collected or
-    // verified. See resolveDeliveryPaymentGate's doc comment for the exact
-    // rule per payment method.
-    const isDeliveringNow = updateData.status === 'DELIVERED' && existingOrder.status !== 'DELIVERED';
-    const deliveryPaymentGate = isDeliveringNow
-      ? resolveDeliveryPaymentGate({ paymentMethod: existingOrder.paymentMethod, paymentStatus: existingOrder.paymentStatus })
-      : null;
-
-    if (deliveryPaymentGate && !deliveryPaymentGate.allowed) {
-      return NextResponse.json(
-        { success: false, error: deliveryPaymentGate.reason },
-        { status: 400 }
-      );
-    }
-
-    if (body.paymentStatus) {
-      const normalizedPaymentStatus = body.paymentStatus.toUpperCase();
-      if (!VALID_PAYMENT_STATUSES.includes(normalizedPaymentStatus)) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid payment status' },
-          { status: 400 }
-        );
-      }
-      updateData.paymentStatus = normalizedPaymentStatus;
-    }
-
-    // COD: delivery IS the payment event — automatically mark PAID as part
-    // of this same update (overriding any paymentStatus the request body
-    // sent), instead of blocking the transition like every other method.
-    if (deliveryPaymentGate?.autoMarkPaid) {
-      updateData.paymentStatus = 'PAID';
-    }
-
+    const updateData: any = { ...resolved.updateData };
     if (body.notes !== undefined) {
       updateData.notes = body.notes;
     }
 
-    const isCancelling = updateData.status === 'CANCELLED' && existingOrder.status !== 'CANCELLED';
+    const isCancelling = resolved.isCancelling;
 
     let updatedOrder;
     try {

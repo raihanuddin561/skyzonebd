@@ -126,6 +126,14 @@ export interface ProfitLossReport {
   totalRevenue: number;
   returnRevenue: number;
   netRevenue: number;
+  /**
+   * Informational inventory-valuation snapshot only (current product price
+   * x on-hand quantity at period boundaries) — NOT used to derive `cogs`
+   * below, which comes from the real, WAC-accurate FinancialLedger COGS
+   * debits instead. Do not use these three fields as if they were part of
+   * the authoritative profit calculation; they exist for display context
+   * only (e.g. "how much inventory value did we hold").
+   */
   openingStock: number;
   purchases: number;
   closingStock: number;

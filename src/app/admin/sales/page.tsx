@@ -201,9 +201,12 @@ export default function SalesManagement() {
             </div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <div className="text-sm font-medium text-gray-600">Total Profit</div>
+            <div className="text-sm font-medium text-gray-600">Total Profit (this log only)</div>
             <div className="text-2xl font-bold text-green-600 mt-2">
               ৳{stats.totalProfit.toLocaleString()}
+            </div>
+            <div className="text-xs text-gray-400 mt-1">
+              Only sales recorded here (Direct Sales + orders backfilled via &quot;Generate Sales&quot;) — not platform-wide profit. See Profit &amp; Loss for that.
             </div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">

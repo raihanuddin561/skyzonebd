@@ -98,3 +98,103 @@ export function resolveDeliveryPaymentGate(order: {
     reason: 'Cannot mark as delivered — payment has not been verified for this order. Verify payment first.',
   };
 }
+
+export interface ResolveOrderStatusUpdateInput {
+  requestedStatus?: string | null;
+  requestedPaymentStatus?: string | null;
+  currentStatus: string;
+  paymentMethod: string | null | undefined;
+  currentPaymentStatus: string | null | undefined;
+  /**
+   * The payment-status values this specific caller accepts. Deliberately a
+   * parameter, not a shared constant — PATCH /api/orders/[id] and PATCH
+   * /api/orders intentionally validate against different whitelists today
+   * (the bulk endpoint's is narrower, a known pre-existing gap), and
+   * unifying them here would silently change that endpoint's behavior
+   * rather than just deduplicating control flow.
+   */
+  validPaymentStatuses: readonly string[];
+}
+
+export type ResolveOrderStatusUpdateResult =
+  | {
+      ok: true;
+      updateData: { status?: string; paymentStatus?: string };
+      isCancelling: boolean;
+      isDeliveringNow: boolean;
+    }
+  | {
+      ok: false;
+      error: string;
+      statusCode: number;
+    };
+
+/**
+ * The status/paymentStatus validation and transition/payment-gate decision
+ * logic shared by both live order-status endpoints (PATCH /api/orders/[id]
+ * and PATCH /api/orders). Each endpoint still runs its own transaction
+ * (their Prisma `include` shapes and post-update side effects — activity
+ * logging, response shaping — genuinely differ), but the part that
+ * actually decides WHETHER a transition is allowed and WHAT the final
+ * update payload should be is identical, and drifting between the two was
+ * exactly how the payment-status whitelist and the transition-validation
+ * gap were previously found. Centralizing it here means a future fix only
+ * needs to happen once.
+ */
+export function resolveOrderStatusUpdate(
+  input: ResolveOrderStatusUpdateInput
+): ResolveOrderStatusUpdateResult {
+  const updateData: { status?: string; paymentStatus?: string } = {};
+
+  if (input.requestedStatus) {
+    const nextStatus = input.requestedStatus.toUpperCase();
+    updateData.status = nextStatus;
+
+    // A status change with no actual transition (re-submitting the same
+    // status) is a no-op, not an error — only validate real transitions.
+    if (nextStatus !== input.currentStatus && !isAllowedOrderStatusTransition(input.currentStatus, nextStatus)) {
+      return {
+        ok: false,
+        error: `Cannot change order status from ${input.currentStatus} to ${nextStatus}`,
+        statusCode: 400,
+      };
+    }
+  }
+
+  // Payment-status gate on the transition INTO DELIVERED — an order can
+  // never reach DELIVERED (and trigger autoGenerateProfitReport, which
+  // recognizes revenue in the ledger) without payment actually collected
+  // or verified. See resolveDeliveryPaymentGate's doc comment for the
+  // exact rule per payment method.
+  const isDeliveringNow = updateData.status === 'DELIVERED' && input.currentStatus !== 'DELIVERED';
+  const deliveryPaymentGate = isDeliveringNow
+    ? resolveDeliveryPaymentGate({ paymentMethod: input.paymentMethod, paymentStatus: input.currentPaymentStatus })
+    : null;
+
+  if (deliveryPaymentGate && !deliveryPaymentGate.allowed) {
+    return {
+      ok: false,
+      error: deliveryPaymentGate.reason ?? 'Cannot mark as delivered.',
+      statusCode: 400,
+    };
+  }
+
+  if (input.requestedPaymentStatus) {
+    const normalizedPaymentStatus = input.requestedPaymentStatus.toUpperCase();
+    if (!input.validPaymentStatuses.includes(normalizedPaymentStatus)) {
+      return { ok: false, error: 'Invalid payment status', statusCode: 400 };
+    }
+    updateData.paymentStatus = normalizedPaymentStatus;
+  }
+
+  // COD: delivery IS the payment event — automatically mark PAID as part of
+  // this same update (overriding any paymentStatus the request body sent),
+  // instead of blocking the transition like every other method.
+  if (deliveryPaymentGate?.autoMarkPaid) {
+    updateData.paymentStatus = 'PAID';
+  }
+
+  const isCancelling = updateData.status === 'CANCELLED' && input.currentStatus !== 'CANCELLED';
+
+  return { ok: true, updateData, isCancelling, isDeliveringNow };
+}

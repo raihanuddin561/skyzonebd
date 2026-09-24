@@ -11,7 +11,7 @@ import { logInfo, logError } from '@/lib/logger';
 import { depleteStockLotsForSale, restoreStockForCancelledOrder } from '@/services/inventoryService';
 import { alertIfCrossedReorderLevel } from '@/utils/lowStockAlerts';
 import { getPaymentTermsForMethod, checkCreditLimit, createInvoiceForOrder } from '@/services/invoiceService';
-import { ALLOWED_ORDER_STATUS_TRANSITIONS, resolveDeliveryPaymentGate } from '@/lib/orderStatusTransitions';
+import { resolveOrderStatusUpdate } from '@/lib/orderStatusTransitions';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -667,31 +667,10 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Validate status values
-    const validOrderStatuses = ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+    // This endpoint intentionally validates against a narrower payment-
+    // status whitelist than PATCH /api/orders/[id] (a known, pre-existing
+    // gap — not unified here, see resolveOrderStatusUpdate's doc comment).
     const validPaymentStatuses = ['PENDING', 'PAID', 'FAILED'];
-
-    if (status && !validOrderStatuses.includes(status.toUpperCase())) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid order status' },
-        { status: 400 }
-      );
-    }
-
-    if (paymentStatus && !validPaymentStatuses.includes(paymentStatus.toUpperCase())) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid payment status' },
-        { status: 400 }
-      );
-    }
-
-    // Build update data
-    const updateData: {
-      status?: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-      paymentStatus?: 'PENDING' | 'PAID' | 'FAILED';
-    } = {};
-    if (status) updateData.status = status.toUpperCase() as 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-    if (paymentStatus) updateData.paymentStatus = paymentStatus.toUpperCase() as 'PENDING' | 'PAID' | 'FAILED';
 
     // Get current order state before update
     const currentOrder = await prisma.order.findUnique({
@@ -706,52 +685,28 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Reject nonsensical status jumps (e.g. DELIVERED -> PENDING) and
-    // cancelling an order that's already shipped — this endpoint previously
-    // accepted any status from any other status with no validation at all,
-    // and (like PATCH /api/orders/[id] before its own fix) never restored
-    // stock when cancelling. Shares the same transition rules as every
-    // other order-status endpoint via ALLOWED_ORDER_STATUS_TRANSITIONS.
-    if (updateData.status && updateData.status !== currentOrder.status) {
-      const allowedNext = ALLOWED_ORDER_STATUS_TRANSITIONS[currentOrder.status] ?? [];
-      if (!allowedNext.includes(updateData.status)) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Cannot change order status from ${currentOrder.status} to ${updateData.status}`
-          },
-          { status: 400 }
-        );
-      }
+    // The transition/payment-gate decision logic is shared with PATCH
+    // /api/orders/[id] (see resolveOrderStatusUpdate's doc comment) so the
+    // two endpoints can't silently drift apart again.
+    const resolved = resolveOrderStatusUpdate({
+      requestedStatus: status,
+      requestedPaymentStatus: paymentStatus,
+      currentStatus: currentOrder.status,
+      paymentMethod: currentOrder.paymentMethod,
+      currentPaymentStatus: currentOrder.paymentStatus,
+      validPaymentStatuses,
+    });
+
+    if (!resolved.ok) {
+      return NextResponse.json({ success: false, error: resolved.error }, { status: resolved.statusCode });
     }
 
-    // Payment-status gate on the transition INTO DELIVERED — same rule as
-    // PATCH /api/orders/[id] (the endpoint this one has no live frontend
-    // caller today but must not diverge from): an order can never reach
-    // DELIVERED, and trigger the autoGenerateProfitReport call below,
-    // without payment actually collected or verified. Rejected here, before
-    // the transaction. See resolveDeliveryPaymentGate's doc comment for the
-    // exact rule per payment method.
-    const isDeliveringNow = updateData.status === 'DELIVERED' && currentOrder.status !== 'DELIVERED';
-    const deliveryPaymentGate = isDeliveringNow
-      ? resolveDeliveryPaymentGate({ paymentMethod: currentOrder.paymentMethod, paymentStatus: currentOrder.paymentStatus })
-      : null;
+    const updateData = resolved.updateData as {
+      status?: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+      paymentStatus?: 'PENDING' | 'PAID' | 'FAILED';
+    };
 
-    if (deliveryPaymentGate && !deliveryPaymentGate.allowed) {
-      return NextResponse.json(
-        { success: false, error: deliveryPaymentGate.reason },
-        { status: 400 }
-      );
-    }
-
-    // COD: delivery IS the payment event — automatically mark PAID as part
-    // of this same update (overriding any paymentStatus the request body
-    // sent), instead of blocking the transition like every other method.
-    if (deliveryPaymentGate?.autoMarkPaid) {
-      updateData.paymentStatus = 'PAID';
-    }
-
-    const isCancelling = updateData.status === 'CANCELLED' && currentOrder.status !== 'CANCELLED';
+    const isCancelling = resolved.isCancelling;
 
     // Update order
     let updatedOrder;
