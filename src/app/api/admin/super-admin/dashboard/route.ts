@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { isSuperAdmin } from '@/types/roles';
 import { UserRole } from '@/types/roles';
+import { getFinancialSummary } from '@/lib/financialLedger';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -49,22 +50,24 @@ export async function GET(request: NextRequest) {
       where: { isActive: true }
     });
 
-    // Get current month revenue
+    // Get current month revenue/profit — derived from the shared
+    // FinancialLedger-based calculation (getFinancialSummary) instead of
+    // the legacy, manually-populated Sale table, which silently
+    // under-reports whenever the per-order "generate sale" admin action is
+    // skipped (see /api/admin/profit-loss, /api/admin/profits, and
+    // /api/admin/profit-reports/dashboard for the same fix).
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-    const sales = await prisma.sale.findMany({
-      where: {
-        saleDate: {
-          gte: startOfMonth,
-          lte: endOfMonth
-        }
-      }
-    });
+    const financialSummary = await getFinancialSummary(startOfMonth, endOfMonth);
 
-    const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-    const totalProfit = sales.reduce((sum, sale) => sum + (sale.profitAmount || 0), 0);
+    const totalRevenue = financialSummary.revenue;
+    // grossProfit (revenue - COGS) mirrors the original Sale.profitAmount
+    // semantics ((unitPrice - costPrice) x quantity) rather than
+    // netProfitBeforeDistribution, which additionally subtracts operational
+    // costs/salaries.
+    const totalProfit = financialSummary.grossProfit;
 
     // Get active orders
     const activeOrders = await prisma.order.findMany({

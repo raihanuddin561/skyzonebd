@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { SaleType } from '@prisma/client';
+import { depleteStockLotsForSale } from '@/services/inventoryService';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -223,7 +224,7 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
     // Create sale and update stock in a transaction
     const sale = await prisma.$transaction(async (tx) => {
       // Create sale record
-      const newSale = await tx.sale.create({
+      let newSale = await tx.sale.create({
         data: {
           saleType: SaleType.DIRECT,
           saleDate: saleDate ? new Date(saleDate) : new Date(),
@@ -262,15 +263,72 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
         },
       });
 
-      // Update product stock
-      await tx.product.update({
-        where: { id: productId },
+      // Guard the decrement against a concurrent sale/order consuming the
+      // same stock between the pre-fetch above and this write (this read
+      // and the write below are both inside the transaction, but Postgres's
+      // default READ COMMITTED isolation does not by itself prevent that
+      // race). If a concurrent transaction already took the remaining
+      // units, `count` is 0 here and the whole sale transaction rolls back
+      // rather than committing negative stock (same guarded-updateMany
+      // idiom as src/app/api/orders/route.ts's order-creation stock guard).
+      const stockUpdate = await tx.product.updateMany({
+        where: { id: productId, stockQuantity: { gte: quantity } },
         data: {
           stockQuantity: {
             decrement: quantity,
           },
         },
       });
+      if (stockUpdate.count === 0) {
+        throw new Error(`Insufficient stock for product ${productId} (concurrent sale consumed the remaining units)`);
+      }
+
+      // Deplete real stock lots for accurate Weighted-Average-Cost COGS
+      // (same pattern already used for online orders in
+      // src/app/api/orders/route.ts and for manual sales in
+      // src/app/api/admin/manual-sales/route.ts) — the guarded
+      // Product.stockQuantity decrement above remains the authoritative
+      // oversell guard; this call is purely for cost-basis accuracy on top
+      // of it, keeping StockLot.quantityRemaining in sync instead of
+      // drifting away from Product.stockQuantity the way Direct Sales
+      // previously did. Falls back to the flat `costPrice` already
+      // snapshotted above (costPerUnit: null) if this product has no
+      // stock-lot history yet.
+      const { costPerUnit: wacCostPerUnit } = await depleteStockLotsForSale(tx, {
+        productId,
+        quantity,
+        orderId: newSale.id,
+        orderItemId: newSale.id,
+      });
+
+      if (wacCostPerUnit !== null && wacCostPerUnit !== costPrice) {
+        const correctedProfitPerUnit = unitPrice - wacCostPerUnit;
+        const correctedProfitAmount = correctedProfitPerUnit * quantity;
+        const correctedProfitMargin = totalAmount > 0 ? (correctedProfitAmount / totalAmount) * 100 : 0;
+
+        newSale = await tx.sale.update({
+          where: { id: newSale.id },
+          data: {
+            costPrice: wacCostPerUnit,
+            profitAmount: correctedProfitAmount,
+            profitMargin: correctedProfitMargin,
+          },
+          include: {
+            product: {
+              select: {
+                name: true,
+                sku: true,
+              },
+            },
+            customer: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        });
+      }
 
       // Log inventory change
       await tx.inventoryLog.create({

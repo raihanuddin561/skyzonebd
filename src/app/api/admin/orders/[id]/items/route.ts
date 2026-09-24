@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { logActivity } from '@/lib/activityLogger';
+import { depleteStockLotsForSale } from '@/services/inventoryService';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -12,6 +14,58 @@ interface EditedItem {
   productId: string;
   quantity: number;
   price: number;
+}
+
+/**
+ * Release PART of an order item's already-depleted stock-lot allocations
+ * back to their lots — used when an admin decreases a PENDING order item's
+ * quantity. Unlike `releaseStockAllocationsForOrder` in inventoryService.ts
+ * (which releases an ENTIRE order's allocations for full cancellation),
+ * this only releases `quantityToRelease` units for a single `orderItemId`,
+ * working from the most-recently-created allocation backward so the most
+ * recent depletion is undone first. Reduces (or deletes, once exhausted)
+ * each `StockAllocation` row as it's released and increments the
+ * corresponding `StockLot.quantityRemaining` by the same amount.
+ *
+ * If this order item's allocations don't fully cover `quantityToRelease`
+ * (e.g. the item's original stock was never formally lot-tracked), that's a
+ * pre-existing lot-tracking coverage gap, not an error — best-effort,
+ * matching `depleteStockLotsForSale`'s own documented behavior for the same
+ * kind of gap.
+ */
+async function releasePartialAllocationForOrderItem(
+  tx: Prisma.TransactionClient,
+  orderItemId: string,
+  quantityToRelease: number
+): Promise<void> {
+  if (quantityToRelease <= 0) return;
+
+  const allocations = await tx.stockAllocation.findMany({
+    where: { orderItemId },
+    orderBy: { allocatedAt: 'desc' },
+  });
+
+  let remaining = quantityToRelease;
+  for (const allocation of allocations) {
+    if (remaining <= 0) break;
+    const releaseQty = Math.min(remaining, allocation.quantity);
+
+    await tx.stockLot.update({
+      where: { id: allocation.lotId },
+      data: { quantityRemaining: { increment: releaseQty } },
+    });
+
+    if (releaseQty >= allocation.quantity) {
+      await tx.stockAllocation.delete({ where: { id: allocation.id } });
+    } else {
+      await tx.stockAllocation.update({
+        where: { id: allocation.id },
+        data: { quantity: { decrement: releaseQty } },
+      });
+    }
+
+    remaining -= releaseQty;
+  }
 }
 
 /**
@@ -124,6 +178,19 @@ export async function PATCH(
               performedBy: admin.id,
             }
           });
+
+          // Deplete real stock lots for the ADDITIONAL quantity only,
+          // attributed to the same orderId/orderItemId as the original
+          // order-creation depletion — creates another StockAllocation row
+          // for this orderItemId, keeping StockLot.quantityRemaining in
+          // sync with Product.stockQuantity instead of drifting away from
+          // it the way this route previously did.
+          await depleteStockLotsForSale(tx, {
+            productId: editedItem.productId,
+            quantity: quantityDelta,
+            orderId: order.id,
+            orderItemId: orderItem.id,
+          });
         } else if (quantityDelta < 0) {
           // Decreasing quantity releases the difference back to stock.
           const releaseQty = -quantityDelta;
@@ -150,6 +217,11 @@ export async function PATCH(
               performedBy: admin.id,
             }
           });
+
+          // Release PART of this order item's original stock-lot
+          // allocation back to its lot(s) — not a full cancellation
+          // release, just the quantity being removed from this line.
+          await releasePartialAllocationForOrderItem(tx, orderItem.id, releaseQty);
         }
 
         const total = editedItem.quantity * editedItem.price;

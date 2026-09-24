@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { validateStockAdjustment } from '@/utils/stockCalculations';
@@ -8,6 +9,46 @@ import { addStockLot } from '@/services/inventoryService';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
+
+/**
+ * Deplete real stock lots FIFO (oldest purchaseDate first) for a
+ * 'remove'/decreasing-'set' correction (damage, shrinkage, recount write-off)
+ * — mirrors how `depleteStockLotsForSale` in inventoryService.ts consumes
+ * lots for a sale, but this is a correction, not a sale: no StockAllocation
+ * (that ties a depletion to an order/orderItem, which doesn't apply here),
+ * and Product.stockQuantity's decrement (already validated by the caller
+ * via `validateStockAdjustment`) remains the authoritative availability
+ * check. If the removed quantity exceeds what's available across all lots
+ * (pre-existing drift — Product.stockQuantity higher than real lot backing),
+ * deplete whatever lot quantity IS available and don't error out, exactly
+ * matching depleteStockLotsForSale's own documented behavior for products
+ * with a lot-tracking coverage gap.
+ */
+async function depleteLotsForCorrection(
+  tx: Prisma.TransactionClient,
+  productId: string,
+  quantityToRemove: number
+): Promise<void> {
+  if (quantityToRemove <= 0) return;
+
+  const lots = await tx.stockLot.findMany({
+    where: { productId, quantityRemaining: { gt: 0 } },
+    orderBy: { purchaseDate: 'asc' },
+  });
+
+  let remaining = quantityToRemove;
+  for (const lot of lots) {
+    if (remaining <= 0) break;
+    const qtyToDeplete = Math.min(remaining, lot.quantityRemaining);
+
+    await tx.stockLot.update({
+      where: { id: lot.id },
+      data: { quantityRemaining: { decrement: qtyToDeplete } },
+    });
+
+    remaining -= qtyToDeplete;
+  }
+}
 
 
 /**
@@ -122,6 +163,27 @@ export async function POST(request: NextRequest) {
             stockQuantity: true,
           },
         });
+
+        // Keep StockLot.quantityRemaining in sync with Product.stockQuantity
+        // for corrections, so the two stop drifting apart.
+        if (adjustmentType === 'remove') {
+          await depleteLotsForCorrection(tx, productId, quantity);
+        } else if (adjustmentType === 'set') {
+          const delta = validation.newStock - currentStock;
+          if (delta < 0) {
+            // Recount found LESS than expected — deplete lots FIFO for the
+            // shortfall, same as 'remove'.
+            await depleteLotsForCorrection(tx, productId, Math.abs(delta));
+          }
+          // A positive 'set' delta (recount found MORE than expected) is
+          // intentionally left untouched on the lot side: we have no cost
+          // basis for the extra units and inventing one would corrupt
+          // future weighted-average-cost calculations. Administrators
+          // should use 'add' (with a real cost per unit) instead of 'set'
+          // when the intent is genuinely adding new stock — 'set' is meant
+          // for recount corrections. This is a documented limitation, not
+          // fixed here.
+        }
 
         const inventoryLog = await tx.inventoryLog.create({
           data: {

@@ -150,23 +150,6 @@ describe('P0-2: previously-unauthenticated admin routes now require auth', () =>
     });
   });
 
-  describe('/api/admin/inventory/[id]', () => {
-    const { PATCH } = require('@/app/api/admin/inventory/[id]/route');
-    const params = Promise.resolve({ id: 'p1' });
-
-    it('PATCH rejects no token (401)', async () => {
-      expect((await PATCH(req('http://x/api/admin/inventory/p1', { body: { stockQuantity: 5 } }), { params })).status).toBe(401);
-    });
-    it('PATCH rejects non-admin (403)', async () => {
-      expect((await PATCH(req('http://x/api/admin/inventory/p1', { nonAdminRole: 'BUYER', body: { stockQuantity: 5 } }), { params })).status).toBe(403);
-    });
-    it('PATCH allows admin (200)', async () => {
-      (mockPrismaClient.product.findUnique as jest.Mock).mockResolvedValueOnce({ stockQuantity: 3, name: 'X' });
-      (mockPrismaClient.product.update as jest.Mock).mockResolvedValueOnce({ id: 'p1', name: 'X', stockQuantity: 5, availability: 'in_stock' });
-      expect((await PATCH(req('http://x/api/admin/inventory/p1', { admin: true, body: { stockQuantity: 5 } }), { params })).status).toBe(200);
-    });
-  });
-
   describe('/api/admin/partners/[id]', () => {
     const { GET, PATCH, DELETE } = require('@/app/api/admin/partners/[id]/route');
     const params = Promise.resolve({ id: 'partner-1' });

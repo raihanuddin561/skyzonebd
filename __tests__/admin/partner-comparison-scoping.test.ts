@@ -15,6 +15,7 @@ const mockPrismaClient: any = {
   partner: { findMany: jest.fn() },
   order: { findMany: jest.fn(), count: jest.fn() },
   orderItem: { findMany: jest.fn() },
+  returnItem: { findMany: jest.fn().mockResolvedValue([]) },
   profitDistribution: { findMany: jest.fn().mockResolvedValue([]) },
   $disconnect: jest.fn().mockResolvedValue(undefined),
 };

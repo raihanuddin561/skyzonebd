@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
     const financialSummary = await getFinancialSummary(startOfMonth, endOfMonth);
 
@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
     const monthlyTrends = [];
     for (let i = 5; i >= 0; i--) {
       const trendMonth = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const trendMonthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      const trendMonthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
 
       const monthSummary = await getFinancialSummary(trendMonth, trendMonthEnd);
       const revenue = monthSummary.revenue;

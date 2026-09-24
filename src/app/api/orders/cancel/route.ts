@@ -95,28 +95,53 @@ export async function POST(request: NextRequest) {
     // (including partway through restoring a multi-item order), the entire
     // cancellation rolls back rather than leaving the order marked
     // CANCELLED with only some items' stock restored.
-    const updatedOrder = await prisma.$transaction(async (tx) => {
-      const cancelled = await tx.order.update({
-        where: { id: orderId },
-        data: {
-          status: 'CANCELLED',
-          cancelledAt: new Date(),
-          cancelledBy: decoded.id,
-          cancellationReason: reason || 'No reason provided'
-        },
-        include: {
-          orderItems: {
-            include: {
-              product: true
+    let updatedOrder;
+    try {
+      updatedOrder = await prisma.$transaction(async (tx) => {
+        // Guarded updateMany re-checks the order isn't already CANCELLED at
+        // write time — the same concurrent-double-cancellation race already
+        // fixed for returns/refunds (admin/returns/[id]/route.ts and
+        // .../refund/route.ts). Without this, two concurrent cancel
+        // requests for the same order could both pass the plain findUnique
+        // read above and both restore stock, double-crediting it back into
+        // inventory.
+        const guard = await tx.order.updateMany({
+          where: { id: orderId, status: { not: 'CANCELLED' } },
+          data: {
+            status: 'CANCELLED',
+            cancelledAt: new Date(),
+            cancelledBy: decoded.id,
+            cancellationReason: reason || 'No reason provided'
+          }
+        });
+        if (guard.count === 0) {
+          throw new Error('ORDER_ALREADY_CANCELLED');
+        }
+
+        const cancelled = await tx.order.findUniqueOrThrow({
+          where: { id: orderId },
+          include: {
+            orderItems: {
+              include: {
+                product: true
+              }
             }
           }
-        }
+        });
+
+        await restoreStockForCancelledOrder(tx, orderId, cancelled.orderItems, decoded.id, cancelled.orderNumber);
+
+        return cancelled;
       });
-
-      await restoreStockForCancelledOrder(tx, orderId, cancelled.orderItems, decoded.id, cancelled.orderNumber);
-
-      return cancelled;
-    });
+    } catch (txError) {
+      if (txError instanceof Error && txError.message === 'ORDER_ALREADY_CANCELLED') {
+        return NextResponse.json(
+          { success: false, error: 'This order was already cancelled by another request' },
+          { status: 409 }
+        );
+      }
+      throw txError;
+    }
 
     // Get user info for logging
     const user = await prisma.user.findUnique({

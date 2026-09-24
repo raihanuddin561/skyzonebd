@@ -118,118 +118,6 @@ export async function addStockLot({
 }
 
 /**
- * Allocate stock using FIFO method
- * Consumes oldest stock lots first
- */
-export async function allocateStockFIFO({
-  productId,
-  quantity,
-  orderId,
-  orderItemId,
-}: {
-  productId: string;
-  quantity: number;
-  orderId: string;
-  orderItemId: string;
-}) {
-  return await prisma.$transaction(async (tx) => {
-    // Get available lots ordered by purchase date (FIFO - oldest first)
-    const lots = await tx.stockLot.findMany({
-      where: {
-        productId,
-        quantityRemaining: { gt: 0 },
-      },
-      orderBy: {
-        purchaseDate: 'asc', // Oldest first
-      },
-    });
-    
-    if (lots.length === 0) {
-      throw new Error('No stock available');
-    }
-    
-    // Get current product stock
-    const product = await tx.product.findUnique({
-      where: { id: productId },
-      select: { stockQuantity: true, name: true },
-    });
-    
-    if (!product) {
-      throw new Error('Product not found');
-    }
-    
-    let remainingQty = quantity;
-    let totalCost = 0;
-    const allocations = [];
-    
-    // Allocate from lots
-    for (const lot of lots) {
-      if (remainingQty <= 0) break;
-      
-      const qtyToAllocate = Math.min(remainingQty, lot.quantityRemaining);
-      const cost = qtyToAllocate * lot.costPerUnit;
-      
-      // Create allocation record
-      const allocation = await tx.stockAllocation.create({
-        data: {
-          lotId: lot.id,
-          orderId,
-          orderItemId,
-          quantity: qtyToAllocate,
-          costPerUnit: lot.costPerUnit,
-        },
-      });
-      
-      // Update lot remaining quantity
-      await tx.stockLot.update({
-        where: { id: lot.id },
-        data: {
-          quantityRemaining: { decrement: qtyToAllocate },
-        },
-      });
-      
-      totalCost += cost;
-      remainingQty -= qtyToAllocate;
-      allocations.push(allocation);
-    }
-    
-    if (remainingQty > 0) {
-      throw new Error(`Insufficient stock. Short by ${remainingQty} units`);
-    }
-    
-    const previousStock = product.stockQuantity;
-    const newStock = previousStock - quantity;
-    
-    // Update product stock
-    await tx.product.update({
-      where: { id: productId },
-      data: {
-        stockQuantity: newStock,
-      },
-    });
-    
-    // Create inventory log
-    await tx.inventoryLog.create({
-      data: {
-        productId,
-        action: 'SALE',
-        quantity: -quantity, // Negative for reduction
-        previousStock,
-        newStock,
-        reference: orderId,
-        notes: `Allocated for order ${orderId} using FIFO`,
-      },
-    });
-    
-    return {
-      allocations,
-      totalCost,
-      averageCost: totalCost / quantity,
-    };
-  });
-}
-
-/**
  * Calculate weighted average cost for a product.
  * Averages cost across all available lots. Accepts an optional Prisma
  * client/transaction client so callers already inside a `$transaction` can
@@ -259,7 +147,7 @@ export async function calculateWeightedAverageCost(
  * that are already inside their own `$transaction` and already own
  * `Product.stockQuantity`'s decrement/guard and `InventoryLog` write
  * (e.g. order creation's existing race-safe guarded decrement). This is
- * deliberately narrower than `allocateStockWAC` above: it never touches
+ * deliberately narrower than a full stock allocation: it never touches
  * `Product.stockQuantity` and never writes `InventoryLog` itself — it only
  * creates `StockAllocation` records against real `StockLot`s and reports
  * back the real per-unit cost, so the caller can snapshot an accurate
@@ -388,117 +276,6 @@ export async function restoreStockForCancelledOrder(
 }
 
 /**
- * Allocate stock using WAC method
- * Uses weighted average cost instead of specific lot costs
- */
-export async function allocateStockWAC({
-  productId,
-  quantity,
-  orderId,
-  orderItemId,
-}: {
-  productId: string;
-  quantity: number;
-  orderId: string;
-  orderItemId: string;
-}) {
-  return await prisma.$transaction(async (tx) => {
-    // Calculate current WAC
-    const wac = await calculateWeightedAverageCost(productId);
-    
-    if (wac === 0) {
-      throw new Error('No stock available or unable to calculate cost');
-    }
-    
-    // Get available lots
-    const lots = await tx.stockLot.findMany({
-      where: {
-        productId,
-        quantityRemaining: { gt: 0 },
-      },
-      orderBy: {
-        purchaseDate: 'asc', // Still consume oldest first physically
-      },
-    });
-    
-    // Get current product stock
-    const product = await tx.product.findUnique({
-      where: { id: productId },
-      select: { stockQuantity: true, name: true },
-    });
-    
-    if (!product) {
-      throw new Error('Product not found');
-    }
-    
-    let remainingQty = quantity;
-    const allocations = [];
-    
-    // Allocate from lots (proportionally or FIFO-style for physical stock)
-    for (const lot of lots) {
-      if (remainingQty <= 0) break;
-      
-      const qtyToAllocate = Math.min(remainingQty, lot.quantityRemaining);
-      
-      // Create allocation with WAC
-      const allocation = await tx.stockAllocation.create({
-        data: {
-          lotId: lot.id,
-          orderId,
-          orderItemId,
-          quantity: qtyToAllocate,
-          costPerUnit: wac, // Use WAC instead of lot-specific cost
-        },
-      });
-      
-      await tx.stockLot.update({
-        where: { id: lot.id },
-        data: {
-          quantityRemaining: { decrement: qtyToAllocate },
-        },
-      });
-      
-      remainingQty -= qtyToAllocate;
-      allocations.push(allocation);
-    }
-    
-    if (remainingQty > 0) {
-      throw new Error(`Insufficient stock. Short by ${remainingQty} units`);
-    }
-    
-    const previousStock = product.stockQuantity;
-    const newStock = previousStock - quantity;
-    
-    // Update product stock
-    await tx.product.update({
-      where: { id: productId },
-      data: {
-        stockQuantity: newStock,
-      },
-    });
-    
-    // Create inventory log
-    await tx.inventoryLog.create({
-      data: {
-        productId,
-        action: 'SALE',
-        quantity: -quantity,
-        previousStock,
-        newStock,
-        reference: orderId,
-        notes: `Allocated for order ${orderId} using WAC (${wac.toFixed(2)}/unit)`,
-      },
-    });
-    
-    return {
-      allocations,
-      totalCost: quantity * wac,
-      averageCost: wac,
-    };
-  });
-}
-
-/**
  * Get stock lots for a product
  */
 export async function getProductStockLots(productId: string) {
@@ -530,20 +307,4 @@ export async function getOrderStockAllocations(orderId: string) {
       },
     },
   });
-}
-
-/**
- * Check if product has sufficient stock
- */
-export async function checkStockAvailability(productId: string, quantity: number): Promise<boolean> {
-  const product = await prisma.product.findUnique({
-    where: { id: productId },
-    select: { stockQuantity: true },
-  });
-  
-  if (!product) {
-    throw new Error('Product not found');
-  }
-  
-  return product.stockQuantity >= quantity;
 }

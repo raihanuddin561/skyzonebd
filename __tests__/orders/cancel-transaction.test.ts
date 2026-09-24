@@ -32,10 +32,14 @@ jest.mock('@/lib/activityLogger', () => ({
 import { prisma } from '@/lib/prisma';
 import { POST } from '@/app/api/orders/cancel/route';
 
-function makeTxClient(productUpdate: jest.Mock, orderUpdate: jest.Mock) {
+function makeTxClient(productUpdate: jest.Mock, orderUpdateMany: jest.Mock, orderFindUniqueOrThrow: jest.Mock) {
   return {
     product: { findUnique: jest.fn().mockResolvedValue({ stockQuantity: 10 }), update: productUpdate },
-    order: { update: orderUpdate },
+    // P1-4 (concurrent double-cancellation guard): the plain order.update
+    // is now a guarded updateMany (re-checks status !== CANCELLED at write
+    // time) followed by a findUniqueOrThrow to read back the cancelled row
+    // (with its orderItems) before restoring stock.
+    order: { updateMany: orderUpdateMany, findUniqueOrThrow: orderFindUniqueOrThrow },
     inventoryLog: { create: jest.fn().mockResolvedValue({}) },
     // releaseStockAllocationsForOrder (Amazon-style gap-closure Phase 1) —
     // no lot allocations to release in these tests.
@@ -92,12 +96,13 @@ it('a forced failure on the second item causes the whole operation to fail via o
   const productUpdate = jest.fn()
     .mockResolvedValueOnce({})
     .mockRejectedValueOnce(new Error('simulated DB failure on second item'));
-  const orderUpdate = jest.fn().mockResolvedValue({
-    id: 'order-1', orderItems: order.orderItems,
+  const orderUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+  const orderFindUniqueOrThrow = jest.fn().mockResolvedValue({
+    id: 'order-1', orderNumber: 'ORD-1', orderItems: order.orderItems,
   });
 
   (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
-    cb(makeTxClient(productUpdate, orderUpdate))
+    cb(makeTxClient(productUpdate, orderUpdateMany, orderFindUniqueOrThrow))
   );
 
   const res = await POST(makeRequest({ orderId: 'order-1', reason: 'test' }));
@@ -107,6 +112,29 @@ it('a forced failure on the second item causes the whole operation to fail via o
   // Only the first item's restore was attempted before the failure — the
   // loop stopped, it did not silently continue past the error.
   expect(productUpdate).toHaveBeenCalledTimes(2);
+});
+
+it('returns 409 without restoring stock when a concurrent request already cancelled the order (guard count 0)', async () => {
+  const order = {
+    id: 'order-1',
+    userId: 'customer-1',
+    status: 'PENDING',
+    orderItems: [{ productId: 'p1', quantity: 5, product: { name: 'P1' } }],
+  };
+  (prisma.order.findUnique as jest.Mock).mockResolvedValueOnce(order);
+
+  const productUpdate = jest.fn();
+  const orderUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+  const orderFindUniqueOrThrow = jest.fn();
+  (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
+    cb(makeTxClient(productUpdate, orderUpdateMany, orderFindUniqueOrThrow))
+  );
+
+  const res = await POST(makeRequest({ orderId: 'order-1', reason: 'test' }));
+
+  expect(res.status).toBe(409);
+  expect(productUpdate).not.toHaveBeenCalled();
+  expect(orderFindUniqueOrThrow).not.toHaveBeenCalled();
 });
 
 it('happy path: both items restored via atomic increment and the order cancelled in one $transaction call', async () => {
@@ -124,7 +152,8 @@ it('happy path: both items restored via atomic increment and the order cancelled
   // later "user info for logging" lookup) via beforeEach's mockResolvedValue.
 
   const productUpdate = jest.fn().mockResolvedValue({});
-  const orderUpdate = jest.fn().mockResolvedValue({
+  const orderUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+  const orderFindUniqueOrThrow = jest.fn().mockResolvedValue({
     id: 'order-1', orderNumber: 'ORD-1', userId: 'customer-1',
     orderItems: order.orderItems, shippingAddress: 'x', billingAddress: 'x',
     paymentMethod: 'bkash', notes: null, subtotal: 100, shipping: 0, tax: 5, total: 105,
@@ -133,7 +162,7 @@ it('happy path: both items restored via atomic increment and the order cancelled
   });
 
   (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
-    cb(makeTxClient(productUpdate, orderUpdate))
+    cb(makeTxClient(productUpdate, orderUpdateMany, orderFindUniqueOrThrow))
   );
 
   const res = await POST(makeRequest({ orderId: 'order-1', reason: 'test' }));
@@ -143,6 +172,6 @@ it('happy path: both items restored via atomic increment and the order cancelled
   expect(productUpdate).toHaveBeenCalledWith(
     expect.objectContaining({ data: { stockQuantity: { increment: 5 } } })
   );
-  expect(orderUpdate).toHaveBeenCalledTimes(1);
+  expect(orderUpdateMany).toHaveBeenCalledTimes(1);
   expect(prisma.$transaction).toHaveBeenCalledTimes(1);
 });

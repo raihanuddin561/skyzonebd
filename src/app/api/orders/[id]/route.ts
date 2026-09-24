@@ -6,7 +6,12 @@ import { UserRole, isAdmin } from '@/types/roles';
 import { logInfo, logError } from '@/lib/logger';
 import { restoreStockForCancelledOrder } from '@/services/inventoryService';
 import { emailService } from '@/lib/email';
-import { ALLOWED_ORDER_STATUS_TRANSITIONS } from '@/lib/orderStatusTransitions';
+import { ALLOWED_ORDER_STATUS_TRANSITIONS, isAllowedOrderStatusTransition, resolveDeliveryPaymentGate } from '@/lib/orderStatusTransitions';
+
+// Full PaymentStatus enum (prisma/schema.prisma) — the bulk PATCH
+// /api/orders endpoint's whitelist is intentionally narrower (a known,
+// separate gap); this endpoint validates against the real, complete list.
+const VALID_PAYMENT_STATUSES = ['PENDING', 'PENDING_VERIFICATION', 'PAID', 'PARTIAL', 'FAILED', 'REFUNDED'];
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -197,8 +202,40 @@ export async function PATCH(
       }
     }
 
+    // Payment-status gate on the transition INTO DELIVERED — rejected here,
+    // before the transaction, so an order can never reach DELIVERED (and
+    // trigger the autoGenerateProfitReport call below, which recognizes
+    // revenue in the ledger) without payment actually collected or
+    // verified. See resolveDeliveryPaymentGate's doc comment for the exact
+    // rule per payment method.
+    const isDeliveringNow = updateData.status === 'DELIVERED' && existingOrder.status !== 'DELIVERED';
+    const deliveryPaymentGate = isDeliveringNow
+      ? resolveDeliveryPaymentGate({ paymentMethod: existingOrder.paymentMethod, paymentStatus: existingOrder.paymentStatus })
+      : null;
+
+    if (deliveryPaymentGate && !deliveryPaymentGate.allowed) {
+      return NextResponse.json(
+        { success: false, error: deliveryPaymentGate.reason },
+        { status: 400 }
+      );
+    }
+
     if (body.paymentStatus) {
-      updateData.paymentStatus = body.paymentStatus.toUpperCase();
+      const normalizedPaymentStatus = body.paymentStatus.toUpperCase();
+      if (!VALID_PAYMENT_STATUSES.includes(normalizedPaymentStatus)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid payment status' },
+          { status: 400 }
+        );
+      }
+      updateData.paymentStatus = normalizedPaymentStatus;
+    }
+
+    // COD: delivery IS the payment event — automatically mark PAID as part
+    // of this same update (overriding any paymentStatus the request body
+    // sent), instead of blocking the transition like every other method.
+    if (deliveryPaymentGate?.autoMarkPaid) {
+      updateData.paymentStatus = 'PAID';
     }
 
     if (body.notes !== undefined) {
@@ -207,36 +244,81 @@ export async function PATCH(
 
     const isCancelling = updateData.status === 'CANCELLED' && existingOrder.status !== 'CANCELLED';
 
-    const updatedOrder = await prisma.$transaction(async (tx) => {
-      // Cancelling via this dropdown must restore stock exactly like the
-      // dedicated cancel endpoints — previously this just flipped the
-      // status column with no inventory reversal at all, silently
-      // corrupting stock counts for every admin-dropdown cancellation.
-      if (isCancelling) {
-        await restoreStockForCancelledOrder(tx, id, existingOrder.orderItems, admin.id, existingOrder.orderNumber);
-      }
+    let updatedOrder;
+    try {
+      updatedOrder = await prisma.$transaction(async (tx) => {
+        // Cancelling via this dropdown must restore stock exactly like the
+        // dedicated cancel endpoints — previously this just flipped the
+        // status column with no inventory reversal at all, silently
+        // corrupting stock counts for every admin-dropdown cancellation.
+        if (isCancelling) {
+          // Guarded updateMany re-checks the order isn't already CANCELLED
+          // at write time — the same race class already fixed for
+          // returns/refunds (admin/returns/[id]/route.ts and .../refund/
+          // route.ts). Without this, two concurrent cancel requests for the
+          // same order could both pass the plain findUnique read above and
+          // both restore stock, double-crediting it back into inventory.
+          const guard = await tx.order.updateMany({
+            where: { id, status: { not: 'CANCELLED' } },
+            data: updateData,
+          });
+          if (guard.count === 0) {
+            throw new Error('ORDER_ALREADY_CANCELLED');
+          }
 
-      return tx.order.update({
-        where: { id },
-        data: updateData,
-        include: {
-          orderItems: {
+          await restoreStockForCancelledOrder(tx, id, existingOrder.orderItems, admin.id, existingOrder.orderNumber);
+
+          return tx.order.findUniqueOrThrow({
+            where: { id },
             include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  imageUrl: true
+              orderItems: {
+                include: {
+                  product: {
+                    select: {
+                      id: true,
+                      name: true,
+                      imageUrl: true
+                    }
+                  }
                 }
+              },
+              user: {
+                select: { email: true }
               }
             }
-          },
-          user: {
-            select: { email: true }
-          }
+          });
         }
+
+        return tx.order.update({
+          where: { id },
+          data: updateData,
+          include: {
+            orderItems: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    imageUrl: true
+                  }
+                }
+              }
+            },
+            user: {
+              select: { email: true }
+            }
+          }
+        });
       });
-    });
+    } catch (txError) {
+      if (txError instanceof Error && txError.message === 'ORDER_ALREADY_CANCELLED') {
+        return NextResponse.json(
+          { success: false, error: 'This order was already cancelled by another request' },
+          { status: 409 }
+        );
+      }
+      throw txError;
+    }
 
     // Auto-generate profit report if order is now DELIVERED
     if (updateData.status === 'DELIVERED' && existingOrder.status !== 'DELIVERED') {
@@ -318,10 +400,16 @@ export async function DELETE(
       );
     }
 
-    // If order is already shipped or delivered, don't allow cancellation
-    if (order.status === 'SHIPPED' || order.status === 'DELIVERED') {
+    // Shares the same transition rule as every other cancellation-capable
+    // endpoint (POST /api/orders/cancel, the status-dropdown PATCH-to-
+    // CANCELLED branches) via ALLOWED_ORDER_STATUS_TRANSITIONS as the single
+    // source of truth — previously this only blocked SHIPPED/DELIVERED,
+    // silently allowing an IN_TRANSIT order (a physical package already in
+    // a courier's hands) to be cancelled here even though every other
+    // cancellation endpoint blocks it.
+    if (!isAllowedOrderStatusTransition(order.status, 'CANCELLED')) {
       return NextResponse.json(
-        { success: false, error: 'Cannot cancel shipped or delivered orders' },
+        { success: false, error: `Cannot cancel an order with status ${order.status}` },
         { status: 400 }
       );
     }
@@ -333,17 +421,39 @@ export async function DELETE(
     // order never marked cancelled) and race-prone (two concurrent
     // cancellations could read the same stale stockQuantity and lose an
     // update). Atomic `increment` inside one transaction fixes both.
-    const cancelledOrder = await prisma.$transaction(async (tx) => {
-      await restoreStockForCancelledOrder(tx, id, order.orderItems, admin.id, order.orderNumber);
-
-      return tx.order.update({
-        where: { id },
-        data: {
-          status: 'CANCELLED',
-          updatedAt: new Date()
+    let cancelledOrder;
+    try {
+      cancelledOrder = await prisma.$transaction(async (tx) => {
+        // Guarded updateMany re-checks the order isn't already CANCELLED at
+        // write time — the same concurrent-double-cancellation race already
+        // fixed for returns/refunds (admin/returns/[id]/route.ts). Without
+        // this, two concurrent DELETE calls for the same order could both
+        // pass the plain findUnique read above and both restore stock,
+        // double-crediting it back into inventory.
+        const guard = await tx.order.updateMany({
+          where: { id, status: { not: 'CANCELLED' } },
+          data: {
+            status: 'CANCELLED',
+            updatedAt: new Date()
+          }
+        });
+        if (guard.count === 0) {
+          throw new Error('ORDER_ALREADY_CANCELLED');
         }
+
+        await restoreStockForCancelledOrder(tx, id, order.orderItems, admin.id, order.orderNumber);
+
+        return tx.order.findUniqueOrThrow({ where: { id } });
       });
-    });
+    } catch (txError) {
+      if (txError instanceof Error && txError.message === 'ORDER_ALREADY_CANCELLED') {
+        return NextResponse.json(
+          { success: false, error: 'This order was already cancelled by another request' },
+          { status: 409 }
+        );
+      }
+      throw txError;
+    }
 
     return NextResponse.json({
       success: true,

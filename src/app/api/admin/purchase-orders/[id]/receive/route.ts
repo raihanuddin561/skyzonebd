@@ -221,6 +221,25 @@ export async function POST(
       const receivedLots = [];
 
       for (const { receipt, poItem } of validatedReceipts) {
+        // Re-validate against a FRESH read of quantityReceived inside the
+        // transaction, immediately before applying this line's stock-lot
+        // creation and increment. The pre-transaction validation pass above
+        // only guards against invalid requests being processed at all — it
+        // reads `remaining` before the transaction opens, so two concurrent
+        // receive calls for the same PO line could both pass that check
+        // against the same stale value and both commit, letting
+        // quantityReceived exceed quantityOrdered. Recomputing here, inside
+        // the transaction, against a fresh row read closes that race.
+        const freshPoItem = await tx.purchaseOrderItem.findUniqueOrThrow({
+          where: { id: poItem.id },
+        });
+        const freshRemaining = freshPoItem.quantityOrdered - freshPoItem.quantityReceived;
+        if (receipt.quantityReceived > freshRemaining) {
+          throw new Error(
+            `Cannot receive ${receipt.quantityReceived} units for ${poItem.productId} — only ${freshRemaining} remain on this order (concurrent receipt detected)`
+          );
+        }
+
         const lot = await addStockLotInTx(tx, {
           productId: poItem.productId,
           quantity: receipt.quantityReceived,

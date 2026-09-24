@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     );
     
     // Get all delivered orders in date range
-    const orders = await prisma.order.findMany({
+    const rawOrders = await prisma.order.findMany({
       where: {
         status: 'DELIVERED',
         createdAt: {
@@ -70,11 +70,59 @@ export async function GET(request: NextRequest) {
         createdAt: 'asc'
       }
     });
-    
-    if (orders.length === 0) {
+
+    if (rawOrders.length === 0) {
       notices.push('No delivered orders in the selected period');
     }
-    
+
+    // Order.total/Order.grossProfit are point-in-time snapshots taken at
+    // delivery — a later refund (processed via /api/admin/returns/[id]/refund)
+    // never updates them, it only posts a DEBIT/REVENUE + CREDIT/COGS
+    // reversal pair to FinancialLedger (createRefundReversalEntries). Without
+    // netting those reversal entries back out here, a fully-refunded order
+    // would keep reporting its full original revenue/profit forever. We key
+    // the lookup on FinancialLedger.orderId (not the refund's own date), since
+    // a refund can be processed after the order's own delivery period has
+    // already passed — the reversal still belongs to that order's totals.
+    const orderIds = rawOrders.map(o => o.id);
+    const refundLedgerEntries = orderIds.length > 0
+      ? await prisma.financialLedger.findMany({
+          where: {
+            orderId: { in: orderIds },
+            OR: [
+              { sourceType: 'REFUND', direction: 'DEBIT', category: 'REVENUE' },
+              { sourceType: 'RETURN', direction: 'CREDIT', category: 'COGS' }
+            ]
+          },
+          select: { orderId: true, sourceType: true, amount: true }
+        })
+      : [];
+
+    const refundedByOrder = new Map<string, { revenue: number; cogs: number }>();
+    refundLedgerEntries.forEach(entry => {
+      if (!entry.orderId) return;
+      const bucket = refundedByOrder.get(entry.orderId) || { revenue: 0, cogs: 0 };
+      if (entry.sourceType === 'REFUND') {
+        bucket.revenue += entry.amount;
+      } else if (entry.sourceType === 'RETURN') {
+        bucket.cogs += entry.amount;
+      }
+      refundedByOrder.set(entry.orderId, bucket);
+    });
+
+    // Net the refund reversal out of each order's total/grossProfit before
+    // any aggregation below uses them.
+    const orders = rawOrders.map(order => {
+      const refund = refundedByOrder.get(order.id);
+      const refundedRevenue = refund?.revenue || 0;
+      const refundedCOGS = refund?.cogs || 0;
+      return {
+        ...order,
+        total: order.total - refundedRevenue,
+        grossProfit: (order.grossProfit || 0) - refundedRevenue + refundedCOGS
+      };
+    });
+
     // Group orders by time period
     const grouped = new Map<string, {
       date: Date;

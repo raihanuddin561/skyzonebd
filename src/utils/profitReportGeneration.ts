@@ -218,7 +218,16 @@ export async function autoGenerateProfitReport(orderId: string): Promise<{
       await createOrderLedgerEntries({
         id: order.id,
         orderNumber: order.orderNumber,
-        total: totalRevenue,
+        // The ledger's REVENUE entry must reflect the actual amount charged
+        // to the customer (order.total = subtotal + tax + shipping), not
+        // just the post-discount item subtotal (`totalRevenue` below) — the
+        // latter silently drops any tax/shipping fee actually collected
+        // from every ledger-based profit figure. This is separate from
+        // ProfitReport.revenue/grossProfit (still items-only, i.e.
+        // product-margin based) and from shippingExpense (the company's own
+        // shipping COST, an unrelated number) — neither of those is touched
+        // here.
+        total: order.total,
         userId: order.userId,
         guestName: order.guestName,
         orderItems: order.orderItems.map(item => ({

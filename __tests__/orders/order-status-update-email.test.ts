@@ -63,7 +63,9 @@ it('sends a SHIPPED email to a registered user on the PROCESSING -> SHIPPED tran
 });
 
 it('sends a DELIVERED email to a guest via guestEmail when there is no linked user', async () => {
-  mockPrismaClient.order.findUnique.mockResolvedValueOnce({ id: 'order-1', status: 'SHIPPED' });
+  // paymentStatus: PAID satisfies the delivery-payment gate (P0/Bug1) — this
+  // test is about the notification email, not payment verification.
+  mockPrismaClient.order.findUnique.mockResolvedValueOnce({ id: 'order-1', status: 'SHIPPED', paymentMethod: 'bkash', paymentStatus: 'PAID' });
   mockPrismaClient.order.update.mockResolvedValueOnce({
     id: 'order-1', orderNumber: 'ORD-2', status: 'DELIVERED', paymentStatus: 'PAID', updatedAt: new Date(),
     orderItems: [], guestEmail: 'guest@example.com', user: null,

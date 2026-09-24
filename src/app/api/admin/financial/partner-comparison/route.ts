@@ -84,12 +84,24 @@ export async function GET(request: NextRequest) {
                   createdAt: { gte: dateRange.startDate, lte: dateRange.endDate }
                 }
               },
-              select: { quantity: true, total: true, totalProfit: true }
+              select: { id: true, quantity: true, total: true, totalProfit: true }
             })
           : [];
 
-        const currentRevenue = currentOrderItems.reduce((sum, i) => sum + i.total, 0);
-        const currentProfit = currentOrderItems.reduce((sum, i) => sum + (i.totalProfit || 0), 0);
+        // OrderItem.total/totalProfit are snapshots taken at delivery that a
+        // later refund never updates (only ReturnItem + a FinancialLedger
+        // reversal pair get written — see returns/[id]/refund/route.ts and
+        // createRefundReversalEntries). The ledger reversal is posted at the
+        // whole-order level with no seller/partner attribution, so it can't
+        // be safely netted here without risking crediting one partner's
+        // refund against a different partner's items on a mixed-seller
+        // order. ReturnItem — the same source the refund route itself reads
+        // to compute returnedCOGS — already carries the exact orderItemId,
+        // refunded quantity, and refundAmount, so netting per-item off it
+        // gives the mathematically correct per-partner figure instead.
+        const currentRefunds = await getRefundedTotals(currentOrderItems.map(i => i.id));
+        const currentRevenue = currentOrderItems.reduce((sum, i) => sum + i.total, 0) - currentRefunds.revenue;
+        const currentProfit = currentOrderItems.reduce((sum, i) => sum + (i.totalProfit || 0), 0) - currentRefunds.revenue + currentRefunds.cogs;
         const currentUnits = currentOrderItems.reduce((sum, i) => sum + i.quantity, 0);
         const currentOrders_count = partner.userId
           ? await prisma.order.count({
@@ -111,12 +123,13 @@ export async function GET(request: NextRequest) {
                   createdAt: { gte: previousPeriod.startDate, lte: previousPeriod.endDate }
                 }
               },
-              select: { total: true, totalProfit: true }
+              select: { id: true, total: true, totalProfit: true }
             })
           : [];
 
-        const previousRevenue = previousOrderItems.reduce((sum, i) => sum + i.total, 0);
-        const previousProfit = previousOrderItems.reduce((sum, i) => sum + (i.totalProfit || 0), 0);
+        const previousRefunds = await getRefundedTotals(previousOrderItems.map(i => i.id));
+        const previousRevenue = previousOrderItems.reduce((sum, i) => sum + i.total, 0) - previousRefunds.revenue;
+        const previousProfit = previousOrderItems.reduce((sum, i) => sum + (i.totalProfit || 0), 0) - previousRefunds.revenue + previousRefunds.cogs;
         
         // Distributions
         const distributions = await prisma.profitDistribution.findMany({
@@ -310,6 +323,38 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Sums the revenue (refundAmount) and COGS (costPerUnit * refunded quantity)
+// already reversed for a given set of order items, across all REFUNDED
+// returns — mirrors exactly what the refund route itself computes
+// (refundAmount / returnedCOGS) before posting the ledger reversal, so the
+// figures returned here agree with what actually left the ledger's revenue
+// and COGS categories.
+async function getRefundedTotals(orderItemIds: string[]): Promise<{ revenue: number; cogs: number }> {
+  if (orderItemIds.length === 0) {
+    return { revenue: 0, cogs: 0 };
+  }
+
+  const refundedItems = await prisma.returnItem.findMany({
+    where: {
+      orderItemId: { in: orderItemIds },
+      return: { status: 'REFUNDED' }
+    },
+    select: {
+      quantity: true,
+      refundAmount: true,
+      orderItem: { select: { costPerUnit: true } }
+    }
+  });
+
+  return refundedItems.reduce(
+    (acc, ri) => ({
+      revenue: acc.revenue + ri.refundAmount,
+      cogs: acc.cogs + (ri.orderItem.costPerUnit || 0) * ri.quantity
+    }),
+    { revenue: 0, cogs: 0 }
+  );
 }
 
 function calculatePreviousPeriod(startDate: Date, endDate: Date): { startDate: Date; endDate: Date } {

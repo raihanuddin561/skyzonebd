@@ -16,7 +16,7 @@ const mockPrismaClient: any = {
   user: { findUnique: jest.fn() },
   supplier: { findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn(), create: jest.fn() },
   purchaseOrder: { findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn(), create: jest.fn(), update: jest.fn() },
-  purchaseOrderItem: { update: jest.fn(), findMany: jest.fn() },
+  purchaseOrderItem: { update: jest.fn(), findMany: jest.fn(), findUniqueOrThrow: jest.fn() },
   product: { findUnique: jest.fn(), update: jest.fn().mockResolvedValue({}) },
   stockLot: { create: jest.fn() },
   inventoryLog: { create: jest.fn() },
@@ -141,6 +141,9 @@ describe('POST /api/admin/purchase-orders/[id]/receive', () => {
     const { POST } = require('@/app/api/admin/purchase-orders/[id]/receive/route');
     mockStockLotCreation();
     (mockPrismaClient.purchaseOrder.findUnique as jest.Mock).mockResolvedValueOnce(basePO);
+    (mockPrismaClient.purchaseOrderItem.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({
+      id: 'poi-1', quantityOrdered: 10, quantityReceived: 0,
+    });
     (mockPrismaClient.purchaseOrderItem.findMany as jest.Mock).mockResolvedValueOnce([
       { id: 'poi-1', quantityOrdered: 10, quantityReceived: 6 },
     ]);
@@ -159,6 +162,9 @@ describe('POST /api/admin/purchase-orders/[id]/receive', () => {
     const { POST } = require('@/app/api/admin/purchase-orders/[id]/receive/route');
     mockStockLotCreation();
     (mockPrismaClient.purchaseOrder.findUnique as jest.Mock).mockResolvedValueOnce(basePO);
+    (mockPrismaClient.purchaseOrderItem.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({
+      id: 'poi-1', quantityOrdered: 10, quantityReceived: 0,
+    });
     (mockPrismaClient.purchaseOrderItem.findMany as jest.Mock).mockResolvedValueOnce([
       { id: 'poi-1', quantityOrdered: 10, quantityReceived: 10 },
     ]);
@@ -168,5 +174,22 @@ describe('POST /api/admin/purchase-orders/[id]/receive', () => {
     expect(res.status).toBe(200);
     const updateArg = (mockPrismaClient.purchaseOrder.update as jest.Mock).mock.calls[0][0];
     expect(updateArg.data.status).toBe('RECEIVED');
+  });
+
+  it('aborts if a concurrent receipt already consumed the remaining quantity before this transaction runs', async () => {
+    const { POST } = require('@/app/api/admin/purchase-orders/[id]/receive/route');
+    mockStockLotCreation();
+    (mockPrismaClient.purchaseOrder.findUnique as jest.Mock).mockResolvedValueOnce(basePO);
+    // The pre-transaction validation pass reads the stale `basePO` snapshot
+    // (quantityReceived: 0, so 6 looks valid), but a fresh in-transaction
+    // read shows another concurrent receipt already consumed all 10 units.
+    (mockPrismaClient.purchaseOrderItem.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({
+      id: 'poi-1', quantityOrdered: 10, quantityReceived: 10,
+    });
+
+    const res = await POST(req({ items: [{ purchaseOrderItemId: 'poi-1', quantityReceived: 6 }] }), { params });
+    expect(res.status).toBe(500);
+    expect(mockPrismaClient.purchaseOrderItem.update).not.toHaveBeenCalled();
+    expect(mockPrismaClient.purchaseOrder.update).not.toHaveBeenCalled();
   });
 });

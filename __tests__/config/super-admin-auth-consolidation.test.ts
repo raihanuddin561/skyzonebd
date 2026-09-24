@@ -131,13 +131,20 @@ describe('P2-9: SUPER_ADMIN was previously excluded by hand-rolled ADMIN-only ch
     });
     (mockPrismaClient.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
       cb({
-        order: { update: jest.fn().mockResolvedValue({
-          id: 'order-1', orderNumber: 'ORD-1', userId: 'someone-else',
-          orderItems: [{ productId: 'p1', quantity: 1, product: { name: 'P1' }, price: 1, total: 1 }],
-          shippingAddress: 'x', billingAddress: 'x', paymentMethod: 'bkash', notes: null,
-          subtotal: 1, shipping: 0, tax: 0, total: 1, status: 'CANCELLED', paymentStatus: 'PENDING',
-          cancelledAt: new Date(), cancellationReason: 'test', createdAt: new Date(), updatedAt: new Date(),
-        }) },
+        // P1-4 (concurrent double-cancellation guard): the plain
+        // order.update is now a guarded updateMany (re-checks status !==
+        // CANCELLED at write time) followed by a findUniqueOrThrow to read
+        // back the cancelled row (with its orderItems).
+        order: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          findUniqueOrThrow: jest.fn().mockResolvedValue({
+            id: 'order-1', orderNumber: 'ORD-1', userId: 'someone-else',
+            orderItems: [{ productId: 'p1', quantity: 1, product: { name: 'P1' }, price: 1, total: 1 }],
+            shippingAddress: 'x', billingAddress: 'x', paymentMethod: 'bkash', notes: null,
+            subtotal: 1, shipping: 0, tax: 0, total: 1, status: 'CANCELLED', paymentStatus: 'PENDING',
+            cancelledAt: new Date(), cancellationReason: 'test', createdAt: new Date(), updatedAt: new Date(),
+          }),
+        },
         product: { findUnique: jest.fn().mockResolvedValue({ stockQuantity: 5 }), update: jest.fn().mockResolvedValue({}) },
         inventoryLog: { create: jest.fn().mockResolvedValue({}) },
         stockAllocation: { findMany: jest.fn().mockResolvedValue([]), deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
@@ -158,6 +165,11 @@ describe('P2-9: SUPER_ADMIN was previously excluded by hand-rolled ADMIN-only ch
 
   it('PATCH /api/orders allows SUPER_ADMIN to update order status (was 403)', async () => {
     const { PATCH } = require('@/app/api/orders/route');
+    // Explicitly (re-)establish $transaction's implementation to route
+    // through the top-level mockPrismaClient — do not rely on whatever
+    // implementation a previous test in this file happened to leave behind
+    // via mockImplementation (clearAllMocks does not clear implementations).
+    (mockPrismaClient.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(mockPrismaClient));
     (mockPrismaClient.order.findUnique as jest.Mock).mockResolvedValueOnce({
       orderNumber: 'ORD-1', status: 'PENDING', paymentStatus: 'PENDING',
     });

@@ -72,6 +72,16 @@ function txMock(overrides: any = {}) {
     },
     inventoryLog: { create: jest.fn().mockResolvedValue({}) },
     orderItem: { update: jest.fn().mockResolvedValue({}) },
+    stockLot: {
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn().mockResolvedValue({}),
+    },
+    stockAllocation: {
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+    },
     order: {
       update: jest.fn().mockResolvedValue({
         id: 'order-1', orderNumber: 'ORD-1', subtotal: 300, tax: 0, shipping: 50, total: 350,

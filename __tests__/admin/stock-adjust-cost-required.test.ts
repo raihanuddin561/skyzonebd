@@ -18,7 +18,7 @@ const mockPrismaClient: any = {
   user: { findUnique: jest.fn() },
   product: { findUnique: jest.fn(), update: jest.fn() },
   inventoryLog: { create: jest.fn() },
-  stockLot: { create: jest.fn() },
+  stockLot: { create: jest.fn(), findMany: jest.fn().mockResolvedValue([]), update: jest.fn() },
   financialLedger: { create: jest.fn() },
   $transaction: jest.fn((cb: any) => cb(mockPrismaClient)),
 };

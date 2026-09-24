@@ -49,7 +49,10 @@ beforeEach(() => {
 });
 
 it('triggers autoGenerateProfitReport when an order transitions into DELIVERED', async () => {
-  mockPrismaClient.order.findUnique.mockResolvedValueOnce({ id: 'order-1', status: 'SHIPPED' });
+  // paymentStatus: PAID satisfies the delivery-payment gate (P0/Bug1) —
+  // this test is about the profit-report side effect, not payment
+  // verification.
+  mockPrismaClient.order.findUnique.mockResolvedValueOnce({ id: 'order-1', status: 'SHIPPED', paymentMethod: 'bkash', paymentStatus: 'PAID' });
   mockPrismaClient.order.update.mockResolvedValueOnce({
     id: 'order-1', orderNumber: 'ORD-1', status: 'DELIVERED', paymentStatus: 'PAID', updatedAt: new Date(), orderItems: [],
   });
@@ -89,8 +92,59 @@ it('does not re-trigger a profit report for an order that was already DELIVERED'
   expect(mockAutoGenerateProfitReport).not.toHaveBeenCalled();
 });
 
+it('P0/Bug1: blocks the transition to DELIVERED for a bKash order whose payment was never verified', async () => {
+  mockPrismaClient.order.findUnique.mockResolvedValueOnce({
+    id: 'order-1', status: 'SHIPPED', paymentMethod: 'bkash', paymentStatus: 'PENDING_VERIFICATION',
+  });
+
+  const res = await PATCH(req({ status: 'delivered' }), { params });
+
+  expect(res.status).toBe(400);
+  const body = await res.json();
+  expect(body.error).toMatch(/payment has not been verified/i);
+  expect(mockPrismaClient.order.update).not.toHaveBeenCalled();
+  expect(mockAutoGenerateProfitReport).not.toHaveBeenCalled();
+});
+
+it('P0/Bug1: allows DELIVERED for a NET-terms invoice order with no payment check at all', async () => {
+  mockPrismaClient.order.findUnique.mockResolvedValueOnce({
+    id: 'order-1', status: 'SHIPPED', paymentMethod: 'INVOICE_NET30', paymentStatus: 'PENDING',
+  });
+  mockPrismaClient.order.update.mockResolvedValueOnce({
+    id: 'order-1', orderNumber: 'ORD-1', status: 'DELIVERED', paymentStatus: 'PENDING', updatedAt: new Date(), orderItems: [],
+  });
+  mockAutoGenerateProfitReport.mockResolvedValueOnce({ success: true, message: 'ok', reportId: 'r1' });
+
+  const res = await PATCH(req({ status: 'delivered' }), { params });
+
+  expect(res.status).toBe(200);
+  expect(mockAutoGenerateProfitReport).toHaveBeenCalledWith('order-1');
+  // paymentStatus was never touched for a NET-terms order.
+  expect(mockPrismaClient.order.update).toHaveBeenCalledWith(
+    expect.objectContaining({ data: expect.not.objectContaining({ paymentStatus: expect.anything() }) })
+  );
+});
+
+it('P0/Bug1: a COD order transitioning to DELIVERED is automatically marked PAID in the same update', async () => {
+  mockPrismaClient.order.findUnique.mockResolvedValueOnce({
+    id: 'order-1', status: 'SHIPPED', paymentMethod: 'cash_on_delivery', paymentStatus: 'PENDING',
+  });
+  mockPrismaClient.order.update.mockResolvedValueOnce({
+    id: 'order-1', orderNumber: 'ORD-1', status: 'DELIVERED', paymentStatus: 'PAID', updatedAt: new Date(), orderItems: [],
+  });
+  mockAutoGenerateProfitReport.mockResolvedValueOnce({ success: true, message: 'ok', reportId: 'r1' });
+
+  const res = await PATCH(req({ status: 'delivered' }), { params });
+
+  expect(res.status).toBe(200);
+  expect(mockPrismaClient.order.update).toHaveBeenCalledWith(
+    expect.objectContaining({ data: expect.objectContaining({ status: 'DELIVERED', paymentStatus: 'PAID' }) })
+  );
+});
+
 it("a failed profit-report generation does not fail the order-status update itself", async () => {
-  mockPrismaClient.order.findUnique.mockResolvedValueOnce({ id: 'order-1', status: 'SHIPPED' });
+  // paymentStatus: PAID satisfies the delivery-payment gate (P0/Bug1).
+  mockPrismaClient.order.findUnique.mockResolvedValueOnce({ id: 'order-1', status: 'SHIPPED', paymentMethod: 'bkash', paymentStatus: 'PAID' });
   mockPrismaClient.order.update.mockResolvedValueOnce({
     id: 'order-1', orderNumber: 'ORD-1', status: 'DELIVERED', paymentStatus: 'PAID', updatedAt: new Date(), orderItems: [],
   });

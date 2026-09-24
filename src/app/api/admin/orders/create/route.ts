@@ -35,8 +35,16 @@ export async function POST(request: NextRequest) {
       paymentMethod,
       notes,
       shipping = 0,
-      tax = 0,
-      status = 'PENDING'
+      tax = 0
+      // Note: `status` is deliberately NOT read from the request body — an
+      // order must always be created PENDING and go through the normal,
+      // validated transition endpoints from there. An arbitrary status
+      // accepted here would bypass the entire lifecycle: e.g. creating
+      // directly at DELIVERED never fires autoGenerateProfitReport (it only
+      // triggers on a detected transition INTO delivered, and a brand-new
+      // order has no "previous status"), and creating directly at CANCELLED
+      // would still run this route's normal stock-decrement logic below
+      // with no corresponding restoration, permanently losing that stock.
     } = body;
 
     // Validate required fields
@@ -243,7 +251,7 @@ export async function POST(request: NextRequest) {
           tax,
           shipping,
           total,
-          status,
+          status: 'PENDING',
           paymentStatus: 'PENDING',
           paymentMethod,
           paymentTerms: netTerms || undefined,

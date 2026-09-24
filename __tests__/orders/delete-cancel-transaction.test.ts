@@ -30,10 +30,13 @@ jest.mock('@/utils/profitReportGeneration', () => ({
 import { prisma } from '@/lib/prisma';
 import { DELETE } from '@/app/api/orders/[id]/route';
 
-function makeTxClient(productUpdate: jest.Mock, orderUpdate: jest.Mock) {
+function makeTxClient(productUpdate: jest.Mock, orderUpdateMany: jest.Mock, orderFindUniqueOrThrow: jest.Mock) {
   return {
     product: { findUnique: jest.fn().mockResolvedValue({ stockQuantity: 10 }), update: productUpdate },
-    order: { update: orderUpdate },
+    // P1-4 (concurrent double-cancellation guard): the plain order.update
+    // is now a guarded updateMany (re-checks status !== CANCELLED at write
+    // time) followed by a findUniqueOrThrow to read back the cancelled row.
+    order: { updateMany: orderUpdateMany, findUniqueOrThrow: orderFindUniqueOrThrow },
     inventoryLog: { create: jest.fn().mockResolvedValue({}) },
     // releaseStockAllocationsForOrder (Amazon-style gap-closure Phase 1) —
     // no lot allocations to release in these tests.
@@ -52,6 +55,19 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
+it('Bug2: rejects cancelling an IN_TRANSIT order (matches POST /api/orders/cancel and ALLOWED_ORDER_STATUS_TRANSITIONS)', async () => {
+  (prisma.order.findUnique as jest.Mock).mockResolvedValueOnce({
+    id: 'order-1',
+    status: 'IN_TRANSIT',
+    orderItems: [{ productId: 'p1', quantity: 4 }],
+  });
+
+  const res = await DELETE(makeRequest(), { params });
+
+  expect(res.status).toBe(400);
+  expect(prisma.$transaction).not.toHaveBeenCalled();
+});
+
 it('a forced failure restoring the second item leaves the order-status update uncommitted', async () => {
   (prisma.order.findUnique as jest.Mock).mockResolvedValueOnce({
     id: 'order-1',
@@ -65,16 +81,41 @@ it('a forced failure restoring the second item leaves the order-status update un
   const productUpdate = jest.fn()
     .mockResolvedValueOnce({})
     .mockRejectedValueOnce(new Error('simulated DB failure on second item'));
-  const orderUpdate = jest.fn();
+  const orderUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+  const orderFindUniqueOrThrow = jest.fn();
 
   (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
-    cb(makeTxClient(productUpdate, orderUpdate))
+    cb(makeTxClient(productUpdate, orderUpdateMany, orderFindUniqueOrThrow))
   );
 
   const res = await DELETE(makeRequest(), { params });
 
   expect(res.status).toBe(500);
-  expect(orderUpdate).not.toHaveBeenCalled();
+  // The guard (updateMany) passed, but restoring stock failed on the second
+  // item — findUniqueOrThrow (which would read back the "cancelled" row)
+  // must never be reached, matching the requirement that no partial
+  // cancellation is ever committed.
+  expect(orderFindUniqueOrThrow).not.toHaveBeenCalled();
+});
+
+it('returns 409 without restoring stock when a concurrent request already cancelled the order (guard count 0)', async () => {
+  (prisma.order.findUnique as jest.Mock).mockResolvedValueOnce({
+    id: 'order-1',
+    status: 'PENDING',
+    orderItems: [{ productId: 'p1', quantity: 4 }],
+  });
+
+  const productUpdate = jest.fn();
+  const orderUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+  const orderFindUniqueOrThrow = jest.fn();
+  (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
+    cb(makeTxClient(productUpdate, orderUpdateMany, orderFindUniqueOrThrow))
+  );
+
+  const res = await DELETE(makeRequest(), { params });
+
+  expect(res.status).toBe(409);
+  expect(productUpdate).not.toHaveBeenCalled();
 });
 
 it('happy path: atomic increment used, order cancelled in the same transaction, no read-then-write', async () => {
@@ -85,9 +126,10 @@ it('happy path: atomic increment used, order cancelled in the same transaction, 
   });
 
   const productUpdate = jest.fn().mockResolvedValue({});
-  const orderUpdate = jest.fn().mockResolvedValue({ id: 'order-1', orderNumber: 'ORD-1', status: 'CANCELLED' });
+  const orderUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+  const orderFindUniqueOrThrow = jest.fn().mockResolvedValue({ id: 'order-1', orderNumber: 'ORD-1', status: 'CANCELLED' });
   (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
-    cb(makeTxClient(productUpdate, orderUpdate))
+    cb(makeTxClient(productUpdate, orderUpdateMany, orderFindUniqueOrThrow))
   );
 
   const res = await DELETE(makeRequest(), { params });
@@ -95,6 +137,9 @@ it('happy path: atomic increment used, order cancelled in the same transaction, 
   expect(res.status).toBe(200);
   expect(productUpdate).toHaveBeenCalledWith(
     expect.objectContaining({ data: { stockQuantity: { increment: 4 } } })
+  );
+  expect(orderUpdateMany).toHaveBeenCalledWith(
+    expect.objectContaining({ where: { id: 'order-1', status: { not: 'CANCELLED' } } })
   );
   expect(prisma.$transaction).toHaveBeenCalledTimes(1);
 });

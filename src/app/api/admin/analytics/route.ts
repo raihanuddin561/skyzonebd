@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
+import { getFinancialSummary } from '@/lib/financialLedger';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -19,14 +20,15 @@ export async function GET(req: NextRequest) {
     
     const { searchParams } = new URL(req.url);
     const period = searchParams.get('period') || '30'; // days
+    const now = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - parseInt(period));
-    
+
     // Parallel queries for performance
     const [
       totalOrders,
       ordersInPeriod,
-      revenueData,
+      currentFinancialSummary,
       profitData,
       returns,
       topProducts,
@@ -37,30 +39,29 @@ export async function GET(req: NextRequest) {
     ] = await Promise.all([
       // Total orders count
       prisma.order.count(),
-      
+
       // Orders in period
       prisma.order.count({
         where: {
           createdAt: { gte: startDate }
         }
       }),
-      
-      // Revenue metrics (GMV)
-      prisma.order.aggregate({
-        where: {
-          status: { notIn: ['CANCELLED'] },
-          createdAt: { gte: startDate }
-        },
-        _sum: {
-          total: true,
-          subtotal: true,
-          shipping: true,
-          platformProfit: true
-        },
-        _count: true
-      }),
-      
-      // Profit metrics
+
+      // Revenue/profit (GMV) — derived from the shared FinancialLedger-based
+      // calculation (getFinancialSummary) instead of raw Order.total/
+      // subtotal/grossProfit aggregates. The raw aggregates counted
+      // PENDING/CONFIRMED/PROCESSING/SHIPPED orders as revenue (only
+      // CANCELLED was excluded) while Order.grossProfit is only populated
+      // at the DELIVERED transition (see profitReportGeneration.ts), so
+      // revenue and profit were computed over different, unrelated sets of
+      // orders. getFinancialSummary is also refund-aware (refunds reduce
+      // both figures via createRefundReversalEntries), which reading
+      // Order.grossProfit directly is not.
+      getFinancialSummary(startDate, now),
+
+      // Platform-profit "fees" split (kept on the legacy Order aggregate —
+      // this is the platform/seller profit-share split, a different metric
+      // from the revenue/profit correctness this fix targets).
       prisma.order.aggregate({
         where: {
           status: { notIn: ['CANCELLED'] },
@@ -71,7 +72,7 @@ export async function GET(req: NextRequest) {
           platformProfit: true
         }
       }),
-      
+
       // Returns/Refunds
       prisma.order.count({
         where: {
@@ -272,39 +273,34 @@ export async function GET(req: NextRequest) {
       };
     });
     
-    // Calculate growth (compare to previous period)
+    // Calculate growth (compare to previous, equivalent-length period) —
+    // also ledger-based, so it's comparing the same real/net-of-refunds
+    // figure on both sides instead of raw Order.total.
     const previousStartDate = new Date(startDate);
     previousStartDate.setDate(previousStartDate.getDate() - parseInt(period));
-    
-    const previousRevenue = await prisma.order.aggregate({
-      where: {
-        status: { notIn: ['CANCELLED'] },
-        createdAt: {
-          gte: previousStartDate,
-          lt: startDate
-        }
-      },
-      _sum: {
-        total: true
-      }
-    });
-    
-    const revenueGrowth = previousRevenue._sum.total
-      ? ((((revenueData._sum.total || 0) - (previousRevenue._sum.total || 0)) / (previousRevenue._sum.total || 1)) * 100)
+    // Exclusive of the current period's start instant (mirrors the previous
+    // `lt: startDate` filter) — getFinancialSummary's endDate is inclusive
+    // (`lte`), so back off by 1ms to avoid double-counting the boundary.
+    const previousEndDate = new Date(startDate.getTime() - 1);
+
+    const previousFinancialSummary = await getFinancialSummary(previousStartDate, previousEndDate);
+
+    const revenueGrowth = previousFinancialSummary.revenue
+      ? (((currentFinancialSummary.revenue - previousFinancialSummary.revenue) / previousFinancialSummary.revenue) * 100)
       : 0;
-    
+
     return NextResponse.json({
       success: true,
       period: parseInt(period),
       overview: {
-        gmv: revenueData._sum.total || 0,
-        revenue: revenueData._sum.subtotal || 0,
-        profit: profitData._sum.grossProfit || 0,
+        gmv: currentFinancialSummary.revenue,
+        revenue: currentFinancialSummary.revenue,
+        profit: currentFinancialSummary.grossProfit,
         fees: profitData._sum.platformProfit || 0,
         orders: ordersInPeriod,
         totalOrders: totalOrders,
         returns: returns,
-        averageOrderValue: ordersInPeriod > 0 ? (revenueData._sum.total || 0) / ordersInPeriod : 0,
+        averageOrderValue: ordersInPeriod > 0 ? currentFinancialSummary.revenue / ordersInPeriod : 0,
         revenueGrowth: parseFloat(revenueGrowth.toFixed(2))
       },
       ordersByStatus: ordersByStatus.map(item => ({

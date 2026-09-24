@@ -11,7 +11,7 @@ import { logInfo, logError } from '@/lib/logger';
 import { depleteStockLotsForSale, restoreStockForCancelledOrder } from '@/services/inventoryService';
 import { alertIfCrossedReorderLevel } from '@/utils/lowStockAlerts';
 import { getPaymentTermsForMethod, checkCreditLimit, createInvoiceForOrder } from '@/services/invoiceService';
-import { ALLOWED_ORDER_STATUS_TRANSITIONS } from '@/lib/orderStatusTransitions';
+import { ALLOWED_ORDER_STATUS_TRANSITIONS, resolveDeliveryPaymentGate } from '@/lib/orderStatusTransitions';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -725,29 +725,94 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // Payment-status gate on the transition INTO DELIVERED — same rule as
+    // PATCH /api/orders/[id] (the endpoint this one has no live frontend
+    // caller today but must not diverge from): an order can never reach
+    // DELIVERED, and trigger the autoGenerateProfitReport call below,
+    // without payment actually collected or verified. Rejected here, before
+    // the transaction. See resolveDeliveryPaymentGate's doc comment for the
+    // exact rule per payment method.
+    const isDeliveringNow = updateData.status === 'DELIVERED' && currentOrder.status !== 'DELIVERED';
+    const deliveryPaymentGate = isDeliveringNow
+      ? resolveDeliveryPaymentGate({ paymentMethod: currentOrder.paymentMethod, paymentStatus: currentOrder.paymentStatus })
+      : null;
+
+    if (deliveryPaymentGate && !deliveryPaymentGate.allowed) {
+      return NextResponse.json(
+        { success: false, error: deliveryPaymentGate.reason },
+        { status: 400 }
+      );
+    }
+
+    // COD: delivery IS the payment event — automatically mark PAID as part
+    // of this same update (overriding any paymentStatus the request body
+    // sent), instead of blocking the transition like every other method.
+    if (deliveryPaymentGate?.autoMarkPaid) {
+      updateData.paymentStatus = 'PAID';
+    }
+
     const isCancelling = updateData.status === 'CANCELLED' && currentOrder.status !== 'CANCELLED';
 
     // Update order
-    const updatedOrder = await prisma.$transaction(async (tx) => {
-      if (isCancelling) {
-        await restoreStockForCancelledOrder(tx, orderId, currentOrder.orderItems, decoded.id, currentOrder.orderNumber);
-      }
-
-      return tx.order.update({
-        where: { id: orderId },
-        data: updateData,
-        include: {
-          orderItems: {
-            include: {
-              product: true
-            }
-          },
-          user: {
-            select: { email: true }
+    let updatedOrder;
+    try {
+      updatedOrder = await prisma.$transaction(async (tx) => {
+        if (isCancelling) {
+          // Guarded updateMany re-checks the order isn't already CANCELLED
+          // at write time — the same concurrent-double-cancellation race
+          // already fixed for returns/refunds (admin/returns/[id]/
+          // route.ts). Without this, two concurrent cancel requests for the
+          // same order could both pass the plain findUnique read above and
+          // both restore stock, double-crediting it back into inventory.
+          const guard = await tx.order.updateMany({
+            where: { id: orderId, status: { not: 'CANCELLED' } },
+            data: updateData,
+          });
+          if (guard.count === 0) {
+            throw new Error('ORDER_ALREADY_CANCELLED');
           }
+
+          await restoreStockForCancelledOrder(tx, orderId, currentOrder.orderItems, decoded.id, currentOrder.orderNumber);
+
+          return tx.order.findUniqueOrThrow({
+            where: { id: orderId },
+            include: {
+              orderItems: {
+                include: {
+                  product: true
+                }
+              },
+              user: {
+                select: { email: true }
+              }
+            }
+          });
         }
+
+        return tx.order.update({
+          where: { id: orderId },
+          data: updateData,
+          include: {
+            orderItems: {
+              include: {
+                product: true
+              }
+            },
+            user: {
+              select: { email: true }
+            }
+          }
+        });
       });
-    });
+    } catch (txError) {
+      if (txError instanceof Error && txError.message === 'ORDER_ALREADY_CANCELLED') {
+        return NextResponse.json(
+          { success: false, error: 'This order was already cancelled by another request' },
+          { status: 409 }
+        );
+      }
+      throw txError;
+    }
 
     // Get admin user info for logging
     const admin = await prisma.user.findUnique({
