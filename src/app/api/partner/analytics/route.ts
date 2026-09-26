@@ -125,7 +125,15 @@ export async function GET(req: NextRequest) {
           stockQuantity: 'asc'
         },
         take: 10
-      }),
+      }).then(products => products.map(p => ({
+        ...p,
+        // ProductListItem reads `product.price`; this endpoint's raw Prisma
+        // rows only carry `wholesalePrice`, so the low-stock list silently
+        // rendered no price. Alias it here rather than in the shared
+        // component, since ProductListItem is also used with genuinely
+        // differently-shaped `price` objects elsewhere.
+        price: p.wholesalePrice
+      }))),
       
       // Recent orders containing partner's products
       prisma.order.findMany({

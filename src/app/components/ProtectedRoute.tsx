@@ -74,14 +74,10 @@ export default function ProtectedRoute({
     
     // Check required role
     if (requiredRole && userRole !== requiredRole.toLowerCase()) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-800 mb-4">Access Denied</h1>
-            <p className="text-gray-600">You don't have permission to access this page.</p>
-          </div>
-        </div>
-      );
+      // Redirect is already firing in the effect above — don't render the
+      // Access Denied screen for a single frame first (matches the
+      // not-authenticated case just above, which also returns null).
+      return null;
     }
 
     // Check allowed roles
@@ -90,14 +86,7 @@ export default function ProtectedRoute({
         role => role.toLowerCase() === userRole
       );
       if (!hasAllowedRole) {
-        return (
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-gray-800 mb-4">Access Denied</h1>
-              <p className="text-gray-600">You don't have permission to access this page.</p>
-            </div>
-          </div>
-        );
+        return null;
       }
     }
   }

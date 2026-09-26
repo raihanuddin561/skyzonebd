@@ -79,7 +79,16 @@ export default function DataDeletionRequestPage() {
 
       if (response.ok) {
         toast.success('Deletion request submitted successfully');
-        router.push('/data-deletion/confirmation');
+        // Forward the real, backend-generated request id so the confirmation
+        // page can show it instead of fabricating one — see
+        // src/app/api/data-deletion-requests/route.ts POST, which returns
+        // { success, message, request: <DataDeletionRequest> }.
+        const requestId = data?.request?.id;
+        router.push(
+          requestId
+            ? `/data-deletion/confirmation?requestId=${encodeURIComponent(requestId)}`
+            : '/data-deletion/confirmation'
+        );
       } else {
         toast.error(data.error || 'Failed to submit request');
       }
@@ -130,9 +139,9 @@ export default function DataDeletionRequestPage() {
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Warning: This action is permanent</h3>
+                <h3 className="text-sm font-medium text-red-800">Warning: This action is irreversible</h3>
                 <p className="text-sm text-red-700 mt-1">
-                  Once submitted and processed, your account and all associated data will be permanently deleted and cannot be recovered.
+                  Once submitted and processed, your personal account details will be anonymized and cannot be recovered. Some records (e.g. orders and RFQs) may be retained in redacted form for legal/accounting compliance.
                 </p>
               </div>
             </div>

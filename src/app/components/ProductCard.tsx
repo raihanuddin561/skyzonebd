@@ -182,7 +182,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             value={quantity}
             onChange={handleQuantityChange}
             min={effectiveMinQty}
-            max={product.stock || undefined}
+            max={product.stock ?? undefined}
             label={`Quantity ${(user && user.userType === 'WHOLESALE' && product.minOrderQuantity && product.minOrderQuantity > 0) ? `(Min: ${product.minOrderQuantity})` : ''}`}
             showLabel={true}
             className="w-full"

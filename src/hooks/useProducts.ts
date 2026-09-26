@@ -33,6 +33,11 @@ export const useProducts = (queryParams?: Record<string, string | number | boole
   const [categories, setCategories] = useState<ProductsCategoryFacet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Bumped by `refetch` to force the effect below to re-run and re-fetch —
+  // previously `refetch` only cleared the products array without ever
+  // calling the API again, so an error screen's "Try Again" button did
+  // nothing and the error stuck around forever.
+  const [refetchIndex, setRefetchIndex] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,9 +65,9 @@ export const useProducts = (queryParams?: Record<string, string | number | boole
 
     fetchProducts();
     return () => { cancelled = true; };
-  }, [JSON.stringify(queryParams)]);
+  }, [JSON.stringify(queryParams), refetchIndex]);
 
-  return { products, pagination, categories, loading, error, refetch: () => setProducts([]) };
+  return { products, pagination, categories, loading, error, refetch: () => setRefetchIndex((i) => i + 1) };
 };
 
 export const useProduct = (id: number | string) => {

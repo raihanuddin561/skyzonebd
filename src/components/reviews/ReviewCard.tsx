@@ -99,7 +99,14 @@ export default function ReviewCard({
               src={image}
               alt={`Review image ${index + 1}`}
               className="w-20 h-20 object-cover rounded cursor-pointer hover:opacity-80 flex-shrink-0"
-              onClick={() => window.open(image, '_blank')}
+              onClick={() => {
+                const isSafeUrl = image.startsWith('http://') || image.startsWith('https://') || image.startsWith('/');
+                if (!isSafeUrl) {
+                  console.warn('Blocked opening unsafe review image URL:', image);
+                  return;
+                }
+                window.open(image, '_blank');
+              }}
             />
           ))}
         </div>

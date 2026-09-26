@@ -1,11 +1,19 @@
 'use client'
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import Link from 'next/link';
 
-export default function DeletionConfirmationPage() {
+function DeletionConfirmationContent() {
+  // Real, backend-generated id forwarded from the request page via
+  // ?requestId=... (see src/app/data-deletion/request/page.tsx's submit
+  // handler). If it's missing — e.g. someone navigates here directly — we
+  // fall back to a generic message rather than fabricating a reference.
+  const searchParams = useSearchParams();
+  const requestId = searchParams.get('requestId');
+
   useEffect(() => {
     // Clear any form data from session storage
     if (typeof window !== 'undefined') {
@@ -72,7 +80,7 @@ export default function DeletionConfirmationPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-800">Final Confirmation</h3>
-                  <p className="text-gray-600 text-sm">You will receive a final email when deletion is complete</p>
+                  <p className="text-gray-600 text-sm">Once a super admin processes and completes your request, your account status will reflect the deletion — check your account page if you'd like to confirm</p>
                 </div>
               </div>
             </div>
@@ -82,7 +90,7 @@ export default function DeletionConfirmationPage() {
           <div className="bg-yellow-50 rounded-lg p-6 mb-8 text-left border-l-4 border-yellow-500">
             <h3 className="font-semibold text-yellow-800 mb-3">Important Notes:</h3>
             <ul className="list-disc pl-5 text-sm text-yellow-800 space-y-2">
-              <li>Check your email (including spam folder) for confirmation</li>
+              <li>Check your email (including spam folder) for the initial confirmation</li>
               <li>Your account will remain active until verification is complete</li>
               <li>You can still use your account during the verification period</li>
               <li>To cancel this request, contact us immediately at privacy@skyzonebd.com</li>
@@ -92,8 +100,16 @@ export default function DeletionConfirmationPage() {
           {/* Request ID */}
           <div className="bg-gray-100 rounded-lg p-4 mb-8">
             <p className="text-sm text-gray-600 mb-1">Request Reference</p>
-            <p className="text-lg font-mono text-gray-800">REQ-{Date.now()}</p>
-            <p className="text-xs text-gray-500 mt-2">Save this reference for your records</p>
+            {requestId ? (
+              <>
+                <p className="text-lg font-mono text-gray-800 break-all">{requestId}</p>
+                <p className="text-xs text-gray-500 mt-2">Save this reference for your records</p>
+              </>
+            ) : (
+              <p className="text-sm text-gray-600">
+                Your request has been submitted. If you need a reference number for support, check the confirmation email or your account's request history.
+              </p>
+            )}
           </div>
 
           {/* Contact Support */}
@@ -135,5 +151,17 @@ export default function DeletionConfirmationPage() {
 
       <Footer />
     </main>
+  );
+}
+
+export default function DeletionConfirmationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <DeletionConfirmationContent />
+    </Suspense>
   );
 }

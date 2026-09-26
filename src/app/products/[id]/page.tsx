@@ -477,7 +477,7 @@ export default function ProductDetailPage() {
                         value={quantity}
                         onChange={handleQuantityChange}
                         min={(user && user.userType === 'WHOLESALE' && product.minOrderQuantity) ? product.minOrderQuantity : 1}
-                        max={product.stock || undefined}
+                        max={product.stock ?? undefined}
                         label={`Quantity ${(user && user.userType === 'WHOLESALE' && product.minOrderQuantity && product.minOrderQuantity > 0) ? `(Min: ${product.minOrderQuantity})` : ''}`}
                         showLabel={true}
                       />

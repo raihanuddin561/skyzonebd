@@ -105,6 +105,9 @@ export async function GET(request: NextRequest) {
         approvedAt: dist.approvedAt,
         createdAt: dist.createdAt,
         paymentMethod: dist.paymentMethod,
+        paidAt: dist.paidAt,
+        paidBy: dist.paidBy,
+        paymentReference: dist.paymentReference,
         notes: dist.notes,
         // Calculated fields
         daysOutstanding,

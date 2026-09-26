@@ -28,7 +28,7 @@ export async function apiClient(url: string, options: ApiRequestOptions = {}) {
             console.warn('⚠️ Token expired, logging out...');
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            window.location.href = '/login';
+            window.location.href = '/auth/login';
             throw new Error('Token expired');
           }
         }
@@ -39,7 +39,7 @@ export async function apiClient(url: string, options: ApiRequestOptions = {}) {
       (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
     } else if (requireAuth) {
       // Redirect to login if auth required but no token
-      window.location.href = '/login';
+      window.location.href = '/auth/login';
       throw new Error('Authentication required');
     }
   }
@@ -60,7 +60,7 @@ export async function apiClient(url: string, options: ApiRequestOptions = {}) {
     console.warn('⚠️ 401 Unauthorized - Logging out...');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.href = '/login';
+    window.location.href = '/auth/login';
     throw new Error('Unauthorized');
   }
 

@@ -14,9 +14,18 @@ export default function QuickQuantityGrid({ products, onBulkAdd, userType }: Qui
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleQuantityChange = (productId: string | number, value: string) => {
+  const handleQuantityChange = (productId: string | number, value: string, product: Product) => {
     const numValue = parseInt(value) || 0;
     if (numValue >= 0) {
+      const stockLimit = product.stock;
+      if (stockLimit !== undefined && numValue > stockLimit) {
+        setQuantities(prev => ({
+          ...prev,
+          [String(productId)]: stockLimit
+        }));
+        toast.error(`Only ${stockLimit} unit(s) of ${product.name} are in stock`);
+        return;
+      }
       setQuantities(prev => ({
         ...prev,
         [String(productId)]: numValue
@@ -26,8 +35,14 @@ export default function QuickQuantityGrid({ products, onBulkAdd, userType }: Qui
 
   const handleQuickSet = (productId: string | number, quantity: number, product: Product) => {
     const moq = (userType === 'WHOLESALE' && product.minOrderQuantity) ? product.minOrderQuantity : 1;
-    const finalQty = Math.max(quantity, moq);
-    
+    let finalQty = Math.max(quantity, moq);
+
+    const stockLimit = product.stock;
+    if (stockLimit !== undefined && finalQty > stockLimit) {
+      finalQty = stockLimit;
+      toast.error(`Only ${stockLimit} unit(s) of ${product.name} are in stock`);
+    }
+
     setQuantities(prev => ({
       ...prev,
       [String(productId)]: finalQty
@@ -63,6 +78,17 @@ export default function QuickQuantityGrid({ products, onBulkAdd, userType }: Qui
         toast.error('Some quantities are below minimum order quantity');
         return;
       }
+    }
+
+    // Validate stock availability for all users
+    const outOfStockItems = items.filter(item => {
+      const product = products.find(p => String(p.id) === item.productId);
+      return product?.stock !== undefined && item.quantity > product.stock;
+    });
+
+    if (outOfStockItems.length > 0) {
+      toast.error('Some quantities exceed available stock');
+      return;
     }
 
     setIsProcessing(true);
@@ -183,7 +209,7 @@ export default function QuickQuantityGrid({ products, onBulkAdd, userType }: Qui
                     type="number"
                     min="0"
                     value={currentQty || ''}
-                    onChange={(e) => handleQuantityChange(product.id, e.target.value)}
+                    onChange={(e) => handleQuantityChange(product.id, e.target.value, product)}
                     placeholder="0"
                     className={`w-20 text-center px-2 py-1.5 border rounded font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       isInvalid ? 'border-red-300 text-red-600' : 'border-gray-300'
@@ -193,9 +219,16 @@ export default function QuickQuantityGrid({ products, onBulkAdd, userType }: Qui
                   <button
                     onClick={() => {
                       const newQty = currentQty + moq;
+                      const stockLimit = product.stock;
+                      if (stockLimit !== undefined && newQty > stockLimit) {
+                        toast.error(`Only ${stockLimit} unit(s) of ${product.name} are in stock`);
+                        setQuantities(prev => ({ ...prev, [String(product.id)]: stockLimit }));
+                        return;
+                      }
                       setQuantities(prev => ({ ...prev, [String(product.id)]: newQty }));
                     }}
-                    className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 transition-colors"
+                    disabled={product.stock !== undefined && currentQty >= product.stock}
+                    className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed rounded border border-gray-300 transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />

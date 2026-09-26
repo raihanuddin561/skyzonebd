@@ -123,7 +123,7 @@ export default function Header() {
                     <p className="text-sm font-medium text-gray-900">{user?.name}</p>
                     <p className="text-sm text-gray-500">{user?.email}</p>
                   </div>
-                  {user?.role?.toLowerCase() === 'admin' && (
+                  {['admin', 'super_admin'].includes(user?.role?.toLowerCase() || '') && (
                     <Link
                       href="/admin"
                       className="flex items-center gap-2 px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 cursor-pointer font-medium"
@@ -279,7 +279,7 @@ export default function Header() {
                       <p className="text-sm font-medium text-gray-900">{user?.name}</p>
                       <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                     </div>
-                    {user?.role?.toLowerCase() === 'admin' && (
+                    {['admin', 'super_admin'].includes(user?.role?.toLowerCase() || '') && (
                       <Link
                         href="/admin"
                         className="flex items-center gap-2 px-4 py-3 text-blue-700 hover:bg-gray-100 font-medium"

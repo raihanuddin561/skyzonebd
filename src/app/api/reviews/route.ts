@@ -69,9 +69,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (images !== undefined && (!Array.isArray(images) || !images.every((img: unknown) => typeof img === 'string'))) {
+    const isSafeImageUrl = (img: unknown): img is string =>
+      typeof img === 'string' &&
+      (img.startsWith('http://') || img.startsWith('https://') || img.startsWith('/'));
+
+    if (images !== undefined && (!Array.isArray(images) || !images.every(isSafeImageUrl))) {
       return NextResponse.json(
-        { success: false, error: 'Images must be an array of URL strings' },
+        { success: false, error: 'Images must be an array of valid URLs (http://, https://, or a relative path)' },
         { status: 400 }
       );
     }

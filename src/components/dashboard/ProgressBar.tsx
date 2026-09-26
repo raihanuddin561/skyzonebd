@@ -23,7 +23,8 @@ export default function ProgressBar({
   showValue = true
 }: ProgressBarProps) {
   const percentage = total ? (value / total) * 100 : value;
-  
+  const clampedPercentage = Math.max(0, Math.min(percentage, 100));
+
   const colorClasses = {
     blue: 'bg-blue-500',
     green: 'bg-green-500',
@@ -45,7 +46,7 @@ export default function ProgressBar({
           )}
           {showPercentage && (
             <span className="font-medium text-gray-900">
-              {percentage.toFixed(1)}%
+              {clampedPercentage.toFixed(1)}%
             </span>
           )}
         </div>
@@ -53,7 +54,7 @@ export default function ProgressBar({
       <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
         <div
           className={`h-full ${colorClasses[color]} transition-all duration-300`}
-          style={{ width: `${Math.min(percentage, 100)}%` }}
+          style={{ width: `${clampedPercentage}%` }}
         />
       </div>
     </div>

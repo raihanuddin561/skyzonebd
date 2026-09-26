@@ -52,7 +52,7 @@ export default function QuantityInput({
     if (parsedValue < min) {
       setError(`Minimum quantity is ${min}`);
       setInputValue(numericValue);
-    } else if (max && parsedValue > max) {
+    } else if (max !== undefined && parsedValue > max) {
       setError(`Maximum quantity is ${max}`);
       setInputValue(numericValue);
     } else {
@@ -68,7 +68,7 @@ export default function QuantityInput({
       setInputValue(min.toString());
       onChange(min);
       setError('');
-    } else if (max && parseInt(inputValue) > max) {
+    } else if (max !== undefined && parseInt(inputValue) > max) {
       setInputValue(max.toString());
       onChange(max);
       setError('');
@@ -77,7 +77,7 @@ export default function QuantityInput({
 
   const handleIncrement = () => {
     const newValue = value + 1;
-    if (!max || newValue <= max) {
+    if (max === undefined || newValue <= max) {
       onChange(newValue);
       setError('');
     } else {
