@@ -39,6 +39,7 @@ export default function HeroSlidesAdmin() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     subtitle: '',
@@ -101,7 +102,8 @@ export default function HeroSlidesAdmin() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (saving) return;
+
     // Get the image URL - either custom or from product
     let imageUrl = formData.imageUrl;
     
@@ -124,6 +126,7 @@ export default function HeroSlidesAdmin() {
       return;
     }
     
+    setSaving(true);
     try {
       const token = localStorage.getItem('token');
       const submitData = {
@@ -170,6 +173,8 @@ export default function HeroSlidesAdmin() {
     } catch (error) {
       console.error('Error saving slide:', error);
       toast.error('Failed to save slide');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -557,10 +562,10 @@ export default function HeroSlidesAdmin() {
               <div className="md:col-span-2">
                 <button
                   type="submit"
-                  disabled={uploading || !formData.imageUrl}
+                  disabled={uploading || saving || !formData.imageUrl}
                   className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  {editingId ? 'Update Slide' : 'Create Slide'}
+                  {saving ? 'Saving...' : editingId ? 'Update Slide' : 'Create Slide'}
                 </button>
               </div>
             </form>

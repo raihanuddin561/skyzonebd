@@ -28,10 +28,20 @@ export default function AdminReturnsPage() {
   const [error, setError] = useState(false);
   const [returns, setReturns] = useState<ReturnListItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'REFUNDED' | 'CANCELLED'>('all');
+  // Unfiltered — used ONLY to feed the stat cards, so they always reflect
+  // real totals across every status regardless of which status filter is
+  // currently applied to the table below (Bug L: the stat cards used to be
+  // computed from `returns`, which is server-filtered by `filter`, so e.g.
+  // selecting the APPROVED filter made every other stat card read 0).
+  const [allReturns, setAllReturns] = useState<ReturnListItem[]>([]);
 
   useEffect(() => {
     fetchReturns();
   }, [filter]);
+
+  useEffect(() => {
+    fetchAllReturns();
+  }, []);
 
   const fetchReturns = async () => {
     try {
@@ -55,6 +65,21 @@ export default function AdminReturnsPage() {
     }
   };
 
+  const fetchAllReturns = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/admin/returns?status=all`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAllReturns(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching return summary counts:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -73,13 +98,13 @@ export default function AdminReturnsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
           <div className="text-xs sm:text-sm text-gray-600 mb-1">Total</div>
-          <div className="text-xl sm:text-2xl font-bold text-gray-900">{returns.length}</div>
+          <div className="text-xl sm:text-2xl font-bold text-gray-900">{allReturns.length}</div>
         </div>
         {(['REQUESTED', 'APPROVED', 'REFUNDED', 'REJECTED'] as const).map((s) => (
           <div key={s} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
             <div className="text-xs sm:text-sm text-gray-600 mb-1">{s}</div>
             <div className="text-xl sm:text-2xl font-bold text-gray-900">
-              {returns.filter(r => r.status === s).length}
+              {allReturns.filter(r => r.status === s).length}
             </div>
           </div>
         ))}

@@ -68,6 +68,7 @@ export default function RFQPage() {
   const [selectedRFQ, setSelectedRFQ] = useState<RFQ | null>(null);
   const [responseText, setResponseText] = useState('');
   const [quotedPriceText, setQuotedPriceText] = useState('');
+  const [responding, setResponding] = useState(false);
 
   useEffect(() => {
     fetchRFQs();
@@ -101,7 +102,9 @@ export default function RFQPage() {
       toast.error('Please enter a response');
       return;
     }
+    if (responding) return;
 
+    setResponding(true);
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/rfq/${rfqId}/respond`, {
@@ -128,6 +131,8 @@ export default function RFQPage() {
     } catch (error) {
       console.error('Error responding to RFQ:', error);
       toast.error('Failed to send quote');
+    } finally {
+      setResponding(false);
     }
   };
 
@@ -376,9 +381,10 @@ export default function RFQPage() {
             <div className="flex gap-2 mt-4">
               <button
                 onClick={() => handleRespond(selectedRFQ.id)}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
+                disabled={responding}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Send Quote
+                {responding ? 'Sending...' : 'Send Quote'}
               </button>
               <button
                 onClick={() => {

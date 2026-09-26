@@ -53,7 +53,6 @@ export default function ProfitReportsPage() {
   const [manualOrderId, setManualOrderId] = useState('');
 
   // Filters
-  const [period, setPeriod] = useState('daily');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [productId, setProductId] = useState('');
@@ -63,14 +62,13 @@ export default function ProfitReportsPage() {
 
   useEffect(() => {
     fetchReports();
-  }, [period, startDate, endDate, productId, sellerId]);
+  }, [startDate, endDate, productId, sellerId]);
 
   const fetchReports = async () => {
     try {
       setLoading(true);
-      
+
       const params = new URLSearchParams();
-      if (period) params.append('period', period);
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
       if (productId) params.append('productId', productId);
@@ -120,7 +118,6 @@ export default function ProfitReportsPage() {
   };
 
   const handleClearFilters = () => {
-    setPeriod('daily');
     setStartDate('');
     setEndDate('');
     setProductId('');
@@ -270,21 +267,7 @@ export default function ProfitReportsPage() {
             </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Period</label>
-              <select
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-              </select>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
               <input

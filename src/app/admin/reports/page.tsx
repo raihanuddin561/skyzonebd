@@ -9,8 +9,8 @@ interface ReportStats {
   totalProducts: number;
   totalUsers: number;
   pendingOrders: number;
-  lowStockItems: number;
-  newUsersThisMonth: number;
+  usersChange: string;
+  productsChange: string;
   revenueGrowth: number;
 }
 
@@ -30,18 +30,30 @@ interface RecentOrder {
   createdAt: string;
 }
 
+const EMPTY_STATS: ReportStats = {
+  totalRevenue: 0,
+  totalOrders: 0,
+  totalProducts: 0,
+  totalUsers: 0,
+  pendingOrders: 0,
+  usersChange: '',
+  productsChange: '',
+  revenueGrowth: 0,
+};
+
+// Pull the number out of a formatted display string like "৳12,345" or
+// "1,234" — the /api/admin/stats endpoint only exposes totals as
+// already-formatted strings, not raw numbers.
+const parseFormattedCount = (value: string | undefined): number => {
+  if (!value) return 0;
+  const digits = value.replace(/[^0-9]/g, '');
+  return digits ? parseInt(digits, 10) : 0;
+};
+
 export default function AdminReportsPage() {
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<ReportStats>({
-    totalRevenue: 0,
-    totalOrders: 0,
-    totalProducts: 0,
-    totalUsers: 0,
-    pendingOrders: 0,
-    lowStockItems: 0,
-    newUsersThisMonth: 0,
-    revenueGrowth: 0,
-  });
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<ReportStats>(EMPTY_STATS);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('month');
@@ -50,24 +62,76 @@ export default function AdminReportsPage() {
     fetchReports();
   }, [timeRange]);
 
+  // There is no /api/admin/reports endpoint — it 404s. The real data this
+  // page needs is split across /api/admin/analytics (revenue/profit,
+  // period-scoped orders, top products, recent orders) and /api/admin/stats
+  // (all-time user/product counts, all-time order-status breakdown).
   const fetchReports = async () => {
     setLoading(true);
+    setError(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/reports?range=${timeRange}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const days = timeRange === 'week' ? 7 : timeRange === 'year' ? 365 : 30;
+      const authHeaders = { Authorization: `Bearer ${token}` };
+
+      const [analyticsRes, statsRes] = await Promise.all([
+        fetch(`/api/admin/analytics?period=${days}`, { headers: authHeaders }),
+        fetch(`/api/admin/stats?period=${days}`, { headers: authHeaders }),
+      ]);
+
+      if (!analyticsRes.ok || !statsRes.ok) {
+        throw new Error('Failed to load report data');
+      }
+
+      const analytics = await analyticsRes.json();
+      const statsResult = await statsRes.json();
+
+      if (analytics.success === false || statsResult.success === false) {
+        throw new Error(analytics.error || statsResult.error || 'Failed to load report data');
+      }
+
+      const statsList: Array<{ title: string; value: string; change: string }> = statsResult.data?.stats || [];
+      const usersStat = statsList.find(s => s.title === 'Total Users');
+      const productsStat = statsList.find(s => s.title === 'Products');
+      const ordersByStatus: Array<{ status: string; _count: { status: number } }> = statsResult.data?.ordersByStatus || [];
+      const pendingOrders = ordersByStatus.find(o => o.status === 'PENDING')?._count.status || 0;
+
+      setStats({
+        totalRevenue: analytics.overview?.revenue || 0,
+        totalOrders: analytics.overview?.totalOrders || 0,
+        totalProducts: parseFormattedCount(productsStat?.value),
+        totalUsers: parseFormattedCount(usersStat?.value),
+        pendingOrders,
+        usersChange: usersStat?.change || '',
+        productsChange: productsStat?.change || '',
+        revenueGrowth: analytics.overview?.revenueGrowth || 0,
       });
 
-      const result = await response.json();
-      if (result.success) {
-        setStats(result.data.stats || stats);
-        setTopProducts(result.data.topProducts || []);
-        setRecentOrders(result.data.recentOrders || []);
-      }
-    } catch (error) {
-      console.error('Error fetching reports:', error);
+      setTopProducts(
+        (analytics.topSellingProducts || []).map((p: any) => ({
+          id: p.productId,
+          name: p.name,
+          sales: p.unitsSold,
+          revenue: p.revenue,
+        }))
+      );
+
+      setRecentOrders(
+        (analytics.recentOrders || []).map((o: any) => ({
+          id: o.id,
+          orderNumber: o.orderNumber,
+          customerName: o.customer,
+          total: o.amount,
+          status: o.status,
+          createdAt: o.date,
+        }))
+      );
+    } catch (err) {
+      console.error('Error fetching reports:', err);
+      setError('Failed to load reports. Please try refreshing the page.');
+      setStats(EMPTY_STATS);
+      setTopProducts([]);
+      setRecentOrders([]);
     } finally {
       setLoading(false);
     }
@@ -113,6 +177,19 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
+      {/* Error banner */}
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center justify-between gap-4">
+          <span>{error}</span>
+          <button
+            onClick={fetchReports}
+            className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-100 rounded-lg hover:bg-red-200 transition-colors cursor-pointer"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
         <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 p-6">
@@ -156,7 +233,9 @@ export default function AdminReportsPage() {
             <div>
               <p className="text-sm font-medium text-gray-600">Total Products</p>
               <p className="text-2xl font-bold text-gray-900 mt-2">{stats.totalProducts}</p>
-              <p className="text-sm text-red-600 mt-1">{stats.lowStockItems} low stock</p>
+              {stats.productsChange && (
+                <p className="text-sm text-gray-500 mt-1">{stats.productsChange} vs prior period</p>
+              )}
             </div>
             <div className="p-3 bg-purple-100 rounded-full">
               <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -171,7 +250,9 @@ export default function AdminReportsPage() {
             <div>
               <p className="text-sm font-medium text-gray-600">Total Users</p>
               <p className="text-2xl font-bold text-gray-900 mt-2">{stats.totalUsers}</p>
-              <p className="text-sm text-green-600 mt-1">+{stats.newUsersThisMonth} this month</p>
+              {stats.usersChange && (
+                <p className="text-sm text-green-600 mt-1">{stats.usersChange} vs prior period</p>
+              )}
             </div>
             <div className="p-3 bg-indigo-100 rounded-full">
               <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

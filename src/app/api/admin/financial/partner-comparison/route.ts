@@ -162,9 +162,10 @@ export async function GET(request: NextRequest) {
         const averageOrderValue = currentOrders_count > 0 ? currentRevenue / currentOrders_count : 0;
         const profitMargin = currentRevenue > 0 ? (currentProfit / currentRevenue) * 100 : 0;
         
-        // Calculate growth
-        const revenueGrowth = calculatePercentageChange(previousRevenue, currentRevenue);
-        const profitGrowth = calculatePercentageChange(previousProfit, currentProfit);
+        // Calculate growth. calculatePercentageChange(current, previous) —
+        // must pass the newer value first, or the sign/magnitude flips.
+        const revenueGrowth = calculatePercentageChange(currentRevenue, previousRevenue);
+        const profitGrowth = calculatePercentageChange(currentProfit, previousProfit);
         
         return {
           partnerId: partner.id,

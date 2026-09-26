@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import { exportToCsv } from '@/utils/csvExport';
 import Pagination from '@/components/common/Pagination';
 import { getOrderStatusColor, getOrderStatusLabel } from '@/utils/orderStatus';
+import { ALLOWED_ORDER_STATUS_TRANSITIONS } from '@/lib/orderStatusTransitions';
 import AdminIcon, { AdminIconName } from '../components/AdminIcons';
 
 interface Order {
@@ -20,10 +21,26 @@ interface Order {
   };
   items: number;
   total: number;
-  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  // Widened from a 6-value union to `string`: the backend's real status set
+  // includes PACKED/IN_TRANSIT/RETURNED/REFUNDED too (Bug I) — the dropdown
+  // below now needs to render and select those values.
+  status: string;
   paymentStatus: 'pending' | 'pending_verification' | 'paid' | 'partial' | 'failed' | 'refunded';
   paymentMethod: string;
   createdAt: string;
+}
+
+// Which statuses should appear as options in a given order's status <select>:
+// its own current status (so the select is never empty/confusing) plus
+// whatever ALLOWED_ORDER_STATUS_TRANSITIONS says is a legal next step from
+// there — the exact same table the backend (resolveOrderStatusUpdate) uses
+// to accept or reject the PATCH, so picking any listed option can no longer
+// 400 (Bug I).
+function getStatusOptions(currentStatus: string): string[] {
+  const upper = (currentStatus || '').toUpperCase();
+  const allowedNext = ALLOWED_ORDER_STATUS_TRANSITIONS[upper] || [];
+  const all = [upper, ...allowedNext];
+  return Array.from(new Set(all)).map(s => s.toLowerCase());
 }
 
 export default function OrdersManagement() {
@@ -201,18 +218,27 @@ export default function OrdersManagement() {
 
       if (result.success) {
         // Update local state
-        setOrders(orders.map(order => 
-          order.id === orderId 
+        setOrders(orders.map(order =>
+          order.id === orderId
             ? { ...order, status: newStatus.toLowerCase() as any }
             : order
         ));
         toast.success(`Order status updated to ${newStatus}`);
       } else {
         toast.error(result.error || 'Failed to update order status');
+        // The <select> is a controlled component bound to order.status. On
+        // failure we don't change that status, so without a forced
+        // re-render React never resyncs the <select>'s DOM value away from
+        // the rejected option the admin just picked — it can appear to
+        // "keep" a status change that was actually rejected. A fresh object
+        // reference for this row (value unchanged) is enough to force the
+        // re-render that snaps the select back to the real current status.
+        setOrders(orders.map(order => (order.id === orderId ? { ...order } : order)));
       }
     } catch (error) {
       console.error('Error updating order status:', error);
       toast.error('Failed to update order status');
+      setOrders(orders.map(order => (order.id === orderId ? { ...order } : order)));
     }
   };
 
@@ -631,12 +657,9 @@ export default function OrdersManagement() {
                       onChange={(e) => handleStatusChange(order.id, e.target.value)}
                       className={`px-2 py-1 rounded text-xs font-medium border-0 cursor-pointer ${getStatusBadge(order.status).class}`}
                     >
-                      <option value="pending">Pending</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="processing">Processing</option>
-                      <option value="shipped">Shipped</option>
-                      <option value="delivered">Delivered</option>
-                      <option value="cancelled">Cancelled</option>
+                      {getStatusOptions(order.status).map(status => (
+                        <option key={status} value={status}>{getOrderStatusLabel(status)}</option>
+                      ))}
                     </select>
                   </td>
                   <td className="px-6 py-4">

@@ -257,6 +257,34 @@ export default function NewProduct() {
         return;
       }
 
+      // Validate wholesale tier pricing BEFORE uploading any images (Bug J)
+      // — mirrors validatePricing() in the edit page
+      // (src/app/admin/products/[id]/edit/page.tsx). Previously this form
+      // uploaded images first and only found out about invalid tier data
+      // when POST /api/products rejected it afterwards, leaving orphaned
+      // uploaded images and a confusing late rejection.
+      if (formData.enableTiers) {
+        for (const tier of formData.wholesaleTiers) {
+          if (!tier.minQuantity || !tier.price) continue;
+          const tierPrice = parseFloat(tier.price);
+          if (!Number.isFinite(tierPrice)) {
+            toast.error('Each wholesale tier price must be a valid number');
+            setIsSubmitting(false);
+            return;
+          }
+          if (tierPrice <= basePrice) {
+            toast.error(`A wholesale tier's price (৳${tierPrice}) must be greater than Base Price (৳${basePrice})`);
+            setIsSubmitting(false);
+            return;
+          }
+          if (tierPrice > wholesalePrice) {
+            toast.error(`A wholesale tier's price (৳${tierPrice}) cannot exceed Wholesale Price (৳${wholesalePrice})`);
+            setIsSubmitting(false);
+            return;
+          }
+        }
+      }
+
       // Upload images ONLY when submitting
       toast.info('Uploading images...');
       const mainImageUrl = await uploadImage(mainImageFile, 'products');

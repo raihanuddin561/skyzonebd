@@ -6,6 +6,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Product } from '@/types/cart';
+import { getLineTotal } from '@/utils/cartPricing';
 import { toast } from 'react-toastify';
 import ImageZoomLightbox from '@/components/common/ImageZoomLightbox';
 import QuantityInput from '@/components/common/QuantityInput';
@@ -23,6 +24,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   // Determine minimum order quantity based on user type
   // ONLY wholesale users have MOQ requirement, guests and retail customers start at 1
   const effectiveMinQty = (user && user.userType === 'WHOLESALE') ? (product.minOrderQuantity || 1) : 1;
+  const customerDiscount = user ? { discountPercent: user.discountPercent, discountValidUntil: user.discountValidUntil } : null;
   const [quantity, setQuantity] = useState(effectiveMinQty);
   const [isAdding, setIsAdding] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -225,9 +227,10 @@ export default function ProductCard({ product }: ProductCardProps) {
             />
           </div>
           
-          {/* Total Price Preview */}
+          {/* Total Price Preview — tier- and discount-aware, matching what
+              POST /api/orders will actually charge (see cartPricing.ts) */}
           <p className="text-xs sm:text-sm text-gray-600 mt-2 text-center font-medium">
-            Total: <span className="text-blue-600 font-semibold">৳{isClient ? (product.price * (quantity || 1)).toLocaleString() : (product.price * effectiveMinQty).toLocaleString()}</span>
+            Total: <span className="text-blue-600 font-semibold">৳{isClient ? getLineTotal(product, quantity || 1, customerDiscount).toLocaleString() : getLineTotal(product, effectiveMinQty, customerDiscount).toLocaleString()}</span>
           </p>
         </>
       ) : (

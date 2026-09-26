@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth';
 import { depleteStockLotsForSale } from '@/services/inventoryService';
 import { alertIfCrossedReorderLevel } from '@/utils/lowStockAlerts';
 import { getPaymentTermsForMethod, checkCreditLimit, createInvoiceForOrder } from '@/services/invoiceService';
+import { calculateItemPrice } from '@/utils/pricingEngine';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
           name: true,
           email: true,
           phone: true,
+          userType: true,
           discountPercent: true,
           discountValidUntil: true
         }
@@ -135,10 +137,14 @@ export async function POST(request: NextRequest) {
           sku: true,
           reorderLevel: true,
           wholesalePrice: true,
+          moq: true,
           stockQuantity: true,
           basePrice: true,
           costPerUnit: true,
-          platformProfitPercentage: true
+          platformProfitPercentage: true,
+          wholesaleTiers: {
+            orderBy: { minQuantity: 'asc' }
+          }
         }
       });
 
@@ -153,6 +159,39 @@ export async function POST(request: NextRequest) {
       if (product.stockQuantity < item.quantity) {
         return NextResponse.json(
           { success: false, error: `Insufficient stock for ${product.name}. Available: ${product.stockQuantity}` },
+          { status: 400 }
+        );
+      }
+
+      // Enforce MOQ for wholesale customers, exactly like the customer-facing
+      // checkout (src/app/api/orders/route.ts) — same pricing-engine call and
+      // the same enforceMoq rule (MOQ only applies to WHOLESALE accounts; a
+      // guest/no-customer manual order or a non-wholesale customer can order
+      // any quantity). Only the MOQ/meetsMinimum result is used here — the
+      // admin flow's own wholesalePrice/customPrice/discount pricing below is
+      // left untouched, since (unlike checkout) admins are allowed to
+      // override the unit price per line item.
+      const moqCheck = calculateItemPrice({
+        product: {
+          id: product.id,
+          name: product.name,
+          wholesalePrice: product.wholesalePrice,
+          moq: product.moq || 1,
+          wholesaleTiers: (product.wholesaleTiers || []).map(tier => ({
+            minQuantity: tier.minQuantity,
+            maxQuantity: tier.maxQuantity,
+            price: tier.price,
+            discount: tier.discount,
+            profitMargin: tier.profitMargin ?? undefined
+          }))
+        },
+        quantity: item.quantity,
+        enforceMoq: customer?.userType === 'WHOLESALE'
+      });
+
+      if (!moqCheck.meetsMinimum) {
+        return NextResponse.json(
+          { success: false, error: `${product.name} does not meet minimum order quantity of ${moqCheck.minimumRequired} units` },
           { status: 400 }
         );
       }

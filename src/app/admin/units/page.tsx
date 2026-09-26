@@ -19,7 +19,13 @@ export default function UnitsManagement() {
   const [showModal, setShowModal] = useState(false);
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  
+  // Double-submit guard (Bug N) — matches the pattern used in
+  // src/app/admin/suppliers/page.tsx: disable the submit button for the
+  // duration of the request instead of leaving it clickable, which
+  // previously let a fast double-click send two overlapping create/update
+  // requests for the same unit.
+  const [saving, setSaving] = useState(false);
+
   const [formData, setFormData] = useState({
     name: '',
     symbol: '',
@@ -51,7 +57,9 @@ export default function UnitsManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (saving) return;
+
+    setSaving(true);
     try {
       const token = localStorage.getItem('token');
       const url = editingUnit ? '/api/units' : '/api/units';
@@ -84,6 +92,8 @@ export default function UnitsManagement() {
     } catch (error) {
       console.error('Error saving unit:', error);
       toast.error('Failed to save unit');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -314,20 +324,22 @@ export default function UnitsManagement() {
                 <div className="flex gap-3 pt-4">
                   <button
                     type="button"
+                    disabled={saving}
                     onClick={() => {
                       setShowModal(false);
                       setEditingUnit(null);
                       setFormData({ name: '', symbol: '', description: '' });
                     }}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    disabled={saving}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {editingUnit ? 'Update' : 'Create'}
+                    {saving ? 'Saving...' : editingUnit ? 'Update' : 'Create'}
                   </button>
                 </div>
               </form>

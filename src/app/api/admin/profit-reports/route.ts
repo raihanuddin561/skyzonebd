@@ -23,7 +23,6 @@ export async function GET(request: NextRequest) {
     await requireAdmin(request);
     
     const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period') || 'daily';
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const productId = searchParams.get('productId');

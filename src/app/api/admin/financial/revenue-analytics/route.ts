@@ -183,11 +183,12 @@ export async function GET(request: NextRequest) {
         const aov = period.orderCount > 0 ? period.revenue / period.orderCount : 0;
         const profitMargin = period.revenue > 0 ? (period.profit / period.revenue) * 100 : 0;
         
-        // Calculate growth from previous period
+        // Calculate growth from previous period.
+        // calculatePercentageChange(current, previous) — newer value first.
         let growth = 0;
         if (index > 0) {
           const prevRevenue = array[index - 1].revenue;
-          growth = calculatePercentageChange(prevRevenue, period.revenue);
+          growth = calculatePercentageChange(period.revenue, prevRevenue);
         }
         
         return {
@@ -300,8 +301,8 @@ export async function GET(request: NextRequest) {
         timeSeriesData[timeSeriesData.length - 1].revenue > timeSeriesData[0].revenue,
       averageGrowthRate: timeSeriesData.length >= 2
         ? calculatePercentageChange(
-            timeSeriesData[0].revenue,
-            timeSeriesData[timeSeriesData.length - 1].revenue
+            timeSeriesData[timeSeriesData.length - 1].revenue,
+            timeSeriesData[0].revenue
           )
         : 0,
       peakRevenue: Math.max(...timeSeriesData.map(d => d.revenue)),

@@ -16,6 +16,7 @@ interface Product {
   sku: string;
   wholesalePrice: number;
   stockQuantity: number;
+  moq?: number;
 }
 
 interface Customer {
@@ -24,6 +25,9 @@ interface Customer {
   email: string;
   phone: string;
   companyName?: string;
+  userType?: string;
+  discountPercent?: number | null;
+  discountValidUntil?: string | null;
 }
 
 interface OrderItem {
@@ -35,6 +39,26 @@ interface OrderItem {
   customPrice: number;
   standardPrice: number;
   total: number;
+  // True only when the admin explicitly typed an override price for this
+  // line — the auto-populated wholesalePrice default must NOT be sent to
+  // the backend as `customPrice`, otherwise the backend's customer-discount
+  // logic (`if (item.customPrice === undefined && customerDiscount > 0)`)
+  // never fires (Bug G).
+  isCustomPrice: boolean;
+  // MOQ and stock ceiling, captured at add-time from the product search
+  // result so quantity can be validated/warned inline (Bugs F & H) without
+  // a second lookup.
+  moq: number;
+  stockQuantity: number;
+}
+
+// A customer's account discount is considered active only while it has a
+// positive percentage and (if set) hasn't passed its validity date — mirrors
+// validateCustomerDiscount() in src/utils/pricingEngine.ts.
+function hasActiveDiscount(customer: Customer | null): boolean {
+  if (!customer || !customer.discountPercent || customer.discountPercent <= 0) return false;
+  if (!customer.discountValidUntil) return true;
+  return new Date(customer.discountValidUntil) > new Date();
 }
 
 function CreateOrderPage() {
@@ -101,34 +125,20 @@ function CreateOrderPage() {
   };
 
   // Add product to order
-  const addProduct = async (product: Product) => {
+  // Note: this used to fetch `/api/admin/customers/${customerId}/pricing` —
+  // that route does not exist anywhere in the codebase and always 404s, so
+  // the custom-price branch never actually ran. The customer's real account
+  // discount is already available on the selected customer (fetched via
+  // /api/admin/users, which returns discountPercent/discountValidUntil), so
+  // we surface that as an informational preview instead of a broken lookup.
+  // We deliberately do NOT bake the discount into item.customPrice here —
+  // the backend applies it automatically as long as no explicit customPrice
+  // override is sent (see isCustomPrice / handleSubmit below).
+  const addProduct = (product: Product) => {
     // Check if already added
     if (items.find(item => item.productId === product.id)) {
       toast.warning('Product already added to order');
       return;
-    }
-
-    // Check for customer-specific pricing
-    let customPrice = product.wholesalePrice;
-    
-    if (customerId) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/admin/customers/${customerId}/pricing`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          const pricing = result.data?.find((p: any) => p.productId === product.id);
-          if (pricing) {
-            customPrice = pricing.customPrice;
-            toast.info(`Applied custom price: ৳${customPrice.toLocaleString()}`);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching custom pricing:', error);
-      }
     }
 
     const newItem: OrderItem = {
@@ -137,33 +147,56 @@ function CreateOrderPage() {
       imageUrl: product.imageUrl,
       sku: product.sku,
       quantity: 1,
-      customPrice: customPrice,
+      customPrice: product.wholesalePrice,
       standardPrice: product.wholesalePrice,
-      total: customPrice
+      total: product.wholesalePrice,
+      isCustomPrice: false,
+      moq: product.moq || 1,
+      stockQuantity: product.stockQuantity,
     };
 
     setItems([...items, newItem]);
     setProductSearch('');
     setProducts([]);
-    toast.success('Product added to order');
+
+    if (selectedCustomer && hasActiveDiscount(selectedCustomer)) {
+      toast.info(`${selectedCustomer.name} has an active ${selectedCustomer.discountPercent}% account discount — it will be applied automatically unless you set a custom price.`);
+    } else {
+      toast.success('Product added to order');
+    }
   };
 
   // Update item quantity
   const updateQuantity = (index: number, quantity: number) => {
     if (quantity <= 0) return;
-    
+
     const newItems = [...items];
-    newItems[index].quantity = quantity;
-    newItems[index].total = newItems[index].customPrice * quantity;
+    const item = newItems[index];
+
+    // Clamp to available stock (Bug H) — the search dropdown already shows
+    // stock a moment before this, so we can cap here instead of only
+    // rejecting at submit time with a generic error.
+    let finalQuantity = quantity;
+    if (item.stockQuantity != null && finalQuantity > item.stockQuantity) {
+      finalQuantity = item.stockQuantity;
+      toast.warning(`Only ${item.stockQuantity} units of "${item.productName}" in stock — quantity capped.`);
+    }
+
+    item.quantity = finalQuantity;
+    item.total = item.customPrice * finalQuantity;
     setItems(newItems);
   };
 
   // Update item price
   const updatePrice = (index: number, price: number) => {
     if (price < 0) return;
-    
+
     const newItems = [...items];
     newItems[index].customPrice = price;
+    // Any manual edit here is an explicit admin override — from now on this
+    // line's price is sent to the backend as-is instead of being left to the
+    // backend's own wholesalePrice/customer-discount logic (Bug G).
+    newItems[index].isCustomPrice = true;
     newItems[index].total = price * newItems[index].quantity;
     setItems(newItems);
   };
@@ -215,7 +248,10 @@ function CreateOrderPage() {
           items: items.map(item => ({
             productId: item.productId,
             quantity: item.quantity,
-            customPrice: item.customPrice
+            // Only send customPrice when the admin explicitly overrode it —
+            // otherwise omit it so the backend's own wholesalePrice +
+            // customer-discount logic actually runs (Bug G).
+            ...(item.isCustomPrice ? { customPrice: item.customPrice } : {})
           })),
           shippingAddress,
           billingAddress,
@@ -379,6 +415,7 @@ function CreateOrderPage() {
                             <div className="font-medium text-gray-900 truncate">{product.name}</div>
                             <div className="text-sm text-gray-600">
                               ৳{product.wholesalePrice.toLocaleString()} • Stock: {product.stockQuantity}
+                              {product.moq != null && product.moq > 1 && ` • MOQ: ${product.moq}`}
                             </div>
                             {product.sku && (
                               <div className="text-xs text-gray-500">SKU: {product.sku}</div>
@@ -417,6 +454,7 @@ function CreateOrderPage() {
                               <input
                                 type="number"
                                 min="1"
+                                max={item.stockQuantity || undefined}
                                 value={item.quantity}
                                 onChange={(e) => updateQuantity(index, parseInt(e.target.value) || 1)}
                                 className="w-20 px-2 py-1 text-sm border rounded"
@@ -444,6 +482,34 @@ function CreateOrderPage() {
                           {item.customPrice !== item.standardPrice && (
                             <p className="text-xs text-green-600 mt-1">
                               Custom price (Standard: ৳{item.standardPrice.toLocaleString()})
+                            </p>
+                          )}
+
+                          {!item.isCustomPrice && selectedCustomer && hasActiveDiscount(selectedCustomer) && (
+                            <p className="text-xs text-blue-600 mt-1">
+                              {selectedCustomer.discountPercent}% customer discount will be applied automatically
+                            </p>
+                          )}
+
+                          {/* Bug F: MOQ is enforced server-side only for WHOLESALE
+                              customers (matching the customer-facing checkout rule);
+                              this warning surfaces that constraint before submit so
+                              the admin isn't surprised by a late 400 rejection. It's
+                              a warning, not a hard block — admins may have a
+                              legitimate one-off reason to place a below-MOQ order for
+                              a non-wholesale/guest order, which the backend allows. */}
+                          {selectedCustomer?.userType?.toLowerCase() === 'wholesale' && item.moq > 1 && item.quantity < item.moq && (
+                            <p className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-1 w-fit">
+                              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                              Below MOQ: this customer (Wholesale) requires {item.moq} units minimum — the backend will reject this order unless increased or overridden with a custom arrangement.
+                            </p>
+                          )}
+
+                          {item.stockQuantity != null && item.quantity >= item.stockQuantity && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              At max available stock ({item.stockQuantity})
                             </p>
                           )}
                         </div>

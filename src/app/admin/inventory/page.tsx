@@ -97,8 +97,12 @@ export default function InventoryPage() {
             name: p.name,
             sku: p.sku,
             currentStock: p.stock || 0,
-            minStock: 10, // Default min stock
-            maxStock: 1000, // Default max stock
+            // Real per-product reorder thresholds from the API (schema
+            // defaults: reorderLevel 20, reorderQuantity 100) — previously
+            // hardcoded to 10/1000 for every product regardless of its
+            // actual configuration (Bug K).
+            minStock: p.reorderLevel ?? 20,
+            maxStock: p.reorderQuantity ?? 100,
             category: p.category || 'Uncategorized',
             price: p.price || 0,
             status: deriveStockStatus(p.stock || 0, p.status),

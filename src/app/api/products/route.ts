@@ -204,6 +204,12 @@ export async function GET(request: NextRequest) {
         discount: tier.discount,
       })),
       stockQuantity: product.stockQuantity,
+      // Alias for the detail endpoint's shape (GET /api/products/[id] already
+      // returns both) — cart/page.tsx and ProductCard.tsx read `stock`, which
+      // was always undefined here, silently disabling the out-of-stock
+      // banner and the quantity-input's stock ceiling for anything added
+      // from a listing page.
+      stock: product.stockQuantity,
       availability: product.availability,
       sku: product.sku,
       rating: product.rating,

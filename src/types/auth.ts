@@ -39,6 +39,13 @@ export interface User {
   isActive: boolean;
   businessInfo?: BusinessInfo;  // Optional - can complete from profile
   createdAt: string;
+  // Customer-specific discount, applied on top of tier pricing at order
+  // creation (see POST /api/orders and src/utils/pricingEngine.ts's
+  // calculateItemPrice). GET /api/user/profile already returns these; they
+  // were missing from this type, so no client page could read them to
+  // preview the discounted total before checkout.
+  discountPercent?: number | null;
+  discountValidUntil?: string | null;
 }
 
 export interface AuthState {

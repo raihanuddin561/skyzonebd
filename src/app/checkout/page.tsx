@@ -29,6 +29,10 @@ export default function CheckoutPage() {
   const { items, getTotalItems, getTotalPrice, clearCart, isLoaded } = useCart();
   const { user } = useAuth();
   const router = useRouter();
+  // Passed into getLineTotal below so the previewed per-item/order total
+  // matches what POST /api/orders will actually charge (tier price, then
+  // this discount on top — see src/utils/cartPricing.ts).
+  const customerDiscount = user ? { discountPercent: user.discountPercent, discountValidUntil: user.discountValidUntil } : null;
 
 
 
@@ -197,7 +201,7 @@ export default function CheckoutPage() {
           name: item.product.name,
           price: item.product.price,
           quantity: item.quantity,
-          total: getLineTotal(item.product, item.quantity)
+          total: getLineTotal(item.product, item.quantity, customerDiscount)
         })),
         shippingAddress: finalShippingAddress,
         billingAddress: finalBillingAddress,
@@ -874,7 +878,7 @@ export default function CheckoutPage() {
                         <div className="flex-1">
                           <h3 className="font-medium text-sm">{item.product.name}</h3>
                           <p className="text-gray-500 text-sm">Qty: {item.quantity}</p>
-                          <p className="font-medium text-sm">৳{getLineTotal(item.product, item.quantity).toLocaleString()}</p>
+                          <p className="font-medium text-sm">৳{getLineTotal(item.product, item.quantity, customerDiscount).toLocaleString()}</p>
                         </div>
                       </div>
                     ))}

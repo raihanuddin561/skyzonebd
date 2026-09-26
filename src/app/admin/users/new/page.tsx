@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface NewUserFormData {
   name: string;
@@ -18,6 +19,12 @@ interface NewUserFormData {
 
 export default function NewUserPage() {
   const router = useRouter();
+  const { user: actingUser } = useAuth();
+  // Only a super admin may create another admin account (enforced again,
+  // authoritatively, in POST /api/admin/users) — hide/disable the option here
+  // so a plain admin isn't allowed to fill out the whole form only to be
+  // rejected at submit time.
+  const canCreateAdmin = actingUser?.role?.toLowerCase() === 'super_admin';
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<NewUserFormData>({
     name: '',
@@ -200,7 +207,9 @@ export default function NewUserPage() {
               >
                 <option value="customer">Customer</option>
                 <option value="vendor">Vendor</option>
-                <option value="admin">Admin</option>
+                <option value="admin" disabled={!canCreateAdmin}>
+                  Admin{!canCreateAdmin ? ' (Super Admin only)' : ''}
+                </option>
               </select>
               <p className="text-xs text-gray-500 mt-1">
                 {formData.role === 'admin' && 'Full system access'}

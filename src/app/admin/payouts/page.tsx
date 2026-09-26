@@ -38,44 +38,84 @@ interface Partner {
   profitSharePercentage: number;
 }
 
+interface PayoutSummary {
+  totalPending: number;
+  pendingCount: number;
+  totalOutstanding: number;
+  approvedCount: number;
+  totalPaid: number;
+  paidCount: number;
+}
+
+const EMPTY_SUMMARY: PayoutSummary = {
+  totalPending: 0,
+  pendingCount: 0,
+  totalOutstanding: 0,
+  approvedCount: 0,
+  totalPaid: 0,
+  paidCount: 0,
+};
+
 export default function AdminPayoutsPage() {
   const router = useRouter();
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [summary, setSummary] = useState<PayoutSummary>(EMPTY_SUMMARY);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  
+
   // Fetch payouts and partners
   useEffect(() => {
     fetchData();
   }, [statusFilter]);
-  
+
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      
-      // Fetch payouts
+
+      // Table data: respects the active tab, but always requests enough
+      // rows (limit=100) so results beyond the API's default page size of
+      // 20 aren't silently hidden.
       const payoutsUrl = statusFilter === 'all'
-        ? '/api/admin/financial/outstanding-payouts'
-        : `/api/admin/financial/outstanding-payouts?status=${statusFilter}`;
-      
-      const [payoutsRes, partnersRes] = await Promise.all([
+        ? '/api/admin/financial/outstanding-payouts?limit=100'
+        : `/api/admin/financial/outstanding-payouts?status=${statusFilter}&limit=100`;
+
+      // Summary cards must always reflect true totals across every status,
+      // independent of whichever tab is selected for the table below. The
+      // API's default (no `status` param) only covers APPROVED+PENDING and
+      // never includes PAID, so the only way to get a real PAID total is to
+      // query each status explicitly and combine them here.
+      const [payoutsRes, partnersRes, pendingRes, approvedRes, paidRes] = await Promise.all([
         api.get(payoutsUrl),
-        api.get('/api/admin/partners')
+        api.get('/api/admin/partners'),
+        api.get('/api/admin/financial/outstanding-payouts?status=PENDING&limit=100'),
+        api.get('/api/admin/financial/outstanding-payouts?status=APPROVED&limit=100'),
+        api.get('/api/admin/financial/outstanding-payouts?status=PAID&limit=100'),
       ]);
-      
+
       if (!payoutsRes.ok || !partnersRes.ok) {
         throw new Error('Failed to fetch data');
       }
-      
+
       const payoutsData = await payoutsRes.json();
       const partnersData = await partnersRes.json();
-      
+      const pendingData = pendingRes.ok ? await pendingRes.json() : null;
+      const approvedData = approvedRes.ok ? await approvedRes.json() : null;
+      const paidData = paidRes.ok ? await paidRes.json() : null;
+
       setPayouts(payoutsData.data?.distributions || []);
       setPartners(partnersData.data?.partners || []);
+      setSummary({
+        totalPending: pendingData?.data?.summary?.totalOutstanding || 0,
+        pendingCount: pendingData?.pagination?.total || 0,
+        totalOutstanding: approvedData?.data?.summary?.totalOutstanding || 0,
+        approvedCount: approvedData?.pagination?.total || 0,
+        totalPaid: paidData?.data?.summary?.totalOutstanding || 0,
+        paidCount: paidData?.pagination?.total || 0,
+      });
     } catch (err) {
       setError('Failed to load payout data');
       console.error(err);
@@ -147,19 +187,6 @@ export default function AdminPayoutsPage() {
     }).format(amount);
   };
   
-  // Calculate summary statistics
-  const summary = {
-    totalOutstanding: payouts
-      .filter(p => p.status === 'APPROVED')
-      .reduce((sum, p) => sum + p.distributionAmount, 0),
-    totalPending: payouts
-      .filter(p => p.status === 'PENDING')
-      .reduce((sum, p) => sum + p.distributionAmount, 0),
-    totalPaid: payouts
-      .filter(p => p.status === 'PAID')
-      .reduce((sum, p) => sum + p.distributionAmount, 0)
-  };
-  
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
@@ -194,7 +221,7 @@ export default function AdminPayoutsPage() {
                 {formatCurrency(summary.totalPending)}
               </p>
               <p className="mt-1 text-sm text-yellow-600">
-                {payouts.filter(p => p.status === 'PENDING').length} payout(s)
+                {summary.pendingCount} payout(s)
               </p>
             </div>
             <div className="w-10 h-10 rounded-xl bg-yellow-100 text-yellow-700 flex items-center justify-center flex-shrink-0">
@@ -211,7 +238,7 @@ export default function AdminPayoutsPage() {
                 {formatCurrency(summary.totalOutstanding)}
               </p>
               <p className="mt-1 text-sm text-blue-600">
-                {payouts.filter(p => p.status === 'APPROVED').length} payout(s)
+                {summary.approvedCount} payout(s)
               </p>
             </div>
             <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
@@ -228,7 +255,7 @@ export default function AdminPayoutsPage() {
                 {formatCurrency(summary.totalPaid)}
               </p>
               <p className="mt-1 text-sm text-green-600">
-                {payouts.filter(p => p.status === 'PAID').length} payout(s)
+                {summary.paidCount} payout(s)
               </p>
             </div>
             <div className="w-10 h-10 rounded-xl bg-green-100 text-green-700 flex items-center justify-center flex-shrink-0">

@@ -47,6 +47,8 @@ export async function GET(request: NextRequest) {
         stockQuantity: true,
         availability: true,
         wholesalePrice: true,
+        reorderLevel: true,
+        reorderQuantity: true,
         category: {
           select: {
             name: true,
@@ -92,6 +94,12 @@ export async function GET(request: NextRequest) {
         sku: product.sku || 'N/A',
         category: product.category?.name || 'Uncategorized',
         stock: product.stockQuantity,
+        // Real per-product reorder thresholds (schema defaults: reorderLevel
+        // 20, reorderQuantity 100) — Bug K previously had the frontend
+        // hardcode minStock: 10 / maxStock: 1000 for every product because
+        // this route never selected or returned them.
+        reorderLevel: product.reorderLevel,
+        reorderQuantity: product.reorderQuantity,
         status,
         price: product.wholesalePrice,
         soldLast30Days,

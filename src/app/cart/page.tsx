@@ -17,6 +17,10 @@ export default function CartPage() {
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  // Passed into getLineTotal below so the per-item subtotal preview matches
+  // what POST /api/orders will actually charge (tier price, then this
+  // discount on top — see src/utils/cartPricing.ts).
+  const customerDiscount = user ? { discountPercent: user.discountPercent, discountValidUntil: user.discountValidUntil } : null;
 
   const handleQuantityChange = (productId: string | number, newQuantity: number, minOrderQuantity: number) => {
     // Only enforce MOQ for wholesale users, guests and retail can order any quantity >= 1
@@ -169,7 +173,7 @@ export default function CartPage() {
                       <div className="mt-3 pt-3 border-t border-gray-100">
                         <p className="text-sm sm:text-base text-gray-900">
                           <span className="text-gray-600">Subtotal: </span>
-                          <span className="font-bold text-blue-700">৳{getLineTotal(item.product, item.quantity).toLocaleString()}</span>
+                          <span className="font-bold text-blue-700">৳{getLineTotal(item.product, item.quantity, customerDiscount).toLocaleString()}</span>
                         </p>
                       </div>
                     </div>

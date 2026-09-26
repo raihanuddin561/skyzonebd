@@ -70,6 +70,8 @@ export default function B2BVerification() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0 });
+  const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
 
 
   const getStatusBadge = (status: string) => {
@@ -83,6 +85,8 @@ export default function B2BVerification() {
   };
 
   const handleApprove = async (appId: string) => {
+    if (approving) return;
+    setApproving(true);
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/verification`, {
@@ -104,6 +108,8 @@ export default function B2BVerification() {
     } catch (error) {
       console.error('Error approving application:', error);
       toast.error('Failed to approve application');
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -113,8 +119,9 @@ export default function B2BVerification() {
   };
 
   const handleRejectSubmit = async () => {
-    if (!selectedApp) return;
-    
+    if (!selectedApp || rejecting) return;
+
+    setRejecting(true);
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/verification`, {
@@ -123,10 +130,10 @@ export default function B2BVerification() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          applicationId: selectedApp.id, 
+        body: JSON.stringify({
+          applicationId: selectedApp.id,
           action: 'reject',
-          reason: rejectionReason 
+          reason: rejectionReason
         })
       });
 
@@ -143,6 +150,8 @@ export default function B2BVerification() {
     } catch (error) {
       console.error('Error rejecting application:', error);
       toast.error('Failed to reject application');
+    } finally {
+      setRejecting(false);
     }
   };
 
@@ -291,7 +300,6 @@ export default function B2BVerification() {
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
-              <option value="under_review">Under Review</option>
               <option value="approved">Approved</option>
               <option value="rejected">Rejected</option>
             </select>
@@ -462,14 +470,16 @@ export default function B2BVerification() {
                 <div className="flex gap-3 pt-4 border-t border-gray-200">
                   <button
                     onClick={() => handleApprove(selectedApp.id)}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium cursor-pointer transition-colors"
+                    disabled={approving}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <AdminIcon name="verification" className="w-4 h-4" />
-                    Approve Application
+                    {approving ? 'Approving...' : 'Approve Application'}
                   </button>
                   <button
                     onClick={() => setShowRejectModal(true)}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium cursor-pointer transition-colors"
+                    disabled={approving}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <XCircleIcon className="w-4 h-4" />
                     Reject Application
@@ -477,12 +487,10 @@ export default function B2BVerification() {
                 </div>
               )}
 
-              {selectedApp.rejectionReason && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <p className="text-sm font-medium text-red-900 mb-1">Rejection Reason:</p>
-                  <p className="text-sm text-red-800">{selectedApp.rejectionReason}</p>
-                </div>
-              )}
+              {/* Rejection reason display removed: BusinessInfo has no column to
+                  persist it (see PATCH handler in api/admin/verification/route.ts),
+                  so this always rendered nothing. Re-add once a schema field
+                  (e.g. BusinessInfo.rejectionReason) exists. */}
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
@@ -536,10 +544,10 @@ export default function B2BVerification() {
               </button>
               <button
                 onClick={handleRejectSubmit}
-                disabled={!rejectionReason.trim()}
+                disabled={!rejectionReason.trim() || rejecting}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
               >
-                Confirm Rejection
+                {rejecting ? 'Rejecting...' : 'Confirm Rejection'}
               </button>
             </div>
           </div>

@@ -40,7 +40,7 @@ export default function PartnerComparisonPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/api/admin/financial/partner-comparison?period=${period}&sortBy=${sortBy}`);
+      const response = await api.get(`/api/admin/financial/partner-comparison?period=${period}&sortBy=${sortBy}&limit=100`);
       const data = await response.json();
       if (response.ok && data.success) {
         setPartners(data.data.partners);

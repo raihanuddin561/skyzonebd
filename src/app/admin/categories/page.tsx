@@ -11,9 +11,7 @@ interface Category {
   slug: string;
   description: string | null;
   imageUrl: string | null;
-  _count?: {
-    products: number;
-  };
+  count?: number;
 }
 
 export default function CategoriesManagement() {
@@ -29,6 +27,12 @@ export default function CategoriesManagement() {
     productCount: 0,
   });
   const [isDeleting, setIsDeleting] = useState(false);
+  // Double-submit guard (Bug N) — matches the pattern used in
+  // src/app/admin/suppliers/page.tsx: disable the submit button for the
+  // duration of the request instead of leaving it clickable, which
+  // previously let a fast double-click send two overlapping POST/PUT
+  // requests for the same category.
+  const [saving, setSaving] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -105,13 +109,15 @@ export default function CategoriesManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
 
+    setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const url = editingCategory 
+      const url = editingCategory
         ? `/api/categories/${editingCategory.id}`
         : '/api/categories';
-      
+
       const response = await fetch(url, {
         method: editingCategory ? 'PUT' : 'POST',
         headers: {
@@ -122,7 +128,7 @@ export default function CategoriesManagement() {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         toast.success(`Category ${editingCategory ? 'updated' : 'created'} successfully`);
         setShowModal(false);
@@ -135,6 +141,8 @@ export default function CategoriesManagement() {
     } catch (error) {
       console.error('Error:', error);
       toast.error('Operation failed');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -228,7 +236,7 @@ export default function CategoriesManagement() {
             <div>
               <p className="text-sm text-gray-600">Total Products</p>
               <p className="text-2xl font-bold text-blue-600">
-                {categories.reduce((sum, cat) => sum + (cat._count?.products || 0), 0)}
+                {categories.reduce((sum, cat) => sum + (cat.count || 0), 0)}
               </p>
             </div>
             <span className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
@@ -241,7 +249,7 @@ export default function CategoriesManagement() {
             <div>
               <p className="text-sm text-gray-600">Empty Categories</p>
               <p className="text-2xl font-bold text-yellow-600">
-                {categories.filter(cat => (cat._count?.products || 0) === 0).length}
+                {categories.filter(cat => (cat.count || 0) === 0).length}
               </p>
             </div>
             <span className="w-10 h-10 rounded-xl bg-yellow-50 text-yellow-600 flex items-center justify-center flex-shrink-0">
@@ -301,7 +309,7 @@ export default function CategoriesManagement() {
                   
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">
-                      {category._count?.products || 0} products
+                      {category.count || 0} products
                     </span>
                     <div className="flex gap-2">
                       <button
@@ -311,7 +319,7 @@ export default function CategoriesManagement() {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(category.id, category.name, category._count?.products || 0)}
+                        onClick={() => handleDelete(category.id, category.name, category.count || 0)}
                         className="text-red-600 hover:text-red-700 text-sm font-medium cursor-pointer transition-colors"
                       >
                         Delete
@@ -425,15 +433,16 @@ export default function CategoriesManagement() {
                 <div className="flex gap-3 pt-4">
                   <button
                     type="submit"
-                    disabled={uploading}
+                    disabled={uploading || saving}
                     className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
                   >
-                    {editingCategory ? 'Update Category' : 'Create Category'}
+                    {saving ? 'Saving...' : editingCategory ? 'Update Category' : 'Create Category'}
                   </button>
                   <button
                     type="button"
                     onClick={handleCloseModal}
-                    className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium cursor-pointer transition-colors"
+                    disabled={saving}
+                    className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
                   </button>

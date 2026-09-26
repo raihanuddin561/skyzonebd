@@ -4,6 +4,7 @@ import React, { createContext, useContext, useReducer, useEffect, useState, Reac
 import { CartItem, Product, CartContextType } from '@/types/cart';
 import { toast } from 'react-toastify';
 import { getLineTotal } from '@/utils/cartPricing';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Cart Actions
 type CartAction =
@@ -97,6 +98,10 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, dispatch] = useReducer(cartReducer, []);
   const [isLoaded, setIsLoaded] = useState(false);
+  const { user } = useAuth();
+  const customerDiscount = user
+    ? { discountPercent: user.discountPercent, discountValidUntil: user.discountValidUntil }
+    : null;
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -188,10 +193,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const getTotalPrice = () => {
-    // Applies each item's bulk-pricing tiers (same lookup the product
-    // detail page's pre-add-to-cart preview already used) instead of a
-    // flat price * quantity that ignored bulk discounts entirely.
-    return items.reduce((total, item) => total + getLineTotal(item.product, item.quantity), 0);
+    // Applies each item's bulk-pricing tiers plus the logged-in customer's
+    // account discount (same order of operations POST /api/orders uses),
+    // so this total matches what checkout will actually charge instead of
+    // a flat price * quantity that ignored both.
+    return items.reduce((total, item) => total + getLineTotal(item.product, item.quantity, customerDiscount), 0);
   };
 
   const value: CartContextType = {

@@ -37,6 +37,7 @@ export default function SettingsPage() {
     },
   });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   // ── DB Migration state ────────────────────────────────────────────────
   const [migrationStatus, setMigrationStatus] = useState<{
@@ -114,6 +115,7 @@ export default function SettingsPage() {
   };
 
   const handleSave = async () => {
+    setSaving(true);
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('/api/admin/settings', {
@@ -133,6 +135,8 @@ export default function SettingsPage() {
     } catch (error) {
       console.error('Error saving settings:', error);
       toast.error('Failed to save settings');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -408,9 +412,10 @@ export default function SettingsPage() {
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium cursor-pointer transition-colors"
+          disabled={saving}
+          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Save Settings
+          {saving ? 'Saving...' : 'Save Settings'}
         </button>
       </div>
     </div>

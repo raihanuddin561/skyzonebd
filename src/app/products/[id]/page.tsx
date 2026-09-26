@@ -157,7 +157,11 @@ export default function ProductDetailPage() {
 
   const calculateTotalPrice = () => {
     if (!product) return 0;
-    return getLineTotal(product, quantity);
+    // Include the logged-in user's discount (on top of tier pricing) so this
+    // preview matches what POST /api/orders will actually charge — see
+    // src/utils/cartPricing.ts.
+    const customerDiscount = user ? { discountPercent: user.discountPercent, discountValidUntil: user.discountValidUntil } : null;
+    return getLineTotal(product, quantity, customerDiscount);
   };
 
   const openImageModal = (index: number) => {

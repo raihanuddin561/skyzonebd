@@ -30,6 +30,7 @@ export default function PaymentConfigPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingConfig, setEditingConfig] = useState<PaymentConfig | null>(null);
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     type: 'BKASH',
     name: '',
@@ -73,13 +74,15 @@ export default function PaymentConfigPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (saving) return;
+
+    setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const url = editingConfig 
+      const url = editingConfig
         ? `/api/admin/payment-config/${editingConfig.id}`
         : '/api/admin/payment-config';
-      
+
       const response = await fetch(url, {
         method: editingConfig ? 'PATCH' : 'POST',
         headers: {
@@ -90,7 +93,7 @@ export default function PaymentConfigPage() {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         toast.success(result.message);
         setShowModal(false);
@@ -103,6 +106,8 @@ export default function PaymentConfigPage() {
     } catch (error) {
       console.error('Error saving config:', error);
       toast.error('Failed to save configuration');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -533,9 +538,10 @@ export default function PaymentConfigPage() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
+                    disabled={saving}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {editingConfig ? 'Update' : 'Create'}
+                    {saving ? 'Saving...' : editingConfig ? 'Update' : 'Create'}
                   </button>
                 </div>
               </form>
