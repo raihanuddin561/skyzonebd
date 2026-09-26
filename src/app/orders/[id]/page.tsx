@@ -7,6 +7,17 @@ import Footer from '@/app/components/Footer';
 import Link from 'next/link';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { ALLOWED_ORDER_STATUS_TRANSITIONS } from '@/lib/orderStatusTransitions';
+
+// Only offer statuses that are actually a legal next step from the order's
+// current status (same table the backend's resolveOrderStatusUpdate uses to
+// accept/reject the PATCH), matching the fix already applied to the orders
+// list page — otherwise this screen keeps offering backward/invalid
+// transitions the API will reject.
+function getNextStatusOptions(currentStatus: string): string[] {
+  const upper = (currentStatus || '').toUpperCase();
+  return ALLOWED_ORDER_STATUS_TRANSITIONS[upper] || [];
+}
 
 interface OrderItem {
   id: string;
@@ -1082,15 +1093,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-gray-700 mb-2">Update Status</h3>
-                    {['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'].map((status) => (
+                    {getNextStatusOptions(order.status).map((status) => (
                       <button
                         key={status}
                         onClick={() => handleStatusChange(status)}
-                        disabled={updating || order.status === status || editMode}
+                        disabled={updating || editMode}
                         className={`w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                          order.status === status
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : editMode
+                          editMode
                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                             : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
                         }`}
@@ -1098,6 +1107,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                         {updating ? 'Updating...' : `Mark as ${status}`}
                       </button>
                     ))}
+                    {getNextStatusOptions(order.status).length === 0 && (
+                      <p className="text-xs text-gray-500">No further status updates available from here.</p>
+                    )}
                   </div>
                   
                   {/* Cancel Order Button */}

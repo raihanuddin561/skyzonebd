@@ -267,10 +267,10 @@ export default function CustomerDashboardPage() {
                         <span className="text-gray-600">Subtotal:</span>
                         <span className="font-medium">৳{order.subtotal.toLocaleString()}</span>
                       </div>
-                      {order.shippingCost > 0 && (
+                      {order.shipping > 0 && (
                         <div className="flex justify-between">
                           <span className="text-gray-600">Shipping:</span>
-                          <span className="font-medium">৳{order.shippingCost.toLocaleString()}</span>
+                          <span className="font-medium">৳{order.shipping.toLocaleString()}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-lg font-bold pt-2 border-t">

@@ -21,6 +21,9 @@ interface Order {
   billingAddress: string;
   paymentMethod: string;
   paymentStatus: string;
+  subtotal?: number;
+  shipping?: number;
+  tax?: number;
   total: number;
   status: string;
   createdAt: string;
@@ -118,6 +121,9 @@ function OrderConfirmationContent() {
                   billingAddress: o.billingAddress,
                   paymentMethod: o.paymentMethod,
                   paymentStatus: o.paymentStatus || 'PENDING',
+                  subtotal: o.subtotal,
+                  shipping: o.shipping,
+                  tax: o.tax,
                   total: o.total,
                   status: o.status,
                   createdAt: o.createdAt,
@@ -291,21 +297,23 @@ function OrderConfirmationContent() {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Subtotal ({order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)} items)</span>
                     <span className="font-medium text-gray-900">
-                      ৳{order.items.reduce((sum, item) => sum + (item.total ?? (item.price || 0) * (item.quantity || 1)), 0).toLocaleString()}
+                      ৳{(order.subtotal ?? order.items.reduce((sum, item) => sum + (item.total ?? (item.price || 0) * (item.quantity || 1)), 0)).toLocaleString()}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Delivery Charge</span>
-                    <span className="font-medium text-green-600">FREE</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">VAT / Tax</span>
-                    <span className="font-medium text-gray-900">৳0</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Discount</span>
-                    <span className="font-medium text-gray-900">৳0</span>
-                  </div>
+                  {order.shipping !== undefined && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Delivery Charge</span>
+                      <span className={`font-medium ${order.shipping === 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                        {order.shipping === 0 ? 'FREE' : `৳${order.shipping.toLocaleString()}`}
+                      </span>
+                    </div>
+                  )}
+                  {order.tax !== undefined && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">VAT / Tax</span>
+                      <span className="font-medium text-gray-900">৳{order.tax.toLocaleString()}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between pt-3 border-t-2 border-gray-300">
                     <span className="text-lg font-bold text-gray-900">Total Amount</span>
                     <span className="text-2xl font-bold text-blue-700">
