@@ -117,7 +117,7 @@ export default function ProductsManagement() {
           id: product.id.toString(),
           name: product.name,
           sku: product.sku || 'N/A',
-          category: product.category?.name || 'Uncategorized',
+          category: product.category || 'Uncategorized',
           price: product.wholesalePrice || product.price || 0,
           stock: product.stockQuantity || 0,
           availability: product.stockQuantity > 20 ? 'in_stock' : product.stockQuantity > 0 ? 'limited' : 'out_of_stock',
