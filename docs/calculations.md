@@ -94,3 +94,41 @@ On every completed order:
 4. First-order only restriction.
 5. Minimum order amount threshold.
 6. Product / Category whitelists and blacklists.
+
+
+---
+
+## 6. Profit Sharing & Partner Distributions (Phase 3)
+
+The platform implements an automated percentage-based distribution engine that guarantees exact accounting and reproducibility.
+
+### 6.1 Order of Operations & Formula
+```
+[1] Gross Revenue      = Sum of Line Net Revenue for orders DELIVERED in period
+[2] Gross COGS         = Sum of Cost of Goods Sold for orders DELIVERED in period
+[3] Gross Profit       = Gross Revenue − Gross COGS
+[4] Returns & Refunds  = Sum of (Refund Amount − Restocked COGS) processed in period
+[5] Delivery Costs     = Business-borne delivery fees paid to courier in period
+[6] Gateway Fees       = Payment gateway transaction charges in period
+[7] Net Order Profit   = Gross Profit − Returns − Delivery Costs − Gateway Fees
+[8] Operating Expenses = Sum of Rent, Salaries, Utilities, etc. paid in period
+[9] Net Period Profit  = Net Order Profit − Operating Expenses
+```
+
+### 6.2 Loss Carry-Forward & Reserve Deductions
+- **Loss Period Handling**:
+  If $\text{Net Period Profit} < 0$, the period produces zero distributions and the entire unabsorbed loss is carried forward to the next period:
+  $$\text{Loss Carried Forward} = \text{Prior Loss} + |\text{Net Period Profit}|$$
+- **Profitable Period Offset**:
+  If $\text{Net Period Profit} > 0$ and prior loss exists:
+  $$\text{Net Distributable Basis} = \max(0, \text{Net Period Profit} - \text{Loss Carried Forward})$$
+- **Reserve / Retained Earnings**:
+  $$\text{Reserve Amount} = \text{RoundHalfUp}\left(\frac{\text{Net Distributable Basis} \times \text{Reserve } \%}{100}\right)$$
+  $$\text{Distributable Profit Pool} = \text{Net Distributable Basis} - \text{Reserve Amount}$$
+
+### 6.3 Stakeholder Share Allocation
+Each active stakeholder receives their configured percentage:
+$$\text{Raw Share} = \text{Distributable Profit Pool} \times \left(\frac{\text{Stakeholder } \%}{100}\right)$$
+- Raw shares are converted using the **Largest Remainder Method** in integer poisha so that:
+  $$\sum \text{Stakeholder Shares} + \text{Reserve Amount} \equiv \text{Net Distributable Basis}$$
+- **100% Validation**: Saving share rules is blocked unless active percentages sum to **exactly 100.00%**.
