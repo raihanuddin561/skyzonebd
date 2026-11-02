@@ -101,6 +101,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         { name: 'Categories', icon: 'categories', path: '/admin/categories' },
         { name: 'Units', icon: 'units', path: '/admin/units' },
         { name: 'Orders', icon: 'orders', path: '/admin/orders' },
+        { name: 'Coupons', icon: 'banners', path: '/admin/coupons' },
         { name: 'Returns', icon: 'returns', path: '/admin/returns' },
         { name: 'Inventory', icon: 'inventory', path: '/admin/inventory' },
         { name: 'Purchase Orders', icon: 'purchaseOrders', path: '/admin/purchase-orders' },

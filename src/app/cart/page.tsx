@@ -4,7 +4,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { toast } from 'react-toastify';
@@ -21,6 +21,28 @@ export default function CartPage() {
   // what POST /api/orders will actually charge (tier price, then this
   // discount on top — see src/utils/cartPricing.ts).
   const customerDiscount = user ? { discountPercent: user.discountPercent, discountValidUntil: user.discountValidUntil } : null;
+  const [siteConfig, setSiteConfig] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/config')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          setSiteConfig(data.data);
+        }
+      })
+      .catch(err => console.error('Error fetching config in cart:', err));
+  }, []);
+
+  const subtotal = getTotalPrice();
+  const freeThresholdPoisha = siteConfig?.delivery?.freeDeliveryThresholdPoisha || 0;
+  const freeThresholdBDT = freeThresholdPoisha > 0 ? freeThresholdPoisha / 100 : 0;
+  const isFreeShipping = freeThresholdBDT > 0 && subtotal >= freeThresholdBDT;
+  const progressPercent = freeThresholdBDT > 0 ? Math.min(100, Math.round((subtotal / freeThresholdBDT) * 100)) : 100;
+
+  const minOrderPoisha = siteConfig?.orders?.minimumOrderAmountPoisha || 0;
+  const minOrderBDT = minOrderPoisha > 0 ? minOrderPoisha / 100 : 0;
+  const isBelowMinOrder = minOrderBDT > 0 && subtotal < minOrderBDT;
 
   const handleQuantityChange = (productId: string | number, newQuantity: number, minOrderQuantity: number) => {
     // Only enforce MOQ for wholesale users, guests and retail can order any quantity >= 1
@@ -188,21 +210,60 @@ export default function CartPage() {
             <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 sm:p-6 lg:sticky lg:top-4 overflow-hidden">
               <h2 className="text-lg sm:text-xl font-semibold mb-4 text-gray-900">Order Summary</h2>
 
+              {/* Free Delivery Goal Banner */}
+              {freeThresholdBDT > 0 && (
+                <div className="mb-5 p-3.5 bg-blue-50/70 border border-blue-100 rounded-xl">
+                  <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
+                    <span className="text-blue-900 flex items-center gap-1">
+                      <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                      </svg>
+                      {isFreeShipping ? '🎉 Free Delivery Unlocked!' : 'Free Delivery Goal'}
+                    </span>
+                    <span className="text-blue-700">{progressPercent}%</span>
+                  </div>
+                  <div className="w-full bg-blue-200/60 rounded-full h-2 overflow-hidden mb-1.5">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-blue-800">
+                    {isFreeShipping
+                      ? 'Your cart qualifies for FREE courier delivery in Bangladesh!'
+                      : `Add ৳${(freeThresholdBDT - subtotal).toLocaleString()} more to get FREE Delivery.`}
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-sm sm:text-base">
                   <span className="text-gray-600">Total Items:</span>
                   <span className="font-semibold text-gray-900">{getTotalItems()}</span>
                 </div>
 
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Estimated Delivery:</span>
+                  <span className="font-medium text-gray-800">
+                    {isFreeShipping ? <span className="text-green-600 font-bold">FREE</span> : 'Calculated at checkout'}
+                  </span>
+                </div>
+
                 <div className="flex justify-between items-center text-base sm:text-lg font-bold border-t border-gray-100 pt-3">
-                  <span className="text-gray-900">Total Amount:</span>
-                  <span className="text-blue-700">৳{getTotalPrice().toLocaleString()}</span>
+                  <span className="text-gray-900">Subtotal:</span>
+                  <span className="text-blue-700">৳{subtotal.toLocaleString()}</span>
                 </div>
               </div>
 
+              {isBelowMinOrder && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+                  Minimum order amount of <strong>৳{minOrderBDT.toLocaleString()}</strong> is required to checkout.
+                </div>
+              )}
+
               <button
                 onClick={handleProceedToCheckout}
-                disabled={isProcessing}
+                disabled={isProcessing || isBelowMinOrder}
                 className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3.5 px-4 rounded-xl font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 transition-all cursor-pointer text-sm sm:text-base flex items-center justify-center gap-2"
               >
                 {isProcessing ? (

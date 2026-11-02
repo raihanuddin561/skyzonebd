@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { UserRole, isAdmin } from '@/types/roles';
 import { readSettings, writeSettings } from '@/lib/siteSettings';
+import { logActivity } from '@/lib/activityLogger';
 
 // Vercel configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
-// GET settings
+// GET /api/admin/settings — Full settings read for admins
 export async function GET(request: NextRequest) {
   try {
     const authUser = await requireAuth(request);
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const settings = await readSettings();
+    const settings = await readSettings(true);
     return NextResponse.json({
       success: true,
       data: settings,
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT/PATCH - Update settings
+// PUT /api/admin/settings — Update settings with audit logging
 export async function PUT(request: NextRequest) {
   try {
     const authUser = await requireAuth(request);
@@ -48,19 +49,47 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const currentSettings = await readSettings();
+    const currentSettings = await readSettings(true);
 
-    // Merge new settings with current settings
+    // Deep merge updated sections
     const updatedSettings = {
-      general: { ...currentSettings.general, ...body.general },
-      orders: { ...currentSettings.orders, ...body.orders },
-      system: { ...currentSettings.system, ...body.system },
-      carousel: { ...currentSettings.carousel, ...body.carousel },
+      general: { ...currentSettings.general, ...(body.general || {}) },
+      delivery: {
+        ...currentSettings.delivery,
+        ...(body.delivery || {}),
+        zones: body.delivery?.zones && Array.isArray(body.delivery.zones)
+          ? body.delivery.zones
+          : currentSettings.delivery.zones,
+      },
+      charges: {
+        ...currentSettings.charges,
+        ...(body.charges || {}),
+        gatewayFees: { ...currentSettings.charges.gatewayFees, ...(body.charges?.gatewayFees || {}) },
+        customCharges: Array.isArray(body.charges?.customCharges)
+          ? body.charges.customCharges
+          : currentSettings.charges.customCharges,
+      },
+      tax: { ...currentSettings.tax, ...(body.tax || {}) },
+      orders: { ...currentSettings.orders, ...(body.orders || {}) },
+      profitSharing: { ...currentSettings.profitSharing, ...(body.profitSharing || {}) },
+      system: { ...currentSettings.system, ...(body.system || {}) },
+      carousel: { ...currentSettings.carousel, ...(body.carousel || {}) },
     };
 
     const success = await writeSettings(updatedSettings);
 
     if (success) {
+      await logActivity({
+        userId: authUser.id,
+        userName: authUser.name || 'Admin',
+        action: 'UPDATE',
+        entityType: 'SiteSettings',
+        entityId: 'site_settings',
+        entityName: 'Global Site Settings',
+        description: `Updated admin site settings (delivery, tax, order rules, charges)`,
+        request,
+      });
+
       return NextResponse.json({
         success: true,
         data: updatedSettings,

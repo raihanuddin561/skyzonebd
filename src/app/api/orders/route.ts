@@ -12,6 +12,7 @@ import { depleteStockLotsForSale, restoreStockForCancelledOrder } from '@/servic
 import { alertIfCrossedReorderLevel } from '@/utils/lowStockAlerts';
 import { getPaymentTermsForMethod, checkCreditLimit, createInvoiceForOrder } from '@/services/invoiceService';
 import { resolveOrderStatusUpdate } from '@/lib/orderStatusTransitions';
+import { readSettings, readCoupons, incrementCouponUsage } from '@/lib/siteSettings';
 
 // Vercel configuration
 export const runtime = 'nodejs';
@@ -42,7 +43,9 @@ export async function POST(request: NextRequest) {
       notes,
       paymentReference, // Transaction ID for manual payments (bKash, Bank Transfer)
       // Guest checkout fields
-      guestInfo
+      guestInfo,
+      deliveryZoneId,
+      couponCode
     } = body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -249,13 +252,136 @@ export async function POST(request: NextRequest) {
     const totalCustomerDiscount = pricingResults.reduce((sum, info) => sum + info.customerDiscountAmount, 0);
     const subtotalAfterDiscount = pricingResults.reduce((sum, info) => sum + info.finalTotal, 0);
     
-    // Only add charges if configured by admin (via env vars)
-    const shippingCharge = process.env.SHIPPING_CHARGE ? parseFloat(process.env.SHIPPING_CHARGE) : 0;
-    const taxRate = process.env.TAX_RATE ? parseFloat(process.env.TAX_RATE) : 0;
-    
-    const shipping = shippingCharge;
-    const tax = subtotalAfterDiscount * taxRate;
-    const total = subtotalAfterDiscount + shipping + tax;
+    // Read dynamic site settings (Phase 4: database-backed settings replace hardcoded env vars)
+    const settings = await readSettings();
+
+    // Enforce dynamic minimum order amount
+    const minOrderBDT = settings.orders?.minimumOrderAmountPoisha ? settings.orders.minimumOrderAmountPoisha / 100 : 0;
+    if (minOrderBDT > 0 && subtotal < minOrderBDT) {
+      return NextResponse.json(
+        { success: false, error: `Minimum order amount of ৳${minOrderBDT.toFixed(2)} is required` },
+        { status: 400 }
+      );
+    }
+
+    // Dynamic Delivery Zone Resolution
+    const activeZones = settings.delivery?.zones || [];
+    let selectedZone = deliveryZoneId 
+      ? activeZones.find(z => z.id === deliveryZoneId)
+      : null;
+
+    let shipping = 0;
+    if (selectedZone) {
+      shipping = selectedZone.chargePoisha / 100;
+    } else if (process.env.SHIPPING_CHARGE) {
+      shipping = parseFloat(process.env.SHIPPING_CHARGE);
+    }
+
+    // Free delivery threshold check (zone-level threshold with fallback to global threshold)
+    const zoneThresholdPoisha = selectedZone?.freeDeliveryThresholdPoisha ?? settings.delivery?.globalFreeDeliveryThresholdPoisha ?? 0;
+    const freeDeliveryThreshold = zoneThresholdPoisha > 0 ? zoneThresholdPoisha / 100 : 0;
+    if (freeDeliveryThreshold > 0 && subtotalAfterDiscount >= freeDeliveryThreshold) {
+      shipping = 0;
+    }
+
+    // Dynamic Coupon Validation & Calculation
+    let appliedCoupon: any = null;
+    let couponDiscount = 0;
+
+    if (couponCode && typeof couponCode === 'string' && couponCode.trim().length > 0) {
+      const cleanCode = couponCode.trim().toUpperCase();
+      const allCoupons = await readCoupons();
+      const found = allCoupons.find(c => c.code.toUpperCase() === cleanCode && c.isActive);
+
+      if (!found) {
+        return NextResponse.json(
+          { success: false, error: `Coupon '${cleanCode}' is invalid or expired` },
+          { status: 400 }
+        );
+      }
+
+      const now = new Date();
+      if (found.startDate && new Date(found.startDate) > now) {
+        return NextResponse.json(
+          { success: false, error: `Coupon '${cleanCode}' is not active yet` },
+          { status: 400 }
+        );
+      }
+      if (found.endDate && new Date(found.endDate) < now) {
+        return NextResponse.json(
+          { success: false, error: `Coupon '${cleanCode}' has expired` },
+          { status: 400 }
+        );
+      }
+
+      if (found.totalUsageLimit !== null && found.totalUsageLimit !== undefined && (found.currentUsageCount ?? 0) >= found.totalUsageLimit) {
+        return NextResponse.json(
+          { success: false, error: `Coupon '${cleanCode}' usage limit has been reached` },
+          { status: 400 }
+        );
+      }
+
+      const couponMin = found.minOrderAmountPoisha ? found.minOrderAmountPoisha / 100 : 0;
+      if (couponMin > 0 && subtotalAfterDiscount < couponMin) {
+        return NextResponse.json(
+          { success: false, error: `Coupon '${cleanCode}' requires a minimum order of ৳${couponMin.toFixed(2)}` },
+          { status: 400 }
+        );
+      }
+
+      if (found.isFirstOrderOnly && userId) {
+        const priorOrderCount = await prisma.order.count({
+          where: { userId, status: { notIn: ['CANCELLED', 'RETURNED'] } },
+        });
+        if (priorOrderCount > 0) {
+          return NextResponse.json(
+            { success: false, error: `Coupon '${cleanCode}' is only valid for your first order` },
+            { status: 400 }
+          );
+        }
+      }
+
+      if (found.type === 'PERCENTAGE') {
+        const rawDiscount = (subtotalAfterDiscount * found.discountValue) / 100;
+        const maxDiscount = found.maxDiscountPoisha ? found.maxDiscountPoisha / 100 : Infinity;
+        couponDiscount = Math.min(rawDiscount, maxDiscount);
+      } else if (found.type === 'FIXED_AMOUNT') {
+        couponDiscount = Math.min(found.discountValue, subtotalAfterDiscount);
+      } else if (found.type === 'FREE_DELIVERY') {
+        shipping = 0;
+        couponDiscount = 0;
+      }
+
+      appliedCoupon = found;
+    }
+
+    // Dynamic Extra Charges (COD fee, packaging fee)
+    let extraCharges = 0;
+    const isCod = ['cash_on_delivery', 'cod'].includes(paymentMethod.toLowerCase());
+    if (isCod && settings.charges?.codEnabled && settings.charges.codFeeValuePoisha > 0) {
+      extraCharges += settings.charges.codFeeValuePoisha / 100;
+    }
+    if (settings.charges?.packagingFeeEnabled && settings.charges.packagingFeePoisha > 0) {
+      extraCharges += settings.charges.packagingFeePoisha / 100;
+    }
+
+    // Dynamic Tax Calculation
+    const taxableAmount = Math.max(0, subtotalAfterDiscount - couponDiscount);
+    let tax = 0;
+    if (settings.tax?.vatEnabled && settings.tax.vatRatePercent > 0) {
+      const taxRate = settings.tax.vatRatePercent / 100;
+      if (settings.tax.pricesInclusiveOfVat) {
+        tax = Math.round((taxableAmount * (taxRate / (1 + taxRate))) * 100) / 100;
+      } else {
+        tax = Math.round((taxableAmount * taxRate) * 100) / 100;
+      }
+    } else if (process.env.TAX_RATE) {
+      tax = subtotalAfterDiscount * parseFloat(process.env.TAX_RATE);
+    }
+
+    const total = settings.tax?.pricesInclusiveOfVat
+      ? Math.round((taxableAmount + shipping + extraCharges) * 100) / 100
+      : Math.round((taxableAmount + tax + shipping + extraCharges) * 100) / 100;
 
     // NET30/60/90 orders get a real Invoice + credit-limit check (Amazon-
     // style gap-closure Phase 2 part 3) — applies only to invoice-on-
@@ -447,6 +573,10 @@ export async function POST(request: NextRequest) {
           { orderId: newOrder.id, customerId: userId!, amount: total, paymentTerms: netTerms },
           tx
         );
+      }
+
+      if (appliedCoupon) {
+        await incrementCouponUsage(appliedCoupon.code);
       }
 
       return newOrder;

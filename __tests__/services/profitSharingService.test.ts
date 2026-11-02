@@ -491,3 +491,4 @@ describe('ProfitSharingService — Stakeholder Statement Generation', () => {
     expect(statement.partnerShare.finalShareBDT).toBe(fromPoisha(calculation.distributableProfitPoisha));
   });
 });
+

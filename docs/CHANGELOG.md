@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Phase 4] - 2026-11-03
+
+### Added
+- **Centralized Site Settings & Schema (`src/lib/siteSettings.ts`)**:
+  - Expanded `SiteSettings` with complete dynamic configurations: General Store Branding, Delivery Zones & Courier Rules, VAT & Tax Policy, Extra Charges & Gateway Fees, Order Rules & Minimums, Profit Sharing Policy, System Controls, and Homepage Carousel.
+  - Database-backed storage via `PlatformConfig` with in-memory caching and immediate invalidation on write (`invalidateSettingsCache`).
+  - Dynamic coupon storage engine (`readCoupons`, `writeCoupons`, `incrementCouponUsage`) persisted safely in `PlatformConfig`.
+- **Public & Admin Configuration APIs**:
+  - `GET /api/config`: Exposes safe, active business settings (delivery zones, VAT policy, minimum order amount, free delivery thresholds, allowed payment methods) to storefront visitors.
+  - `GET / PUT /api/admin/settings`: Full settings read and update endpoint for admins with audit activity logging.
+  - `GET / POST / PUT / DELETE /api/admin/coupons`: Complete administrative CRUD API for promotional coupons and vouchers.
+  - `POST /api/coupons/validate`: Client coupon validation endpoint for cart and checkout previews.
+- **Dynamic Order Processing (`src/app/api/orders/route.ts`)**:
+  - Removed hardcoded `process.env.SHIPPING_CHARGE` and `process.env.TAX_RATE`.
+  - Wired dynamic delivery zone selection (`deliveryZoneId`) with zone charges and free delivery threshold enforcement.
+  - Wired dynamic coupon validation and application with atomic usage incrementation on order creation.
+  - Wired dynamic extra charges (COD fee, packaging fee) and dynamic VAT calculation (exclusive and inclusive modes).
+  - Enforced dynamic minimum order amount validation.
+- **Storefront Checkout & Cart Enhancements**:
+  - **Checkout Page (`src/app/checkout/page.tsx`)**: Added Delivery Zone selector, Coupon Code input with real-time validation, transparent itemized financial breakdown (Subtotal, Coupon Discount, Delivery Charge, VAT, Grand Total), and minimum order amount enforcement.
+  - **Cart Page (`src/app/cart/page.tsx`)**: Added Free Delivery Goal progress bar and minimum order threshold check.
+- **Admin Panel UI**:
+  - **Admin Settings Page (`src/app/admin/settings/page.tsx`)**: Comprehensive tabbed settings manager covering Store Info, Delivery Zones, Tax & VAT, Charges & Fees, Profit Sharing, Order Rules, Carousel, and System DB migrations.
+  - **Admin Coupons Page (`src/app/admin/coupons/page.tsx`)**: Full coupon dashboard with KPIs, coupon table, active toggle, and creation modal.
+  - **Admin Navigation (`src/app/admin/layout.tsx`)**: Added Coupons link to Admin navigation.
+
+---
+
 ## [Phase 3] - 2026-11-03
 
 ### Added

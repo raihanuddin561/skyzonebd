@@ -25,6 +25,33 @@ interface PaymentConfig {
   priority: number;
 }
 
+interface DeliveryZone {
+  id: string;
+  name: string;
+  chargePoisha: number;
+  estimatedDays?: string;
+  freeDeliveryThresholdPoisha?: number;
+}
+
+interface SitePublicConfig {
+  delivery?: {
+    zones: DeliveryZone[];
+    defaultZoneId?: string;
+    freeDeliveryThresholdPoisha?: number;
+  };
+  tax?: {
+    vatEnabled: boolean;
+    vatRatePercent: number;
+    pricesInclusiveOfVat: boolean;
+  };
+  orders?: {
+    minimumOrderAmountPoisha: number;
+    allowedPaymentMethods: string[];
+    allowGuestCheckout: boolean;
+  };
+  currencySymbol?: string;
+}
+
 export default function CheckoutPage() {
   const { items, getTotalItems, getTotalPrice, clearCart, isLoaded } = useCart();
   const { user } = useAuth();
@@ -34,11 +61,22 @@ export default function CheckoutPage() {
   // this discount on top — see src/utils/cartPricing.ts).
   const customerDiscount = user ? { discountPercent: user.discountPercent, discountValidUntil: user.discountValidUntil } : null;
 
-
-
   const [isProcessing, setIsProcessing] = useState(false);
   const [checkoutType, setCheckoutType] = useState<'guest' | 'user'>('guest');
   const [paymentConfigs, setPaymentConfigs] = useState<PaymentConfig[]>([]);
+  const [siteConfig, setSiteConfig] = useState<SitePublicConfig | null>(null);
+  const [selectedZoneId, setSelectedZoneId] = useState<string>('inside_dhaka');
+  const [couponInput, setCouponInput] = useState<string>('');
+  const [couponLoading, setCouponLoading] = useState<boolean>(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    type: string;
+    discountBDT: number;
+    isFreeDelivery: boolean;
+    description?: string;
+  } | null>(null);
+  const [couponError, setCouponError] = useState<string>('');
+
   const [orderData, setOrderData] = useState({
     shippingAddress: '',
     billingAddress: '',
@@ -54,7 +92,7 @@ export default function CheckoutPage() {
   });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  // Fetch payment configurations
+  // Fetch payment configurations and dynamic site configuration
   useEffect(() => {
     const fetchPaymentConfigs = async () => {
       try {
@@ -67,7 +105,25 @@ export default function CheckoutPage() {
         console.error('Error fetching payment configs:', error);
       }
     };
+
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch('/api/config');
+        const result = await response.json();
+        if (result.success && result.data) {
+          setSiteConfig(result.data);
+          if (result.data.delivery?.zones?.length > 0) {
+            const defId = result.data.delivery.defaultZoneId || result.data.delivery.zones[0].id;
+            setSelectedZoneId(defId);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching site config:', error);
+      }
+    };
+
     fetchPaymentConfigs();
+    fetchConfig();
   }, []);
 
   // Update checkout type when user changes
@@ -109,7 +165,56 @@ export default function CheckoutPage() {
     }
   };
 
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setCouponLoading(true);
+    setCouponError('');
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: couponInput.trim(),
+          cartSubtotal: getTotalPrice(),
+        }),
+      });
+      const result = await res.json();
+      if (result.success && result.data?.valid) {
+        setAppliedCoupon({
+          code: result.data.code,
+          type: result.data.type,
+          discountBDT: result.data.discountPoisha / 100,
+          isFreeDelivery: result.data.isFreeDelivery,
+          description: result.data.description,
+        });
+        setCouponError('');
+        toast.success(`Coupon '${result.data.code}' applied!`);
+      } else {
+        setCouponError(result.error || result.data?.reason || 'Invalid coupon code');
+        setAppliedCoupon(null);
+      }
+    } catch (err) {
+      setCouponError('Failed to validate coupon');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput('');
+    setCouponError('');
+    toast.info('Coupon removed');
+  };
+
   const handlePlaceOrder = async () => {
+    // Check minimum order value
+    const minOrderBDT = siteConfig?.orders?.minimumOrderAmountPoisha ? siteConfig.orders.minimumOrderAmountPoisha / 100 : 0;
+    if (minOrderBDT > 0 && getTotalPrice() < minOrderBDT) {
+      toast.error(`Minimum order amount of ৳${minOrderBDT.toFixed(2)} is required.`);
+      return;
+    }
+
     const errors: Record<string, string> = {};
 
     // In Bangladesh, shipping and billing addresses are almost always the same —
@@ -206,6 +311,8 @@ export default function CheckoutPage() {
         shippingAddress: finalShippingAddress,
         billingAddress: finalBillingAddress,
         paymentMethod: orderData.paymentMethod,
+        deliveryZoneId: selectedZoneId,
+        couponCode: appliedCoupon?.code || undefined,
         notes: orderData.notes,
         paymentReference: orderData.paymentReference || undefined, // Include transaction ID
         ...(checkoutType === 'guest' && { guestInfo })
@@ -301,6 +408,35 @@ export default function CheckoutPage() {
       setIsProcessing(false);
     }
   };
+
+  // Dynamic financial computations
+  const subtotal = getTotalPrice();
+  const activeDeliveryZones = siteConfig?.delivery?.zones || [
+    { id: 'inside_dhaka', name: 'Inside Dhaka', chargePoisha: 6000, estimatedDays: '1-2 business days' },
+    { id: 'dhaka_suburbs', name: 'Dhaka Suburbs (Gazipur, Savar, Narayanganj)', chargePoisha: 12000, estimatedDays: '2-3 business days' },
+    { id: 'outside_dhaka', name: 'Outside Dhaka (All Districts)', chargePoisha: 15000, estimatedDays: '3-5 business days' }
+  ];
+  const currentZone = activeDeliveryZones.find(z => z.id === selectedZoneId) || activeDeliveryZones[0];
+  const zoneThreshold = currentZone?.freeDeliveryThresholdPoisha ?? siteConfig?.delivery?.freeDeliveryThresholdPoisha ?? 500000;
+  const freeThresholdBDT = zoneThreshold > 0 ? zoneThreshold / 100 : 0;
+  const isFreeDeliveryEligible = (freeThresholdBDT > 0 && subtotal >= freeThresholdBDT) || (appliedCoupon?.isFreeDelivery ?? false);
+  const deliveryCharge = isFreeDeliveryEligible ? 0 : (currentZone ? currentZone.chargePoisha / 100 : 60);
+
+  const couponDiscount = appliedCoupon ? appliedCoupon.discountBDT : 0;
+  const taxableBase = Math.max(0, subtotal - couponDiscount);
+  const vatEnabled = siteConfig?.tax?.vatEnabled ?? false;
+  const vatRate = siteConfig?.tax?.vatRatePercent ?? 15;
+  const vatInclusive = siteConfig?.tax?.pricesInclusiveOfVat ?? false;
+  const vatAmount = vatEnabled
+    ? (vatInclusive ? Math.round(taxableBase * (vatRate / (100 + vatRate))) : Math.round(taxableBase * (vatRate / 100)))
+    : 0;
+
+  const grandTotal = vatInclusive
+    ? Math.round((taxableBase + deliveryCharge) * 100) / 100
+    : Math.round((taxableBase + vatAmount + deliveryCharge) * 100) / 100;
+
+  const minOrderBDT = siteConfig?.orders?.minimumOrderAmountPoisha ? siteConfig.orders.minimumOrderAmountPoisha / 100 : 0;
+  const isBelowMinOrder = minOrderBDT > 0 && subtotal < minOrderBDT;
 
   // Show loading state while cart is being loaded from localStorage
   if (!isLoaded) {
@@ -541,6 +677,74 @@ export default function CheckoutPage() {
                       </svg>
                       {fieldErrors.billingAddress}
                     </p>
+                  )}
+                </div>
+
+                {/* Delivery Zone & Courier Selection */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <h2 className="text-xl font-semibold text-gray-900">Delivery Zone & Courier</h2>
+                    {freeThresholdBDT > 0 && (
+                      <span className="inline-flex items-center text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">
+                        Free Delivery over ৳{freeThresholdBDT.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mb-4">Select your delivery zone to calculate accurate courier shipping charges and delivery timeframe.</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {activeDeliveryZones.map((zone) => {
+                      const isSelected = selectedZoneId === zone.id;
+                      const isFree = (zone.freeDeliveryThresholdPoisha && subtotal >= zone.freeDeliveryThresholdPoisha / 100) || (freeThresholdBDT > 0 && subtotal >= freeThresholdBDT) || appliedCoupon?.isFreeDelivery;
+                      return (
+                        <label
+                          key={zone.id}
+                          className={`flex flex-col justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                            isSelected
+                              ? 'border-blue-600 bg-blue-50/50 shadow-sm'
+                              : 'border-gray-200 hover:border-gray-300 bg-white'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <input
+                                type="radio"
+                                name="deliveryZone"
+                                value={zone.id}
+                                checked={isSelected}
+                                onChange={() => setSelectedZoneId(zone.id)}
+                                className="text-blue-600 focus:ring-blue-500"
+                              />
+                              {isFree ? (
+                                <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                                  FREE
+                                </span>
+                              ) : (
+                                <span className="text-sm font-bold text-gray-900">
+                                  ৳{(zone.chargePoisha / 100).toFixed(0)}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm font-semibold text-gray-900 mt-2">{zone.name}</p>
+                          </div>
+                          {zone.estimatedDays && (
+                            <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Est: {zone.estimatedDays}
+                            </p>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  {freeThresholdBDT > 0 && !isFreeDeliveryEligible && (
+                    <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-center justify-between">
+                      <span>Add <strong>৳{(freeThresholdBDT - subtotal).toLocaleString()}</strong> more to qualify for <strong>FREE Delivery</strong>!</span>
+                      <a href="/products" className="text-blue-600 hover:underline font-semibold ml-2">Browse More →</a>
+                    </div>
                   )}
                 </div>
 
@@ -884,22 +1088,108 @@ export default function CheckoutPage() {
                     ))}
                   </div>
 
-                  {/* Total */}
-                  <div className="border-t border-gray-100 pt-4 space-y-2">
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>Total Items:</span>
-                      <span className="font-semibold text-gray-900">{getTotalItems()}</span>
+                  {/* Coupon Code Section */}
+                  <div className="border-t border-gray-100 pt-4 mb-4">
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                      Promo / Coupon Code
+                    </label>
+                    {appliedCoupon ? (
+                      <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl p-2.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-800 font-bold text-xs bg-green-200 px-2 py-0.5 rounded">
+                            {appliedCoupon.code}
+                          </span>
+                          <span className="text-xs text-green-800 font-medium">
+                            {appliedCoupon.isFreeDelivery ? 'Free Delivery' : `-৳${appliedCoupon.discountBDT.toLocaleString()}`}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveCoupon}
+                          className="text-xs text-red-600 hover:text-red-700 font-semibold cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={couponInput}
+                          onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                          placeholder="Coupon code (e.g. WELCOME10)"
+                          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyCoupon}
+                          disabled={couponLoading || !couponInput.trim()}
+                          className="bg-blue-600 text-white px-3.5 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                        >
+                          {couponLoading ? '...' : 'Apply'}
+                        </button>
+                      </div>
+                    )}
+                    {couponError && (
+                      <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {couponError}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Financial Breakdown */}
+                  <div className="border-t border-gray-100 pt-4 space-y-2 text-sm">
+                    <div className="flex justify-between text-gray-600">
+                      <span>Subtotal ({getTotalItems()} items):</span>
+                      <span className="font-semibold text-gray-900">৳{subtotal.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between text-lg font-bold">
+
+                    {appliedCoupon && (
+                      <div className="flex justify-between text-green-700">
+                        <span>Coupon Discount ({appliedCoupon.code}):</span>
+                        <span className="font-semibold">
+                          {appliedCoupon.isFreeDelivery ? 'Free Delivery' : `-৳${appliedCoupon.discountBDT.toLocaleString()}`}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between text-gray-600">
+                      <span>Delivery ({currentZone.name.split(' (')[0]}):</span>
+                      <span className="font-semibold">
+                        {deliveryCharge === 0 ? (
+                          <span className="text-green-600 font-bold">FREE</span>
+                        ) : (
+                          `৳${deliveryCharge.toLocaleString()}`
+                        )}
+                      </span>
+                    </div>
+
+                    {vatEnabled && (
+                      <div className="flex justify-between text-gray-600">
+                        <span>VAT ({vatRate}%{vatInclusive ? ' included' : ''}):</span>
+                        <span className="font-semibold text-gray-900">৳{vatAmount.toLocaleString()}</span>
+                      </div>
+                    )}
+
+                    <div className="border-t border-gray-200 pt-3 flex justify-between text-lg font-bold">
                       <span className="text-gray-900">Total Amount:</span>
-                      <span className="text-blue-700">৳{getTotalPrice().toLocaleString()}</span>
+                      <span className="text-blue-700">৳{grandTotal.toLocaleString()}</span>
                     </div>
                   </div>
+
+                  {isBelowMinOrder && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                      Minimum order amount of <strong>৳{minOrderBDT.toLocaleString()}</strong> required to place order.
+                    </div>
+                  )}
 
                   {/* Place Order Button */}
                   <button
                     onClick={handlePlaceOrder}
-                    disabled={isProcessing}
+                    disabled={isProcessing || isBelowMinOrder}
                     className="w-full mt-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-3.5 px-4 rounded-xl font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 transition-all cursor-pointer"
                   >
                     {isProcessing ? 'Processing Order...' : 'Place Order'}
