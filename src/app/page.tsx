@@ -506,14 +506,36 @@ export default function HomePage() {
           </div>
           <Link
             href="/products"
-            className="hidden sm:inline-flex items-center gap-1.5 text-blue-600 font-semibold hover:text-blue-700 transition-colors flex-shrink-0"
+            className="inline-flex items-center gap-1 text-xs sm:text-base text-blue-600 font-semibold hover:text-blue-700 transition-colors flex-shrink-0 bg-blue-50 sm:bg-transparent px-2.5 py-1 sm:p-0 rounded-lg"
           >
-            View All
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span>View All</span>
+            <span className="hidden sm:inline">&nbsp;Products</span>
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
           </Link>
         </div>
+
+        {/* Mobile Horizontal Category Quick-Jump Pills */}
+        {categories.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-4 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none sm:hidden">
+            <Link
+              href="/products"
+              className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-blue-600 text-white shadow-xs"
+            >
+              All Products
+            </Link>
+            {categories.slice(0, 8).map((cat) => (
+              <Link
+                key={cat.id}
+                href={`/products?category=${cat.slug || cat.id}`}
+                className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap bg-white text-gray-700 border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+              >
+                {cat.name}
+              </Link>
+            ))}
+          </div>
+        )}
         {productsLoading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>

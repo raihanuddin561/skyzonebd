@@ -87,7 +87,10 @@ export async function GET(request: NextRequest) {
     // Category filter
     if (!isIdLookup && categorySlug && categorySlug !== 'all') {
       where.category = {
-        slug: categorySlug
+        OR: [
+          { slug: categorySlug },
+          { id: categorySlug }
+        ]
       };
     }
 

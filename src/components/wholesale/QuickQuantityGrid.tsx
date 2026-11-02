@@ -138,8 +138,8 @@ export default function QuickQuantityGrid({ products, onBulkAdd, userType }: Qui
       </div>
 
       {/* Product Grid */}
-      <div className="p-6">
-        <div className="grid grid-cols-1 gap-4 max-h-[600px] overflow-y-auto">
+      <div className="p-3 sm:p-6">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 max-h-none lg:max-h-[700px] lg:overflow-y-auto">
           {products.map((product) => {
             const moq = getEffectiveMOQ(product);
               const currentQty = quantities[String(product.id)] || 0;
@@ -148,101 +148,105 @@ export default function QuickQuantityGrid({ products, onBulkAdd, userType }: Qui
             return (
               <div 
                 key={product.id}
-                className={`flex items-center gap-4 p-4 border rounded-lg transition-all ${
+                className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 border rounded-xl transition-all ${
                   currentQty > 0 ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
                 } ${isInvalid ? 'border-red-300 bg-red-50' : ''}`}
               >
-                {/* Product Image */}
-                <div className="w-16 h-16 flex-shrink-0 bg-white rounded-lg overflow-hidden border border-gray-200">
-                  <img 
-                    src={product.imageUrl} 
-                    alt={product.name}
-                    className="w-full h-full object-contain p-1"
-                  />
-                </div>
+                {/* Product Image & Info */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0 bg-white rounded-lg overflow-hidden border border-gray-200">
+                    <img 
+                      src={product.imageUrl} 
+                      alt={product.name}
+                      className="w-full h-full object-contain p-1"
+                    />
+                  </div>
 
-                {/* Product Info */}
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-gray-900 truncate">{product.name}</h4>
-                  <div className="flex items-center gap-3 mt-1 text-sm">
-                    <span className="text-blue-600 font-bold">৳{product.price.toLocaleString()}</span>
-                    {userType === 'WHOLESALE' && moq > 1 && (
-                      <span className="text-gray-500">MOQ: {moq}</span>
-                    )}
-                    {product.availability === 'in_stock' && (
-                      <span className="text-green-600 text-xs">✓ In Stock</span>
-                    )}
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-semibold text-gray-900 truncate text-sm sm:text-base">{product.name}</h4>
+                    <div className="flex items-center gap-2 sm:gap-3 mt-1 text-xs sm:text-sm">
+                      <span className="text-blue-600 font-bold">৳{product.price.toLocaleString()}</span>
+                      {userType === 'WHOLESALE' && moq > 1 && (
+                        <span className="text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded text-[11px] sm:text-xs">MOQ: {moq}</span>
+                      )}
+                      {product.availability === 'in_stock' && (
+                        <span className="text-green-600 text-xs">✓ In Stock</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Quick Set Buttons */}
-                {userType === 'WHOLESALE' && (
-                  <div className="flex gap-1 flex-shrink-0">
-                    {[moq, moq * 2, moq * 5].map((qty) => (
-                      <button
-                        key={qty}
-                        onClick={() => handleQuickSet(product.id, qty, product)}
-                        className="px-2 py-1 text-xs font-medium bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 rounded border border-gray-300 transition-colors"
-                      >
-                        {qty}
-                      </button>
-                    ))}
+                {/* Controls & Subtotal */}
+                <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4 pt-2 sm:pt-0 border-t border-gray-100 sm:border-0">
+                  {/* Quick Set Buttons */}
+                  {userType === 'WHOLESALE' && (
+                    <div className="flex gap-1 flex-shrink-0">
+                      {[moq, moq * 2, moq * 5].map((qty) => (
+                        <button
+                          key={qty}
+                          onClick={() => handleQuickSet(product.id, qty, product)}
+                          className="px-2 py-1 text-xs font-medium bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 rounded border border-gray-300 transition-colors"
+                        >
+                          {qty}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Quantity Input */}
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => {
+                        const newQty = Math.max(0, currentQty - moq);
+                        setQuantities(prev => ({ ...prev, [String(product.id)]: newQty }));
+                      }}
+                      disabled={currentQty === 0}
+                      className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed rounded border border-gray-300 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M20 12H4" />
+                      </svg>
+                    </button>
+
+                    <input
+                      type="number"
+                      min="0"
+                      value={currentQty || ''}
+                      onChange={(e) => handleQuantityChange(product.id, e.target.value, product)}
+                      placeholder="0"
+                      className={`w-16 sm:w-20 text-center px-1.5 sm:px-2 py-1.5 border rounded font-bold text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        isInvalid ? 'border-red-300 text-red-600' : 'border-gray-300'
+                      }`}
+                    />
+
+                    <button
+                      onClick={() => {
+                        const newQty = currentQty + moq;
+                        const stockLimit = product.stock;
+                        if (stockLimit !== undefined && newQty > stockLimit) {
+                          toast.error(`Only ${stockLimit} unit(s) of ${product.name} are in stock`);
+                          setQuantities(prev => ({ ...prev, [String(product.id)]: stockLimit }));
+                          return;
+                        }
+                        setQuantities(prev => ({ ...prev, [String(product.id)]: newQty }));
+                      }}
+                      disabled={product.stock !== undefined && currentQty >= product.stock}
+                      className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed rounded border border-gray-300 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
                   </div>
-                )}
 
-                {/* Quantity Input */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => {
-                      const newQty = Math.max(0, currentQty - moq);
-                      setQuantities(prev => ({ ...prev, [String(product.id)]: newQty }));
-                    }}
-                    disabled={currentQty === 0}
-                    className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed rounded border border-gray-300 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M20 12H4" />
-                    </svg>
-                  </button>
-
-                  <input
-                    type="number"
-                    min="0"
-                    value={currentQty || ''}
-                    onChange={(e) => handleQuantityChange(product.id, e.target.value, product)}
-                    placeholder="0"
-                    className={`w-20 text-center px-2 py-1.5 border rounded font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      isInvalid ? 'border-red-300 text-red-600' : 'border-gray-300'
-                    }`}
-                  />
-
-                  <button
-                    onClick={() => {
-                      const newQty = currentQty + moq;
-                      const stockLimit = product.stock;
-                      if (stockLimit !== undefined && newQty > stockLimit) {
-                        toast.error(`Only ${stockLimit} unit(s) of ${product.name} are in stock`);
-                        setQuantities(prev => ({ ...prev, [String(product.id)]: stockLimit }));
-                        return;
-                      }
-                      setQuantities(prev => ({ ...prev, [String(product.id)]: newQty }));
-                    }}
-                    disabled={product.stock !== undefined && currentQty >= product.stock}
-                    className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed rounded border border-gray-300 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-                    </svg>
-                  </button>
+                  {/* Subtotal */}
+                  {currentQty > 0 && (
+                    <div className="text-right min-w-[70px] sm:w-24 flex-shrink-0">
+                      <div className="font-bold text-gray-900 text-xs sm:text-base">৳{(product.price * currentQty).toLocaleString()}</div>
+                      <div className="text-[10px] sm:text-xs text-gray-500">{currentQty} × ৳{product.price}</div>
+                    </div>
+                  )}
                 </div>
-
-                {/* Subtotal */}
-                {currentQty > 0 && (
-                  <div className="text-right w-24 flex-shrink-0">
-                    <div className="font-bold text-gray-900">৳{(product.price * currentQty).toLocaleString()}</div>
-                    <div className="text-xs text-gray-500">{currentQty} × ৳{product.price}</div>
-                  </div>
-                )}
               </div>
             );
           })}
