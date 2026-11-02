@@ -18,6 +18,8 @@ import QuantityInput from '@/components/common/QuantityInput';
 import ReviewList from '@/components/reviews/ReviewList';
 import ReviewForm from '@/components/reviews/ReviewForm';
 import { recordProductView } from '@/utils/recentlyViewed';
+import TierPricingTable from '@/components/wholesale/TierPricingTable';
+import RFQButton from '@/components/rfq/RFQButton';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -450,20 +452,17 @@ export default function ProductDetailPage() {
               )}
             </div>
 
-            {/* Bulk Pricing */}
+            {/* Wholesale Tier Pricing Table */}
             {product.wholesaleTiers && product.wholesaleTiers.length > 0 && (
               <div className="mb-6">
-                <h3 className="font-semibold mb-2 text-gray-900">Bulk Pricing</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {product.wholesaleTiers.map((tier, index) => (
-                    <div key={index} className="bg-gray-50 p-2 rounded text-sm">
-                      <span className="font-medium">
-                        {tier.maxQuantity ? `${tier.minQuantity}-${tier.maxQuantity}` : `${tier.minQuantity}+`} units:
-                      </span>
-                      <span className="text-blue-600 ml-2">৳{tier.price}</span>
-                    </div>
-                  ))}
-                </div>
+                <TierPricingTable
+                  basePrice={product.price}
+                  unit={product.unit || 'unit'}
+                  moq={product.minOrderQuantity || 1}
+                  tiers={product.wholesaleTiers}
+                  currentQuantity={quantity}
+                  onSelectTierQuantity={(qty) => handleQuantityChange(qty)}
+                />
               </div>
             )}
 
@@ -490,13 +489,23 @@ export default function ProductDetailPage() {
                     </div>
                   </div>
                   
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={isAdding}
-                    className="w-full py-3.5 px-6 rounded-xl font-semibold transition-all bg-gradient-to-r from-blue-600 to-indigo-700 text-white hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 shadow-md cursor-pointer"
-                  >
-                    {isAdding ? 'Adding...' : 'Add to Cart'}
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleAddToCart}
+                      disabled={isAdding}
+                      className="flex-1 py-3.5 px-6 rounded-xl font-semibold transition-all bg-gradient-to-r from-blue-600 to-indigo-700 text-white hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 shadow-md cursor-pointer"
+                    >
+                      {isAdding ? 'Adding...' : 'Add to Cart'}
+                    </button>
+                    {user?.userType === 'WHOLESALE' && (
+                      <RFQButton
+                        product={product}
+                        userType={user.userType}
+                        variant="secondary"
+                        className="py-3.5 px-5 flex-shrink-0"
+                      />
+                    )}
+                  </div>
                   
                   {product.availability === 'limited' && (
                     <p className="text-sm text-yellow-600 mt-2 text-center flex items-center justify-center gap-1.5">

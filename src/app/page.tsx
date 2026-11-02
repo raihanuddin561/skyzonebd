@@ -201,13 +201,35 @@ export default function HomePage() {
             </div>
           </div>
         ) : heroSlides.length === 0 ? (
-          <div className="h-[300px] sm:h-[350px] md:h-[400px] lg:h-[450px] bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center">
-            <div className="max-w-4xl mx-auto text-center px-4 relative z-10 py-16 sm:py-24 md:py-32">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 animate-fade-in text-white">Welcome to SkyzoneBD</h2>
-              <p className="text-base sm:text-lg md:text-xl lg:text-2xl mb-6 sm:mb-8 opacity-90 animate-fade-in text-white">Your trusted B2B marketplace</p>
-              <Link href="/products" className="inline-block bg-white text-gray-900 px-6 sm:px-8 md:px-10 py-3 sm:py-4 rounded-full font-bold text-sm sm:text-base md:text-lg shadow-2xl hover:scale-105 hover:shadow-3xl transition-all duration-300">
-                Shop Now
-              </Link>
+          <div className="min-h-[380px] sm:min-h-[420px] bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center relative overflow-hidden">
+            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:16px_16px]" />
+            <div className="max-w-4xl mx-auto text-center px-4 relative z-10 py-12 sm:py-16">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-400/30 mb-4">
+                ⚡ Bangladesh's Premier B2B Wholesale Electrical Hub
+              </span>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-4 animate-fade-in text-white tracking-tight leading-tight">
+                Factory-Direct Bulk Electrical Hardware
+              </h2>
+              <p className="text-base sm:text-lg md:text-xl mb-6 text-slate-300 max-w-2xl mx-auto leading-relaxed">
+                Wholesale prices on LED lights, wiring cables, circuit breakers, switches, and sockets. Transparent volume tiers with nationwide courier dispatch.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+                <Link
+                  href="/products"
+                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 sm:px-8 py-3 sm:py-3.5 rounded-xl font-bold text-sm sm:text-base shadow-lg hover:shadow-xl transition-all duration-200"
+                >
+                  Browse Wholesale Catalog
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </Link>
+                <Link
+                  href="/rfq"
+                  className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-6 sm:px-8 py-3 sm:py-3.5 rounded-xl font-semibold text-sm sm:text-base transition-all duration-200"
+                >
+                  Request Bulk Quote (RFQ)
+                </Link>
+              </div>
             </div>
           </div>
         ) : (
@@ -389,40 +411,40 @@ export default function HomePage() {
       </section>
 
       {/* Trust Bar */}
-      <section className="bg-white border-b border-gray-200">
+      <section className="bg-slate-50 border-b border-slate-200/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {[
               {
-                title: 'Verified Suppliers',
-                desc: 'Every seller is reviewed & approved',
+                title: 'Verified Wholesalers',
+                desc: 'TIN & Trade License verified suppliers',
                 icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />,
               },
               {
-                title: 'Secure Payments',
-                desc: 'Your transactions are protected',
-                icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 10-8 0v4h8z" />,
+                title: 'Transparent Volume Tiers',
+                desc: 'Dynamic discounts with live carton margins',
+                icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />,
               },
               {
-                title: 'Bulk Pricing',
-                desc: 'Tiered discounts as you order more',
-                icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4m16 0l-4 4m4-4l-4-4M4 12l4 4m-4-4l4-4" />,
+                title: 'NBR Compliant Invoicing',
+                desc: 'Official tax invoice with precise poisha math',
+                icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />,
               },
               {
-                title: 'Fast Delivery',
-                desc: 'Nationwide shipping, tracked end to end',
+                title: 'Nationwide Courier Dispatch',
+                desc: 'Sundarban, SA Paribahan, RedX & Dhaka same-day',
                 icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />,
               },
             ].map((item) => (
-              <div key={item.title} className="flex items-start gap-3 p-3 md:p-0">
-                <span className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <div key={item.title} className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                <span className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center flex-shrink-0 border border-blue-100">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     {item.icon}
                   </svg>
                 </span>
                 <div>
-                  <p className="text-sm md:text-base font-semibold text-gray-900">{item.title}</p>
-                  <p className="text-xs md:text-sm text-gray-500 mt-0.5 hidden sm:block">{item.desc}</p>
+                  <p className="text-sm md:text-base font-bold text-slate-900">{item.title}</p>
+                  <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{item.desc}</p>
                 </div>
               </div>
             ))}

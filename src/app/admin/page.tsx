@@ -78,42 +78,49 @@ export default function AdminDashboard() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Welcome back! Here's what's happening today.</p>
         </div>
-        <div className="flex gap-2 sm:gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <Link
-            href="/admin/hero-slides"
-            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+            href="/admin/coupons"
+            className="flex-1 sm:flex-none px-3.5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold shadow-xs"
           >
-            <AdminIcon name="heroSlides" className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="sm:inline">Hero Slides</span>
+            <AdminIcon name="coupons" className="w-4 h-4" />
+            <span>Coupons</span>
+          </Link>
+          <Link
+            href="/admin/settings"
+            className="flex-1 sm:flex-none px-3.5 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold shadow-xs"
+          >
+            <AdminIcon name="settings" className="w-4 h-4" />
+            <span>Settings</span>
           </Link>
           <Link
             href="/admin/products/new"
-            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="flex-1 sm:flex-none px-3.5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold shadow-xs"
           >
-            <AdminIcon name="plus" className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="sm:inline">Add Product</span>
+            <AdminIcon name="plus" className="w-4 h-4" />
+            <span>Add Product</span>
           </Link>
         </div>
       </div>
 
-      {/* Hero Carousel Management Banner */}
-      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg shadow-lg p-3 sm:p-4 lg:p-6 text-white">
+      {/* Quick Ops Management Banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 rounded-xl shadow-md p-4 sm:p-5 lg:p-6 text-white border border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-          <div className="flex items-start sm:items-center gap-2 sm:gap-3 lg:gap-4">
-            <div className="bg-white/20 backdrop-blur-sm p-2 sm:p-3 lg:p-4 rounded-lg flex-shrink-0">
-              <AdminIcon name="heroSlides" className="w-6 h-6 sm:w-8 sm:h-8 lg:w-9 lg:h-9" />
+          <div className="flex items-start sm:items-center gap-3 sm:gap-4">
+            <div className="bg-blue-600/30 border border-blue-400/30 p-2.5 sm:p-3 rounded-xl flex-shrink-0">
+              <AdminIcon name="heroSlides" className="w-6 h-6 sm:w-7 sm:h-7 text-blue-300" />
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-sm sm:text-lg lg:text-2xl font-bold mb-0.5 sm:mb-1">Manage Homepage Carousel</h2>
-              <p className="text-xs sm:text-sm text-purple-100 leading-tight">Feature products on your homepage with custom promotional text and images</p>
+              <h2 className="text-base sm:text-lg lg:text-xl font-bold mb-0.5">Wholesale Merchandising & Hero Slides</h2>
+              <p className="text-xs sm:text-sm text-slate-300 leading-tight">Control hero banners, promotional text, linked products, and autoplay behavior</p>
             </div>
           </div>
           <Link
             href="/admin/hero-slides"
-            className="bg-white text-purple-600 px-3 sm:px-4 lg:px-6 py-2 sm:py-2.5 lg:py-3 rounded-lg font-semibold hover:bg-purple-50 transition-colors flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm lg:text-base whitespace-nowrap"
+            className="bg-white text-slate-900 px-4 py-2 sm:py-2.5 rounded-lg font-semibold hover:bg-blue-50 transition-colors flex items-center justify-center gap-2 text-xs sm:text-sm whitespace-nowrap shadow-xs"
           >
-            <span>Manage Slides</span>
-            <svg className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span>Configure Slides</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
           </Link>
