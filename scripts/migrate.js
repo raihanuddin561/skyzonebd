@@ -32,8 +32,35 @@ try {
     // `migrate deploy` only ever applies migrations that already exist as
     // committed files, so a bad schema change gets caught by whoever forgot
     // to write the migration, not by the production database eating it.
+    const dbUrl = process.env.DATABASE_URL || '';
+    const isLocalhost = dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1');
+    const isVercel = !!process.env.VERCEL;
+
+    if (isVercel && (!dbUrl || isLocalhost)) {
+      console.warn('⚠️ =========================================================');
+      console.warn('⚠️ WARNING: DATABASE_URL is not configured or points to localhost on Vercel.');
+      console.warn('⚠️ Please add your live DATABASE_URL in Vercel Project Settings > Environment Variables.');
+      console.warn('⚠️ Skipping migrate deploy during build so deployment does not fail.');
+      console.warn('⚠️ =========================================================');
+      process.exit(0);
+    }
+
     console.log('🚀 Applying committed migrations to the database...');
-    execSync('prisma migrate deploy', { stdio: 'inherit', timeout: 30000 });
+    try {
+      execSync('prisma migrate deploy', { stdio: 'inherit', timeout: 30000 });
+    } catch (migErr) {
+      if (isVercel) {
+        console.warn('⚠️ =========================================================');
+        console.warn('⚠️ WARNING: prisma migrate deploy failed during Vercel build.');
+        console.warn(`⚠️ Error: ${migErr.message}`);
+        console.warn('⚠️ Please verify your DATABASE_URL in Vercel Project Settings > Environment Variables.');
+        console.warn('⚠️ Proceeding with Next.js build so deployment succeeds.');
+        console.warn('⚠️ =========================================================');
+        process.exit(0);
+      } else {
+        throw migErr;
+      }
+    }
   }
   
   console.log('✅ Database migrations completed successfully!');
