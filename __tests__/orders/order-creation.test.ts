@@ -145,7 +145,7 @@ describe('Order Creation', () => {
       const mockProduct = {
         id: 'clxxx111',
         name: 'Test Product',
-        stock: 10,
+        stockQuantity: 10,
         basePrice: 100,
         isActive: true,
       };
@@ -155,14 +155,14 @@ describe('Order Creation', () => {
       const orderQuantity = 5;
       const result = await prisma.product.findUnique({ where: { id: 'clxxx111' } });
 
-      expect(result?.stock).toBeGreaterThanOrEqual(orderQuantity);
+      expect(result?.stockQuantity).toBeGreaterThanOrEqual(orderQuantity);
     });
 
     it('should reject order when stock is insufficient', async () => {
       const mockProduct = {
         id: 'clxxx111',
         name: 'Test Product',
-        stock: 2,
+        stockQuantity: 2,
         basePrice: 100,
         isActive: true,
       };
@@ -172,7 +172,7 @@ describe('Order Creation', () => {
       const orderQuantity = 5;
       const result = await prisma.product.findUnique({ where: { id: 'clxxx111' } });
 
-      expect(result?.stock).toBeLessThan(orderQuantity);
+      expect(result?.stockQuantity).toBeLessThan(orderQuantity);
     });
 
     it('should reject order when product is inactive', async () => {

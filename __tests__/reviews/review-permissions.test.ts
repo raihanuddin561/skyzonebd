@@ -50,7 +50,7 @@ describe('Review Permissions', () => {
         where: {
           userId,
           status: 'DELIVERED',
-          items: {
+          orderItems: {
             some: {
               productId,
             },
@@ -72,7 +72,7 @@ describe('Review Permissions', () => {
         where: {
           userId,
           status: 'DELIVERED',
-          items: {
+          orderItems: {
             some: {
               productId,
             },
@@ -94,7 +94,7 @@ describe('Review Permissions', () => {
         where: {
           userId,
           status: 'DELIVERED',
-          items: {
+          orderItems: {
             some: {
               productId,
             },
@@ -323,7 +323,7 @@ describe('Review Permissions', () => {
         where: {
           userId,
           status: 'DELIVERED',
-          items: {
+          orderItems: {
             some: { productId },
           },
         },
@@ -343,7 +343,7 @@ describe('Review Permissions', () => {
         where: {
           userId,
           status: 'DELIVERED',
-          items: {
+          orderItems: {
             some: { productId },
           },
         },

@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
   
   const health = {
     status: 'ok',
+    application: 'skyzonebd',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
     checks: {

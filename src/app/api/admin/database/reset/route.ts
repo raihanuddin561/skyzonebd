@@ -21,18 +21,24 @@ const REQUIRED_CONFIRMATION_TEXT = 'DELETE ALL DATA';
 
 // POST /api/admin/database/reset — super admin only.
 // Body: { confirmationText: string, reseed: boolean }
-// Runs `prisma migrate reset --force --skip-seed` (drops the database,
-// recreates it from the full migration history, no data survives), then —
-// only if reseed:true was explicitly requested — runs the seed script.
-// Reseeding is opt-in and off by default: prisma/seed.ts creates a
-// hardcoded-password admin account, so silently reseeding on every reset
-// would recreate a publicly-known credential.
 export async function POST(request: NextRequest) {
   try {
     const authUser = await requireAuth(request);
     if (!isSuperAdmin(authUser.role as UserRole)) {
       return NextResponse.json(
         { success: false, error: 'Super admin access required' },
+        { status: 403 }
+      );
+    }
+
+    // PRODUCTION SAFETY GUARD:
+    // Never allow automated database drops/resets against the live production Neon database.
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PRODUCTION_DB_RESET !== 'true') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Database reset is strictly prohibited in production mode. Data loss prevention active.',
+        },
         { status: 403 }
       );
     }
@@ -61,20 +67,11 @@ export async function POST(request: NextRequest) {
 
     let seedOutput: string | undefined;
     if (reseed) {
-      // Known risk, not yet hit in practice: `prisma db seed` shells out to
-      // whatever package.json's `prisma.seed` config points at — here,
-      // `tsx prisma/seed.ts` — and `tsx` is a devDependency, so it may not
-      // be present in a deployed function the same way `npx` wasn't. If
-      // this fails on Vercel, the fix is the same shape as this file's:
-      // resolve tsx's own entrypoint and move it to a real dependency.
       const { stdout } = await execAsync(`${PRISMA_CLI_COMMAND} db seed`, { timeout: 55000 });
       seedOutput = stdout;
     }
 
-    // Logged after the reset completes — the reset itself just wiped the
-    // activity_logs table too, so this is the *first* row in the fresh
-    // database, deliberately: the reset is always the first thing anyone
-    // auditing history will see.
+    // Logged after the reset completes
     await logActivity({
       userId: authUser.id,
       userName: authUser.name,

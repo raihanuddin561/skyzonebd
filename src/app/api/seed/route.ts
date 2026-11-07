@@ -37,6 +37,12 @@ export async function POST(request: NextRequest) {
     // case instead — fail-CLOSED by default — matches the doctrine already
     // established for JWT_SECRET/MIGRATION_SECRET_KEY elsewhere.
     if (process.env.NODE_ENV !== 'development') {
+      if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PRODUCTION_SEED !== 'true') {
+        return NextResponse.json({
+          error: 'Forbidden: Automatic database seeding is disabled in production to protect catalog data.'
+        }, { status: 403 });
+      }
+
       // Canonical auth (DB-verified role/isActive, not a raw JWT claim),
       // then a manual SUPER_ADMIN check — there is no requireSuperAdmin
       // helper; every SUPER_ADMIN route hand-rolls this exact check.

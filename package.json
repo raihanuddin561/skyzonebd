@@ -2,11 +2,18 @@
   "name": "skyzonebd",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "node scripts/migrate.js && next build",
-    "start": "next start",
-    "lint": "next lint",
+    "build": "next build",
+    "start": "node server.js",
+    "start:standalone": "node .next/standalone/server.js",
+    "start:next": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -19,7 +26,6 @@
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
     "db:push": "prisma db push",
-    "vercel-build": "node scripts/migrate.js && next build",
     "postinstall": "prisma generate"
   },
   "prisma": {

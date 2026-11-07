@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ALLOWED_ORDER_STATUS_TRANSITIONS } from '@/lib/orderStatusTransitions';
@@ -64,6 +65,8 @@ interface Order {
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { user } = useAuth();
+  const pathname = usePathname();
+  const isAdminRoute = pathname?.startsWith('/admin');
   const [orderId, setOrderId] = useState<string>('');
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -412,7 +415,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   if (!order) {
     return (
       <main className="min-h-screen bg-gray-50">
-        <Header />
+        {!isAdminRoute && <Header />}
         <ToastContainer />
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="text-center">
@@ -428,7 +431,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <Header />
+      {!isAdminRoute && <Header />}
       <ToastContainer />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
@@ -1197,7 +1200,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      <Footer />
+      {!isAdminRoute && <Footer />}
     </main>
   );
 }

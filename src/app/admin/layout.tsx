@@ -101,6 +101,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         { name: 'Categories', icon: 'categories', path: '/admin/categories' },
         { name: 'Units', icon: 'units', path: '/admin/units' },
         { name: 'Orders', icon: 'orders', path: '/admin/orders' },
+        { name: 'Manual Sales', icon: 'orders', path: '/admin/manual-sales' },
         { name: 'Coupons', icon: 'coupons', path: '/admin/coupons' },
         { name: 'Returns', icon: 'returns', path: '/admin/returns' },
         { name: 'Inventory', icon: 'inventory', path: '/admin/inventory' },
@@ -129,6 +130,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         { name: 'Financial Ledger', icon: 'ledger', path: '/admin/financial/ledger' },
         { name: 'Cost Breakdown', icon: 'costBreakdown', path: '/admin/financial/cost-breakdown' },
         { name: 'Revenue Analytics', icon: 'revenueAnalytics', path: '/admin/financial/revenue-analytics' },
+        { name: 'Analytics Dashboard', icon: 'profit', path: '/admin/analytics' },
         { name: 'Partner Comparison', icon: 'partnerComparison', path: '/admin/financial/partner-comparison' },
       ]
     },
@@ -147,7 +149,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         { name: 'Activity Logs', icon: 'activityLogs', path: '/admin/activity-logs' },
         { name: 'Site Settings', icon: 'settings', path: '/admin/settings' },
         { name: 'Database Management', icon: 'database', path: '/admin/database' },
-        { name: 'Payment Methods', icon: 'paymentMethods', path: '/admin/payments' },
+        { name: 'Payment Settings', icon: 'paymentMethods', path: '/admin/payment-settings' },
         { name: 'Shipping', icon: 'shipping', path: '/admin/shipping' },
         { name: 'Reports', icon: 'reports', path: '/admin/reports' },
       ]
@@ -220,9 +222,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* Sidebar - Amazon/Alibaba Style Mobile Menu */}
         <aside
           ref={sidebarRef}
-          className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-white border-r border-gray-200 overflow-y-auto transition-transform duration-300 ease-in-out z-50 ${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } ${isMobile ? 'w-[280px] shadow-2xl' : 'w-64 translate-x-0'}`}
+          className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-white border-r border-gray-200 overflow-y-auto transition-transform duration-300 ease-in-out z-50 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            } ${isMobile ? 'w-[280px] shadow-2xl' : 'w-64 translate-x-0'}`}
           style={{
             // Ensure proper scrolling on iOS
             WebkitOverflowScrolling: 'touch',
@@ -245,9 +246,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     <li key={itemIdx}>
                       <Link
                         href={item.path}
-                        className={`flex items-center gap-3 px-3 py-2.5 sm:py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors touch-manipulation ${
-                          pathname === item.path ? 'bg-blue-50 text-blue-600 font-semibold' : ''
-                        }`}
+                        className={`flex items-center gap-3 px-3 py-2.5 sm:py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors touch-manipulation ${pathname === item.path ? 'bg-blue-50 text-blue-600 font-semibold' : ''
+                          }`}
                       >
                         <AdminIcon name={item.icon} className="w-5 h-5 flex-shrink-0" />
                         <span className="font-medium text-sm sm:text-base">{item.name}</span>
@@ -257,7 +257,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 </ul>
               </div>
             ))}
-            
+
             {/* Mobile-only Home Link */}
             {isMobile && (
               <div className="pt-4 border-t border-gray-200">

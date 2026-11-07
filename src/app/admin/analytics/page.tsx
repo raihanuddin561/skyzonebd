@@ -46,7 +46,6 @@ export default function AnalyticsPage() {
       setLoading(true);
       setError('');
 
-      // The API takes a plain day count via `period`, not a labeled range.
       const periodDaysMap = {
         today: 1,
         week: 7,
@@ -67,10 +66,6 @@ export default function AnalyticsPage() {
         throw new Error(result.error || 'Failed to load analytics');
       }
 
-      // Real low-stock count from the reorder-alerts endpoint (src/app/api/
-      // admin/stock/reorder-alerts/route.ts) rather than a hardcoded 0.
-      // Best-effort: if this fetch fails, fall back to 0 instead of
-      // blocking the whole analytics page.
       let lowStockCount = 0;
       try {
         const lowStockResponse = await fetch('/api/admin/stock/reorder-alerts', {
@@ -84,19 +79,12 @@ export default function AnalyticsPage() {
         console.error('Error fetching low-stock alerts:', lowStockErr);
       }
 
-      // Transform API data (src/app/api/admin/analytics/route.ts's actual
-      // response shape: overview.{gmv,profit,orders,revenueGrowth},
-      // ordersByStatus[], topSellingProducts[]) to the frontend interface.
-      // There is no customer-count breakdown in this endpoint's response —
-      // shown as 0 rather than inventing a number for it. There is also no
-      // product-view tracking anywhere in this codebase — totalViews is
-      // left `null` (rendered as "not yet tracked") rather than a fake 0.
       setAnalytics({
         revenue: {
-          today: result.overview?.gmv || 0,
-          week: result.overview?.gmv || 0,
-          month: result.overview?.gmv || 0,
-          year: result.overview?.gmv || 0,
+          today: result.overview?.revenueToday ?? result.overview?.gmv ?? 0,
+          week: result.overview?.revenueWeek ?? result.overview?.gmv ?? 0,
+          month: result.overview?.revenueMonth ?? result.overview?.gmv ?? 0,
+          year: result.overview?.revenueYear ?? result.overview?.gmv ?? 0,
           growth: result.overview?.revenueGrowth || 0,
         },
         orders: {
@@ -106,8 +94,8 @@ export default function AnalyticsPage() {
           cancelled: result.ordersByStatus?.find((o: any) => o.status === 'CANCELLED')?.count || 0,
         },
         customers: {
-          total: 0,
-          new: 0,
+          total: result.overview?.customers?.total || 0,
+          new: result.overview?.customers?.newThisMonth || 0,
           active: 0,
           b2b: 0,
         },
@@ -153,6 +141,21 @@ export default function AnalyticsPage() {
     );
   }
 
+  // Selected revenue metric based on current time range
+  const currentRangeRevenue = (() => {
+    if (!analytics) return 0;
+    switch (timeRange) {
+      case 'today':
+        return analytics.revenue.today;
+      case 'week':
+        return analytics.revenue.week;
+      case 'month':
+        return analytics.revenue.month;
+      case 'year':
+        return analytics.revenue.year;
+    }
+  })();
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
@@ -190,16 +193,18 @@ export default function AnalyticsPage() {
             </span>
           </div>
           <div className="text-xl sm:text-2xl font-bold mb-1">
-            ৳{(analytics?.revenue.month || 0).toLocaleString()}
+            ৳{Math.round(currentRangeRevenue).toLocaleString()}
           </div>
-          <div className="text-xs sm:text-sm text-blue-100">Total Revenue</div>
+          <div className="text-xs sm:text-sm text-blue-100">
+            Revenue ({timeRange.charAt(0).toUpperCase() + timeRange.slice(1)})
+          </div>
         </div>
 
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-3">
             <AdminIcon name="orders" className="w-7 h-7 sm:w-8 sm:h-8" />
             <span className="text-xs sm:text-sm bg-white/20 px-2 py-1 rounded-full">
-              {analytics?.orders.completed || 0}
+              {analytics?.orders.completed || 0} completed
             </span>
           </div>
           <div className="text-xl sm:text-2xl font-bold mb-1">
@@ -212,7 +217,7 @@ export default function AnalyticsPage() {
           <div className="flex items-center justify-between mb-3">
             <AdminIcon name="users" className="w-7 h-7 sm:w-8 sm:h-8" />
             <span className="text-xs sm:text-sm bg-white/20 px-2 py-1 rounded-full">
-              +{analytics?.customers.new || 0}
+              +{analytics?.customers.new || 0} new
             </span>
           </div>
           <div className="text-xl sm:text-2xl font-bold mb-1">
@@ -228,13 +233,13 @@ export default function AnalyticsPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             <span className="text-xs sm:text-sm bg-white/20 px-2 py-1 rounded-full">
-              Not tracked
+              ৳{analytics ? Math.round(analytics.revenue.month).toLocaleString() : 0}
             </span>
           </div>
           <div className="text-xl sm:text-2xl font-bold mb-1">
-            {analytics?.products.totalViews ?? '—'}
+            ৳{analytics ? Math.round(analytics.revenue.year).toLocaleString() : 0}
           </div>
-          <div className="text-xs sm:text-sm text-orange-100">Product Views</div>
+          <div className="text-xs sm:text-sm text-orange-100">Annual Realized</div>
         </div>
       </div>
 
@@ -347,7 +352,7 @@ export default function AnalyticsPage() {
               <AdminIcon name="users" className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <div className="text-xs text-gray-600">New Customers</div>
+              <div className="text-xs text-gray-600">New Customers This Month</div>
               <div className="text-xl font-bold text-gray-900">{analytics?.customers.new || 0}</div>
             </div>
           </div>
@@ -359,8 +364,8 @@ export default function AnalyticsPage() {
               <AdminIcon name="verification" className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <div className="text-xs text-gray-600">Active Customers</div>
-              <div className="text-xl font-bold text-gray-900">{analytics?.customers.active || 0}</div>
+              <div className="text-xs text-gray-600">Total Registered Users</div>
+              <div className="text-xl font-bold text-gray-900">{analytics?.customers.total || 0}</div>
             </div>
           </div>
         </div>
@@ -368,11 +373,11 @@ export default function AnalyticsPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-              <AdminIcon name="suppliers" className="w-5 h-5 text-purple-600" />
+              <AdminIcon name="profit" className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <div className="text-xs text-gray-600">B2B Customers</div>
-              <div className="text-xl font-bold text-gray-900">{analytics?.customers.b2b || 0}</div>
+              <div className="text-xs text-gray-600">Annual Realized GMV</div>
+              <div className="text-xl font-bold text-gray-900">৳{analytics ? Math.round(analytics.revenue.year).toLocaleString() : 0}</div>
             </div>
           </div>
         </div>

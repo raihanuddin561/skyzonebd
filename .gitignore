@@ -68,6 +68,9 @@ web_modules/
 # dotenv environment variable files
 .env
 .env.*
+.env.production
+.env.local
+.env*.local
 !.env.example
 
 # parcel-bundler cache (https://parceljs.org/)
@@ -84,9 +87,6 @@ dist
 
 # Gatsby files
 .cache/
-# Comment in the public line in if your project uses Gatsby and not Next.js
-# https://nextjs.org/blog/next-9-1#public-directory-support
-# public
 
 # vuepress build output
 .vuepress/dist
@@ -141,9 +141,7 @@ vite.config.ts.timestamp-*
 /src/generated/prisma
 
 .vercel
-.env*.local
 
-# Claude Code skill tooling — installed dependencies and transient
-# execution artifacts, not project source
+# Claude Code skill tooling
 .claude/skills/*/node_modules
 .claude/skills/*/.temp-execution-*.js

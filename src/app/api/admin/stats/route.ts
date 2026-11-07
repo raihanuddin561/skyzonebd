@@ -2,12 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { UserRole, isAdmin } from '@/types/roles';
+import { getDhakaPeriodRange } from '@/lib/dhakaTime';
+import { OrderStatus } from '@prisma/client';
 
-// Vercel configuration
+// Vercel / Node.js configuration
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds timeout
 
+// Order statuses that represent realized commercial revenue (excludes cancelled, refunded, returned)
+const REALIZED_STATUSES: OrderStatus[] = [
+  OrderStatus.DELIVERED,
+  OrderStatus.SHIPPED,
+  OrderStatus.IN_TRANSIT,
+  OrderStatus.PACKED,
+  OrderStatus.PROCESSING,
+  OrderStatus.CONFIRMED,
+];
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,141 +33,182 @@ export async function GET(request: NextRequest) {
     // Get query parameters for date filtering
     const searchParams = request.nextUrl.searchParams;
     const period = searchParams.get('period') || '30'; // days
+    const daysAgo = parseInt(period) || 30;
 
-    const daysAgo = parseInt(period);
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - daysAgo);
+    // Use exact Bangladesh time (Asia/Dhaka UTC+6) boundaries
+    const { start: startDate, prevStart: prevStartDate, end: endDate } = getDhakaPeriodRange(daysAgo);
 
-    // Get total revenue from all orders
-    const orders = await prisma.order.findMany({
-      select: {
-        total: true,
-        status: true,
-        createdAt: true,
-      },
-    });
+    // Parallel atomic database aggregations — O(1) server memory, executes directly in PostgreSQL engine
+    const [
+      totalRevenueAgg,
+      periodRevenueAgg,
+      prevPeriodRevenueAgg,
+      totalOrders,
+      periodOrdersCount,
+      prevPeriodOrdersCount,
+      totalUsers,
+      periodUsers,
+      prevPeriodUsers,
+      totalProducts,
+      periodProducts,
+      prevPeriodProducts,
+      recentOrders,
+      pendingVerifications,
+      pendingApplications,
+      ordersByStatus,
+    ] = await Promise.all([
+      // Total realized revenue all-time
+      prisma.order.aggregate({
+        where: {
+          status: { in: REALIZED_STATUSES },
+        },
+        _sum: { total: true },
+      }),
 
-    const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
-    
-    // Calculate revenue for the period
-    const periodOrders = orders.filter(order => new Date(order.createdAt) >= startDate);
-    const periodRevenue = periodOrders.reduce((sum, order) => sum + (order.total || 0), 0);
-    
-    // Calculate previous period for comparison
-    const prevStartDate = new Date(startDate);
-    prevStartDate.setDate(prevStartDate.getDate() - daysAgo);
-    const prevPeriodOrders = orders.filter(order => {
-      const orderDate = new Date(order.createdAt);
-      return orderDate >= prevStartDate && orderDate < startDate;
-    });
-    const prevPeriodRevenue = prevPeriodOrders.reduce((sum, order) => sum + (order.total || 0), 0);
-    
+      // Period realized revenue
+      prisma.order.aggregate({
+        where: {
+          status: { in: REALIZED_STATUSES },
+          createdAt: { gte: startDate, lte: endDate },
+        },
+        _sum: { total: true },
+        _count: true,
+      }),
+
+      // Previous period realized revenue for growth %
+      prisma.order.aggregate({
+        where: {
+          status: { in: REALIZED_STATUSES },
+          createdAt: { gte: prevStartDate, lt: startDate },
+        },
+        _sum: { total: true },
+        _count: true,
+      }),
+
+      // Total orders count
+      prisma.order.count(),
+
+      // Period orders count
+      prisma.order.count({
+        where: {
+          createdAt: { gte: startDate, lte: endDate },
+        },
+      }),
+
+      // Previous period orders count
+      prisma.order.count({
+        where: {
+          createdAt: { gte: prevStartDate, lt: startDate },
+        },
+      }),
+
+      // Total users count
+      prisma.user.count(),
+
+      // Period users
+      prisma.user.count({
+        where: {
+          createdAt: { gte: startDate, lte: endDate },
+        },
+      }),
+
+      // Prev period users
+      prisma.user.count({
+        where: {
+          createdAt: { gte: prevStartDate, lt: startDate },
+        },
+      }),
+
+      // Total products count
+      prisma.product.count(),
+
+      // Period products
+      prisma.product.count({
+        where: {
+          createdAt: { gte: startDate, lte: endDate },
+        },
+      }),
+
+      // Prev period products
+      prisma.product.count({
+        where: {
+          createdAt: { gte: prevStartDate, lt: startDate },
+        },
+      }),
+
+      // Recent 10 orders
+      prisma.order.findMany({
+        take: 10,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
+      }),
+
+      // Pending B2B verification count
+      prisma.user.count({
+        where: {
+          userType: 'WHOLESALE',
+          isVerified: false,
+        },
+      }),
+
+      // Pending B2B applications
+      prisma.user.findMany({
+        where: {
+          userType: 'WHOLESALE',
+          isVerified: false,
+        },
+        select: {
+          id: true,
+          companyName: true,
+          createdAt: true,
+          userType: true,
+        },
+        take: 5,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+
+      // Order status distribution
+      prisma.order.groupBy({
+        by: ['status'],
+        _count: {
+          status: true,
+        },
+      }),
+    ]);
+
+    const totalRevenue = totalRevenueAgg?._sum?.total ?? 0;
+    const periodRevenue = periodRevenueAgg?._sum?.total ?? 0;
+    const prevPeriodRevenue = prevPeriodRevenueAgg?._sum?.total ?? 0;
+
     const revenueChangeNum = prevPeriodRevenue > 0
-      ? (periodRevenue - prevPeriodRevenue) / prevPeriodRevenue * 100
+      ? ((periodRevenue - prevPeriodRevenue) / prevPeriodRevenue) * 100
       : 0;
     const revenueChange = revenueChangeNum.toFixed(1);
 
-    // Get total orders count
-    const totalOrders = await prisma.order.count();
-    const periodOrdersCount = periodOrders.length;
-    const prevPeriodOrdersCount = prevPeriodOrders.length;
     const ordersChangeNum = prevPeriodOrdersCount > 0
-      ? (periodOrdersCount - prevPeriodOrdersCount) / prevPeriodOrdersCount * 100
+      ? ((periodOrdersCount - prevPeriodOrdersCount) / prevPeriodOrdersCount) * 100
       : 0;
     const ordersChange = ordersChangeNum.toFixed(1);
 
-    // Get total users count
-    const totalUsers = await prisma.user.count();
-    const periodUsers = await prisma.user.count({
-      where: {
-        createdAt: {
-          gte: startDate,
-        },
-      },
-    });
-    const prevPeriodUsers = await prisma.user.count({
-      where: {
-        createdAt: {
-          gte: prevStartDate,
-          lt: startDate,
-        },
-      },
-    });
     const usersChangeNum = prevPeriodUsers > 0
-      ? (periodUsers - prevPeriodUsers) / prevPeriodUsers * 100
+      ? ((periodUsers - prevPeriodUsers) / prevPeriodUsers) * 100
       : 0;
     const usersChange = usersChangeNum.toFixed(1);
 
-    // Get total products count
-    const totalProducts = await prisma.product.count();
-    const periodProducts = await prisma.product.count({
-      where: {
-        createdAt: {
-          gte: startDate,
-        },
-      },
-    });
-    const prevPeriodProducts = await prisma.product.count({
-      where: {
-        createdAt: {
-          gte: prevStartDate,
-          lt: startDate,
-        },
-      },
-    });
     const productsChange = prevPeriodProducts > 0
-      ? `${((periodProducts - prevPeriodProducts) / prevPeriodProducts * 100).toFixed(0)}%`
+      ? `${(((periodProducts - prevPeriodProducts) / prevPeriodProducts) * 100).toFixed(0)}%`
       : `+${periodProducts}`;
-
-    // Get recent orders
-    const recentOrders = await prisma.order.findMany({
-      take: 10,
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    // Get pending verification count
-    const pendingVerifications = await prisma.user.count({
-      where: {
-        userType: 'WHOLESALE',
-        isVerified: false,
-      },
-    });
-
-    // Get pending B2B applications (users who need verification)
-    const pendingApplications = await prisma.user.findMany({
-      where: {
-        userType: 'WHOLESALE',
-        isVerified: false,
-      },
-      select: {
-        id: true,
-        companyName: true,
-        createdAt: true,
-        userType: true,
-      },
-      take: 5,
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    // Get order status distribution
-    const ordersByStatus = await prisma.order.groupBy({
-      by: ['status'],
-      _count: {
-        status: true,
-      },
-    });
 
     return NextResponse.json({
       success: true,
@@ -164,7 +216,7 @@ export async function GET(request: NextRequest) {
         stats: [
           {
             title: 'Total Revenue',
-            value: `৳${totalRevenue.toLocaleString()}`,
+            value: `৳${Math.round(totalRevenue).toLocaleString()}`,
             change: `${revenueChangeNum >= 0 ? '+' : ''}${revenueChange}%`,
             icon: '💰',
             color: 'blue',
@@ -191,14 +243,14 @@ export async function GET(request: NextRequest) {
             color: 'orange',
           },
         ],
-        recentOrders: recentOrders.map(order => ({
+        recentOrders: recentOrders.map((order) => ({
           id: order.id,
           customer: order.user?.name || 'Guest',
           amount: order.total,
           status: order.status,
           date: order.createdAt.toISOString().split('T')[0],
         })),
-        pendingVerifications: pendingApplications.map(user => ({
+        pendingVerifications: pendingApplications.map((user) => ({
           id: user.id,
           company: user.companyName || 'N/A',
           submitted: user.createdAt.toISOString().split('T')[0],

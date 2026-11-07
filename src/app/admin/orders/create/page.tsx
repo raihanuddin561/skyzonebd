@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ProtectedRoute from '@/app/components/ProtectedRoute';
-import Header from '@/app/components/Header';
 import { api } from '@/utils/apiClient';
 
 interface Product {
@@ -283,7 +282,6 @@ function CreateOrderPage() {
   return (
     <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
       <main className="min-h-screen bg-gray-50">
-        <Header />
         <ToastContainer />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
